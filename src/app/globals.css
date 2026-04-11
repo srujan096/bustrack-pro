@@ -558,4 +558,272 @@ body,
     background: white !important;
     backdrop-filter: none !important;
   }
+  .mesh-gradient, .dot-pattern { display: none !important; }
+  .transit-card::before, .gradient-border::before { display: none !important; }
 }
+
+/* ============================================================
+   Number Ticker Animation (for stat counters)
+   ============================================================ */
+@keyframes numberTick {
+  0% { opacity: 0; transform: translateY(4px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.animate-number-tick {
+  animation: numberTick 0.3s ease-out forwards;
+}
+
+/* ============================================================
+   Ripple Effect on Click
+   ============================================================ */
+@keyframes rippleExpand {
+  0% { transform: scale(0); opacity: 0.5; }
+  100% { transform: scale(4); opacity: 0; }
+}
+.ripple-effect {
+  position: relative;
+  overflow: hidden;
+}
+.ripple-effect::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: oklch(0.55 0.2 260 / 25%);
+  transform: translate(-50%, -50%) scale(0);
+  opacity: 0;
+  pointer-events: none;
+  transition: none;
+}
+.ripple-effect:active::after {
+  animation: rippleExpand 0.5s ease-out;
+}
+
+/* ============================================================
+   Card Hover Lift with Glow
+   ============================================================ */
+.card-lift {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-lift:hover {
+  transform: translateY(-4px) scale(1.005);
+  box-shadow: 0 12px 40px -8px oklch(0.55 0.2 260 / 15%),
+              0 4px 12px -6px oklch(0.55 0.2 260 / 8%);
+}
+
+/* ============================================================
+   Gradient Text
+   ============================================================ */
+.gradient-text {
+  background: linear-gradient(135deg, oklch(0.55 0.2 260), oklch(0.65 0.17 163));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.gradient-text-warm {
+  background: linear-gradient(135deg, oklch(0.75 0.15 85), oklch(0.6 0.2 10));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ============================================================
+   Animated Underline Link
+   ============================================================ */
+.animated-underline {
+  position: relative;
+  display: inline-block;
+}
+.animated-underline::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(90deg, oklch(0.55 0.2 260), oklch(0.65 0.17 163));
+  transition: width 0.3s ease;
+  border-radius: 1px;
+}
+.animated-underline:hover::after {
+  width: 100%;
+}
+
+/* ============================================================
+   Focus Ring Transition
+   ============================================================ */
+.focus-ring {
+  transition: box-shadow 0.2s ease, outline-color 0.2s ease;
+}
+*:focus-visible {
+  outline: 2px solid oklch(0.55 0.2 260);
+  outline-offset: 2px;
+  border-radius: calc(var(--radius) - 2px);
+}
+
+/* ============================================================
+   Tag / Chip Styles
+   ============================================================ */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.tag:hover {
+  border-color: oklch(0.55 0.2 260);
+  box-shadow: 0 0 0 3px oklch(0.55 0.2 260 / 10%);
+}
+.tag-emerald { border-color: oklch(0.65 0.17 163 / 40%); color: oklch(0.25 0.06 180); }
+.tag-amber { border-color: oklch(0.75 0.15 85 / 40%); color: oklch(0.25 0.06 85); }
+.tag-rose { border-color: oklch(0.6 0.2 10 / 40%); color: oklch(0.25 0.06 10); }
+.tag-sky { border-color: oklch(0.7 0.15 200 / 40%); color: oklch(0.25 0.15 200); }
+
+/* ============================================================
+   Subtle Noise Texture Overlay
+   ============================================================ */
+.noise-texture {
+  position: relative;
+}
+.noise-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 256px 256px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ============================================================
+   Scrollable Area with Smooth Momentum
+   ============================================================ */
+.scroll-smooth {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+.scroll-area-fade {
+  mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 80%, transparent 100%);
+}
+
+/* ============================================================
+   Glow Effects
+   ============================================================ */
+.glow-blue {
+  box-shadow: 0 0 20px oklch(0.55 0.2 260 / 20%), 0 0 40px oklch(0.55 0.2 260 / 8%);
+}
+.glow-emerald {
+  box-shadow: 0 0 20px oklch(0.65 0.17 163 / 20%), 0 0 40px oklch(0.65 0.17 163 / 8%);
+}
+.glow-amber {
+  box-shadow: 0 0 20px oklch(0.75 0.15 85 / 20%), 0 0 40px oklch(0.75 0.15 85 / 8%);
+}
+
+/* ============================================================
+   Marquee / Ticker
+   ============================================================ */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.animate-marquee {
+  animation: marquee 30s linear infinite;
+}
+
+/* ============================================================
+   Pulse Dot Indicator
+   ============================================================ */
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+.pulse-dot {
+  animation: pulseDot 2s ease-in-out infinite;
+}
+
+/* ============================================================
+   Card Shine Sweep (Premium hover)
+   ============================================================ */
+.card-shine {
+  position: relative;
+  overflow: hidden;
+}
+.card-shine::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    to bottom right,
+    transparent 40%,
+    rgba(255, 255, 255, 0.08) 45%,
+    transparent 60%
+  );
+  transform: rotate(30deg);
+  transition: transform 0.5s ease;
+  pointer-events: none;
+  z-index: 1;
+}
+.card-shine:hover::before {
+  transform: rotate(30deg) translateY(30%);
+}
+
+/* ============================================================
+   Flip Card (for info tiles)
+   ============================================================ */
+.flip-card {
+  perspective: 1000px;
+}
+.flip-card-inner {
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip-card:hover .flip-card-inner {
+  transform: rotateY(5deg);
+}
+
+/* ============================================================
+   Typing Cursor Blink
+   ============================================================ */
+@keyframes cursorBlink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+.typing-cursor::after {
+  content: '|';
+  animation: cursorBlink 1s step-end infinite;
+  font-weight: 200;
+  color: oklch(0.55 0.2 260);
+}
+
+/* ============================================================
+   Success/Error State Flash
+   ============================================================ */
+@keyframes successFlash {
+  0% { background-color: oklch(0.97 0.005 260); }
+  50% { background-color: oklch(0.92 0.03 163); }
+  100% { background-color: oklch(0.97 0.005 260); }
+}
+.animate-success-flash { animation: successFlash 0.8s ease; }
+
+@keyframes errorShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+.animate-error-shake { animation: errorShake 0.5s ease; }
