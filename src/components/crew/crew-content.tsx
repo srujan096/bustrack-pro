@@ -76,6 +76,10 @@ import {
   ArrowDown,
   Coffee,
   AlertTriangle,
+  Download,
+  Trash2,
+  IndianRupee,
+  ArrowUpDown,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -593,6 +597,165 @@ function ShiftTimer() {
   );
 }
 
+// ──────────────────────────── New Feature: Break Management Timer ────────────────────────────
+
+function BreakTimer() {
+  const [breakState, setBreakState] = useState<'idle' | 'on_break' | 'ended'>('idle');
+  const [breakType, setBreakType] = useState<'tea' | 'lunch'>('tea');
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
+  const [breaksTaken, setBreaksTaken] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const breakDurations = { tea: 15 * 60, lunch: 30 * 60 };
+
+  useEffect(() => {
+    if (breakState === 'on_break') {
+      intervalRef.current = setInterval(() => {
+        setRemainingSeconds((prev) => {
+          if (prev <= 1) {
+            setBreakState('ended');
+            setBreaksTaken((b) => b + 1);
+            toast({ title: 'Break Over!', description: 'Break over! Time to get back to work.' });
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [breakState]);
+
+  const handleStart = (type: 'tea' | 'lunch') => {
+    setBreakType(type);
+    setRemainingSeconds(breakDurations[type]);
+    setBreakState('on_break');
+    toast({ title: `${type === 'tea' ? 'Tea' : 'Lunch'} Break Started`, description: `Your ${type === 'tea' ? '15' : '30'}-minute break has begun.` });
+  };
+
+  const handleEndEarly = () => {
+    setBreakState('ended');
+    setBreaksTaken((b) => b + 1);
+    toast({ title: 'Break Ended', description: 'Break ended early. Back to work!' });
+  };
+
+  const handleReset = () => {
+    setBreakState('idle');
+    setRemainingSeconds(0);
+  };
+
+  const formatTime = (s: number) => {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const totalSeconds = breakDurations[breakType];
+  const progressPct = totalSeconds > 0 ? Math.max((remainingSeconds / totalSeconds) * 100, 0) : 0;
+  const size = 80;
+  const center = size / 2;
+  const radius = 32;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (progressPct / 100) * circumference;
+
+  const strokeColor = breakState === 'ended' ? '#ef4444'
+    : breakState === 'on_break' ? '#10b981'
+    : breakType === 'tea' ? '#f59e0b' : '#0ea5e9';
+  const bgColor = breakState === 'ended' ? '#fee2e2'
+    : breakState === 'on_break' ? '#d1fae5'
+    : breakType === 'tea' ? '#fef3c7' : '#e0f2fe';
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Coffee className="h-5 w-5 text-gray-500" />
+            Break Timer
+          </CardTitle>
+          <span className="text-xs text-gray-400">Breaks today: {breaksTaken}/3</span>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center gap-3">
+          {breakState === 'idle' ? (
+            <>
+              <p className="text-sm text-gray-500">Choose your break type</p>
+              <div className="flex gap-2 w-full">
+                <Button
+                  size="sm"
+                  className="flex-1 gap-1.5 bg-amber-500 text-white hover:bg-amber-600 h-9"
+                  onClick={() => handleStart('tea')}
+                  disabled={breaksTaken >= 3}
+                >
+                  <Coffee className="h-3.5 w-3.5" />
+                  Tea (15m)
+                </Button>
+                <Button
+                  size="sm"
+                  className="flex-1 gap-1.5 bg-sky-500 text-white hover:bg-sky-600 h-9"
+                  onClick={() => handleStart('lunch')}
+                  disabled={breaksTaken >= 3}
+                >
+                  <Timer className="h-3.5 w-3.5" />
+                  Lunch (30m)
+                </Button>
+              </div>
+              {breaksTaken >= 3 && (
+                <p className="text-xs text-red-500 font-medium">Max breaks reached for today</p>
+              )}
+            </>
+          ) : (
+            <>
+              <div className="relative">
+                <svg width={size} height={size} className="-rotate-90">
+                  <circle cx={center} cy={center} r={radius} fill="none" strokeWidth="6" stroke={bgColor} />
+                  <circle
+                    cx={center} cy={center} r={radius} fill="none" strokeWidth="6"
+                    strokeLinecap="round" stroke={strokeColor}
+                    strokeDasharray={circumference} strokeDashoffset={offset}
+                    style={{ transition: 'stroke-dashoffset 1s ease, stroke 0.5s ease' }}
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-lg font-bold text-gray-900 font-mono tabular-nums">{formatTime(remainingSeconds)}</span>
+                  <span className="text-[8px] text-gray-400 uppercase">
+                    {breakType === 'tea' ? 'Tea' : 'Lunch'}
+                  </span>
+                </div>
+              </div>
+              <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+                breakState === 'on_break' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-700'
+              }`}>
+                {breakState === 'on_break' ? (
+                  <><Zap className="h-3 w-3" /> On Break</>
+                ) : (
+                  <><AlertCircle className="h-3 w-3" /> Break Over</>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {breakState === 'on_break' && (
+                  <Button size="sm" variant="outline" className="gap-1 border-red-300 text-red-600 hover:bg-red-50 h-8 px-3" onClick={handleEndEarly}>
+                    <Square className="h-3 w-3" />
+                    End Early
+                  </Button>
+                )}
+                {breakState === 'ended' && (
+                  <Button size="sm" className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700 h-8 px-3" onClick={handleReset}>
+                    <Play className="h-3 w-3" />
+                    New Break
+                  </Button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ──────────────────────────── New Feature: Route Performance ────────────────────────────
 
 function RoutePerformance({ crewName }: { crewName: string }) {
@@ -913,6 +1076,117 @@ function EarningsTracker({ crewName }: { crewName: string }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ──────────────────────────── New Feature: Overtime & Pay Calculator ────────────────────────────
+
+function OvertimePayCalculator({ crewName }: { crewName: string }) {
+  const [selectedMonth, setSelectedMonth] = useState<'current' | 'previous'>('current');
+
+  const basePay = 25000;
+  const otRate = 150;
+
+  const thisWeekOT = getSeededValue(crewName + 'otw' + getTodayStr(), 2, 12);
+  const monthKey = selectedMonth === 'current' ? 'cur' : 'prev';
+  const thisMonthOT = getSeededValue(crewName + 'otm' + monthKey, 15, 45);
+  const nightAllowance = getSeededValue(crewName + 'night' + monthKey, 1500, 3500);
+  const perfBonus = getSeededValue(crewName + 'bonus' + monthKey, 500, 2500);
+  const deductions = getSeededValue(crewName + 'ded' + monthKey, 800, 2000);
+
+  const otPay = thisMonthOT * otRate;
+  const total = basePay + otPay + nightAllowance + perfBonus - deductions;
+
+  const monthLabel = selectedMonth === 'current'
+    ? new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Flame className="h-5 w-5 text-amber-500" />
+              Overtime &amp; Pay
+            </CardTitle>
+            <CardDescription>Detailed pay breakdown and overtime summary</CardDescription>
+          </div>
+          <div className="flex gap-0.5 rounded-lg border border-gray-200 p-0.5">
+            <button
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'current' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              onClick={() => setSelectedMonth('current')}
+            >
+              This Month
+            </button>
+            <button
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'previous' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              onClick={() => setSelectedMonth('previous')}
+            >
+              Previous
+            </button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Summary Cards */}
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className={`rounded-xl border p-3 ${thisWeekOT > 8 ? 'bg-gradient-to-br from-red-50 to-white border-red-100' : 'bg-gradient-to-br from-amber-50 to-white border-amber-100'}`}>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Flame className={`h-3.5 w-3.5 ${thisWeekOT > 8 ? 'text-red-500' : 'text-amber-500'}`} />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">This Week</span>
+            </div>
+            <p className={`text-xl font-bold ${thisWeekOT > 8 ? 'text-red-600' : 'text-amber-600'}`}>{thisWeekOT}h</p>
+            <p className="text-[10px] text-gray-400">overtime</p>
+          </div>
+          <div className="rounded-xl border p-3 bg-gradient-to-br from-violet-50 to-white border-violet-100">
+            <div className="flex items-center gap-1.5 mb-1">
+              <CalendarIcon className="h-3.5 w-3.5 text-violet-500" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">This Month</span>
+            </div>
+            <p className="text-xl font-bold text-violet-600">{thisMonthOT}h</p>
+            <p className="text-[10px] text-gray-400">overtime</p>
+          </div>
+          <div className="rounded-xl border p-3 bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+            <div className="flex items-center gap-1.5 mb-1">
+              <IndianRupee className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">Est. OT Pay</span>
+            </div>
+            <p className="text-xl font-bold text-emerald-600">₹{otPay.toLocaleString('en-IN')}</p>
+            <p className="text-[10px] text-gray-400">@ ₹{otRate}/hr</p>
+          </div>
+        </div>
+
+        {/* Pay Breakdown Table */}
+        <div className="rounded-lg border border-gray-100 overflow-hidden">
+          <div className="bg-gray-50 px-4 py-2">
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{monthLabel}</p>
+          </div>
+          <div className="divide-y divide-gray-50">
+            {[
+              { label: 'Base Pay', value: basePay, color: 'text-gray-900' },
+              { label: `Overtime (${thisMonthOT}h × ₹${otRate}/hr)`, value: otPay, color: 'text-gray-900' },
+              { label: 'Night Allowance', value: nightAllowance, color: 'text-gray-900' },
+              { label: 'Performance Bonus', value: perfBonus, color: 'text-emerald-600' },
+              { label: 'Deductions', value: -deductions, color: 'text-red-600' },
+            ].map((row) => (
+              <div key={row.label} className="flex items-center justify-between px-4 py-2.5">
+                <span className="text-sm text-gray-600">{row.label}</span>
+                <span className={`text-sm font-semibold ${row.color}`}>
+                  {row.value < 0 ? '-' : ''}₹{Math.abs(row.value).toLocaleString('en-IN')}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50">
+              <span className="text-sm font-bold text-gray-900">Total</span>
+              <span className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                ₹{total.toLocaleString('en-IN')}
+              </span>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2058,6 +2332,9 @@ function DashboardPage({
         <ShiftTimer />
       </div>
 
+      {/* Break Timer */}
+      <BreakTimer />
+
       {/* Route Performance */}
       {crewProfile && (
         <RoutePerformance crewName={crewProfile.profile?.name || ''} />
@@ -3051,6 +3328,367 @@ function LeaveRequestsPage({
   );
 }
 
+// ──────────────────────────── Fuel Log Page ────────────────────────────
+
+interface FuelEntry {
+  id: string;
+  date: string;
+  odometer: number;
+  liters: number;
+  costPerLiter: number;
+  station: string;
+  fuelType: string;
+  notes: string;
+}
+
+function FuelLogPage({ crewName }: { crewName: string }) {
+  const [entries, setEntries] = useState<FuelEntry[]>(() => {
+    const now = new Date();
+    const seed = simpleHash(crewName);
+    const stations = ['HP Petrol Bunk, Indiranagar', 'Indian Oil, Silk Board', 'BPCL, Koramangala', 'Shell, Whitefield', 'IOC, Hebbal', 'HPCL, Electronic City', 'BP, Marathahalli'];
+    const fuelTypes = ['Diesel', 'CNG', 'Electric'];
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(now);
+      d.setDate(d.getDate() - (i * 3 + (seed % 2)));
+      const odo = 45000 + i * 350 + (seed % 100);
+      const lit = 30 + ((seed + i * 7) % 30);
+      const fType = fuelTypes[(seed + i) % 3];
+      const cpl = fType === 'Diesel' ? 80 + ((seed + i * 3) % 10) : fType === 'CNG' ? 55 + ((seed + i * 3) % 5) : 15 + ((seed + i * 3) % 3);
+      return {
+        id: `fuel-${crewName}-${i}`,
+        date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
+        odometer: odo,
+        liters: lit,
+        costPerLiter: parseFloat(cpl.toFixed(2)),
+        station: stations[(seed + i) % stations.length],
+        fuelType: fType,
+        notes: i % 3 === 0 ? 'Regular refuel' : i % 3 === 1 ? 'After long trip' : '',
+      };
+    });
+  });
+
+  const [formDate, setFormDate] = useState(getTodayStr());
+  const [formOdometer, setFormOdometer] = useState('');
+  const [formLiters, setFormLiters] = useState('');
+  const [formCostPerLiter, setFormCostPerLiter] = useState('');
+  const [formStation, setFormStation] = useState('');
+  const [formFuelType, setFormFuelType] = useState('Diesel');
+  const [formNotes, setFormNotes] = useState('');
+  const [sortField, setSortField] = useState<keyof FuelEntry>('date');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [showForm, setShowForm] = useState(false);
+
+  const now = new Date();
+  const thisMonth = now.getMonth();
+  const thisYear = now.getFullYear();
+  const thisMonthEntries = entries.filter((e) => {
+    const d = new Date(e.date + 'T00:00:00');
+    return d.getMonth() === thisMonth && d.getFullYear() === thisYear;
+  });
+  const lastMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  const lastMonth = lastMonthDate.getMonth();
+  const lastMonthYear = lastMonthDate.getFullYear();
+  const lastMonthEntries = entries.filter((e) => {
+    const d = new Date(e.date + 'T00:00:00');
+    return d.getMonth() === lastMonth && d.getFullYear() === lastMonthYear;
+  });
+
+  const totalCostThisMonth = thisMonthEntries.reduce((s, e) => s + e.liters * e.costPerLiter, 0);
+  const totalCostLastMonth = lastMonthEntries.reduce((s, e) => s + e.liters * e.costPerLiter, 0);
+
+  const sortedByOdo = [...entries].sort((a, b) => a.odometer - b.odometer);
+  const efficiencies: number[] = [];
+  for (let i = 1; i < sortedByOdo.length; i++) {
+    const dist = sortedByOdo[i].odometer - sortedByOdo[i - 1].odometer;
+    const eff = dist > 0 && sortedByOdo[i].liters > 0 ? dist / sortedByOdo[i].liters : 0;
+    if (eff > 0) efficiencies.push(eff);
+  }
+  const avgEfficiency = efficiencies.length > 0 ? efficiencies.reduce((s, e) => s + e, 0) / efficiencies.length : 0;
+  const totalDistance = entries.length > 0 ? Math.max(...entries.map((e) => e.odometer)) - Math.min(...entries.map((e) => e.odometer)) : 0;
+  const monthlyComparison = totalCostLastMonth > 0 ? ((totalCostThisMonth - totalCostLastMonth) / totalCostLastMonth) * 100 : 0;
+
+  const sorted = [...entries].sort((a, b) => {
+    const aVal = a[sortField];
+    const bVal = b[sortField];
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+    }
+    return sortDir === 'asc' ? String(aVal).localeCompare(String(bVal)) : String(bVal).localeCompare(String(aVal));
+  });
+
+  const trendVals: { date: string; eff: number }[] = [];
+  for (let i = 1; i < sortedByOdo.length; i++) {
+    const dist = sortedByOdo[i].odometer - sortedByOdo[i - 1].odometer;
+    const eff = dist > 0 && sortedByOdo[i].liters > 0 ? parseFloat((dist / sortedByOdo[i].liters).toFixed(1)) : null;
+    if (eff !== null) trendVals.push({ date: sortedByOdo[i].date, eff });
+  }
+  const last10 = trendVals.slice(-10);
+
+  const handleAddEntry = () => {
+    const odo = parseFloat(formOdometer);
+    const lit = parseFloat(formLiters);
+    const cpl = parseFloat(formCostPerLiter);
+    if (!formDate || isNaN(odo) || isNaN(lit) || isNaN(cpl) || !formStation) {
+      toast({ title: 'Validation Error', description: 'Please fill in all required fields.', variant: 'destructive' });
+      return;
+    }
+    const newEntry: FuelEntry = {
+      id: `fuel-${Date.now()}`,
+      date: formDate, odometer: odo, liters: lit, costPerLiter: cpl,
+      station: formStation, fuelType: formFuelType, notes: formNotes,
+    };
+    setEntries((prev) => [newEntry, ...prev]);
+    setShowForm(false);
+    setFormOdometer(''); setFormLiters(''); setFormCostPerLiter('');
+    setFormStation(''); setFormFuelType('Diesel'); setFormNotes('');
+    toast({ title: 'Fuel Entry Added', description: `${lit}L ${formFuelType} logged successfully.` });
+  };
+
+  const handleDeleteEntry = (id: string) => {
+    setEntries((prev) => prev.filter((e) => e.id !== id));
+    toast({ title: 'Entry Deleted', description: 'Fuel entry has been removed.' });
+  };
+
+  const handleExportCSV = () => {
+    const headers = ['Date', 'Odometer', 'Liters', 'Cost/Liter', 'Total Cost', 'Station', 'Fuel Type', 'Notes'];
+    const rows = sorted.map((e) => [e.date, e.odometer, e.liters, e.costPerLiter, (e.liters * e.costPerLiter).toFixed(2), e.station, e.fuelType, e.notes]);
+    const csv = [headers.join(','), ...rows.map((r) => r.map((v) => `"${v}"`).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = `fuel-log-${getTodayStr()}.csv`; a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Report Downloaded', description: 'Fuel log CSV has been downloaded.' });
+  };
+
+  const handleSort = (field: keyof FuelEntry) => {
+    if (sortField === field) { setSortDir((p) => (p === 'asc' ? 'desc' : 'asc')); } else { setSortField(field); setSortDir('asc'); }
+  };
+
+  const chartW = 500; const chartH = 160;
+  const padL = 50; const padR = 20; const padT = 20; const padB = 30;
+  const plotW = chartW - padL - padR; const plotH = chartH - padT - padB;
+  const vals = last10.map((d) => d.eff);
+  const minEff = vals.length > 0 ? Math.min(...vals) * 0.9 : 0;
+  const maxEff = vals.length > 0 ? Math.max(...vals) * 1.1 : 10;
+  const getEffX = (i: number) => vals.length > 1 ? padL + (i / (vals.length - 1)) * plotW : padL + plotW / 2;
+  const getEffY = (v: number) => padT + plotH - ((v - minEff) / (maxEff - minEff || 1)) * plotH;
+  const effLinePath = vals.map((v, i) => `${i === 0 ? 'M' : 'L'} ${getEffX(i)} ${getEffY(v)}`).join(' ');
+  const effAreaPath = vals.length > 1 ? effLinePath + ` L ${getEffX(vals.length - 1)} ${padT + plotH} L ${padL} ${padT + plotH} Z` : '';
+  const gridVals = [minEff, minEff + (maxEff - minEff) * 0.33, minEff + (maxEff - minEff) * 0.66, maxEff];
+
+  const SortIcon = ({ field }: { field: keyof FuelEntry }) => (
+    <ArrowUpDown className={`h-3 w-3 inline ml-0.5 ${sortField === field ? 'text-emerald-600' : 'text-gray-300'}`} />
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div>
+          <h2 className="text-2xl font-bold text-gray-900">Fuel Log</h2>
+          <p className="text-sm text-gray-500">Track your fuel consumption and efficiency</p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" className="gap-1.5 h-9" onClick={() => setShowForm(!showForm)}>
+            {showForm ? <X className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+            {showForm ? 'Cancel' : 'Add Entry'}
+          </Button>
+          <Button variant="outline" className="gap-1.5 h-9" onClick={handleExportCSV}>
+            <Download className="h-4 w-4" />
+            Download Report
+          </Button>
+        </div>
+      </div>
+
+      {/* Add Entry Form */}
+      {showForm && (
+        <Card className="rounded-xl shadow-sm bg-white border-emerald-100">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Plus className="h-5 w-5 text-emerald-600" />
+              Add Fuel Entry
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Date *</Label>
+                <Input type="date" value={formDate} onChange={(e) => setFormDate(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Odometer (km) *</Label>
+                <Input type="number" placeholder="e.g., 45200" value={formOdometer} onChange={(e) => setFormOdometer(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Fuel Filled (L) *</Label>
+                <Input type="number" placeholder="e.g., 40" value={formLiters} onChange={(e) => setFormLiters(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Cost per Liter (₹) *</Label>
+                <Input type="number" step="0.01" placeholder="e.g., 85.50" value={formCostPerLiter} onChange={(e) => setFormCostPerLiter(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Fuel Station *</Label>
+                <Input placeholder="e.g., HP Petrol Bunk" value={formStation} onChange={(e) => setFormStation(e.target.value)} className="h-9" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Fuel Type</Label>
+                <Select value={formFuelType} onValueChange={setFormFuelType}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Diesel">Diesel</SelectItem>
+                    <SelectItem value="CNG">CNG</SelectItem>
+                    <SelectItem value="Electric">Electric</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+                <Label className="text-xs font-medium">Notes</Label>
+                <Textarea placeholder="Optional notes..." value={formNotes} onChange={(e) => setFormNotes(e.target.value)} className="h-16 resize-none" />
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <Button className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 h-9" onClick={handleAddEntry}>
+                <Plus className="h-4 w-4" />
+                Add Entry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: 'Fuel Cost (Month)', value: `₹${totalCostThisMonth.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`, icon: DollarSign, color: 'emerald' },
+          { label: 'Avg Efficiency', value: `${avgEfficiency.toFixed(1)} km/L`, icon: TrendingUp, color: 'sky' },
+          { label: 'Total Distance', value: `${totalDistance.toLocaleString()} km`, icon: Navigation, color: 'amber' },
+          { label: 'Monthly Change', value: `${monthlyComparison >= 0 ? '+' : ''}${monthlyComparison.toFixed(1)}%`, icon: monthlyComparison >= 0 ? ArrowUp : ArrowDown, color: monthlyComparison >= 0 ? 'red' : 'emerald' },
+        ].map((c) => {
+          const Icon = c.icon;
+          return (
+            <div key={c.label} className={`rounded-xl border p-3 bg-gradient-to-br from-${c.color}-50 to-white border-${c.color}-100`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
+              </div>
+              <p className={`text-lg font-bold ${c.color === 'red' ? 'text-red-600' : 'text-gray-900'}`}>{c.value}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Efficiency Trend Chart */}
+      {vals.length > 1 && (
+        <Card className="rounded-xl shadow-sm bg-white">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-emerald-600" />
+              Efficiency Trend (km/L)
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full">
+              <defs>
+                <linearGradient id="effGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#0ea5e9" stopOpacity="0.3" />
+                  <stop offset="100%" stopColor="#0ea5e9" stopOpacity="0.02" />
+                </linearGradient>
+              </defs>
+              {gridVals.map((v, i) => (
+                <g key={i}>
+                  <line x1={padL} y1={getEffY(v)} x2={chartW - padR} y2={getEffY(v)} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="4 4" />
+                  <text x={padL - 5} y={getEffY(v) + 3} textAnchor="end" className="fill-gray-400 text-[9px]">{v.toFixed(1)}</text>
+                </g>
+              ))}
+              {effAreaPath && <path d={effAreaPath} fill="url(#effGrad)" />}
+              <path d={effLinePath} fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+              {vals.map((v, i) => (
+                <g key={i}>
+                  <circle cx={getEffX(i)} cy={getEffY(v)} r="4" fill="white" stroke="#0ea5e9" strokeWidth="2" />
+                  <text x={getEffX(i)} y={getEffY(v) - 10} textAnchor="middle" className="fill-gray-600 text-[9px] font-semibold">{v.toFixed(1)}</text>
+                </g>
+              ))}
+            </svg>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Fuel Log Table */}
+      <Card className="rounded-xl shadow-sm bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Fuel className="h-5 w-5 text-gray-500" />
+            Fuel Entries ({entries.length})
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  {[
+                    { field: 'date' as const, label: 'Date' },
+                    { field: 'odometer' as const, label: 'Odometer' },
+                    { field: 'liters' as const, label: 'Liters' },
+                    { field: 'costPerLiter' as const, label: 'Cost/L' },
+                    { field: 'station' as const, label: 'Station' },
+                    { field: 'fuelType' as const, label: 'Type' },
+                  ].map((col) => (
+                    <TableHead key={col.field} className="cursor-pointer select-none text-xs" onClick={() => handleSort(col.field)}>
+                      <span className="flex items-center gap-0.5">{col.label}<SortIcon field={col.field} /></span>
+                    </TableHead>
+                  ))}
+                  <TableHead className="text-xs">Efficiency</TableHead>
+                  <TableHead className="text-xs w-10" />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sorted.map((entry) => {
+                  const sortedIdx = sortedByOdo.findIndex((e) => e.id === entry.id);
+                  let eff: number | null = null;
+                  if (sortedIdx > 0) {
+                    const dist = sortedByOdo[sortedIdx].odometer - sortedByOdo[sortedIdx - 1].odometer;
+                    eff = dist > 0 && entry.liters > 0 ? parseFloat((dist / entry.liters).toFixed(1)) : null;
+                  }
+                  const typeColor = entry.fuelType === 'Diesel' ? 'bg-amber-100 text-amber-700'
+                    : entry.fuelType === 'CNG' ? 'bg-sky-100 text-sky-700'
+                    : 'bg-emerald-100 text-emerald-700';
+                  return (
+                    <TableRow key={entry.id} className="transition-colors hover:shadow-[inset_3px_0_0_#10b981]">
+                      <TableCell className="text-xs py-2">{formatDateShort(entry.date)}</TableCell>
+                      <TableCell className="text-xs py-2 font-mono">{entry.odometer.toLocaleString()}</TableCell>
+                      <TableCell className="text-xs py-2 font-mono">{entry.liters.toFixed(1)}</TableCell>
+                      <TableCell className="text-xs py-2 font-mono">₹{entry.costPerLiter.toFixed(2)}</TableCell>
+                      <TableCell className="text-xs py-2 max-w-[120px] truncate">{entry.station}</TableCell>
+                      <TableCell className="text-xs py-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${typeColor}`}>{entry.fuelType}</span>
+                      </TableCell>
+                      <TableCell className="text-xs py-2 font-mono">{eff !== null ? `${eff} km/L` : '—'}</TableCell>
+                      <TableCell className="text-xs py-2">
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteEntry(entry.id)}>
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+          {entries.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-10 text-gray-400">
+              <Fuel className="h-8 w-8 mb-2" />
+              <p className="text-sm">No fuel entries yet</p>
+              <p className="text-xs mt-1">Click &quot;Add Entry&quot; to log your first fuel fill</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
 // ──────────────────────────── Profile Page ────────────────────────────
 
 function ProfilePage({
@@ -3276,6 +3914,9 @@ function ProfilePage({
 
       {/* Earnings Tracker */}
       <EarningsTracker crewName={crewProfile.profile?.name || ''} />
+
+      {/* Overtime & Pay Calculator */}
+      <OvertimePayCalculator crewName={crewProfile.profile?.name || ''} />
 
       {/* Performance History (Last 7 Days) */}
       <Card className="rounded-xl shadow-sm bg-white">
@@ -3614,6 +4255,11 @@ export default function CrewContent({ portal, userId, token }: Props) {
           loading={loading}
           onRefresh={refreshData}
         />
+      );
+
+    case 'fuelLog':
+      return (
+        <FuelLogPage crewName={crewProfile?.profile?.name || ''} />
       );
 
     default:

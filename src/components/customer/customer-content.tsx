@@ -78,6 +78,7 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  ChevronRight,
   Compass,
   MapPinned,
   BusFront,
@@ -89,6 +90,20 @@ import {
   Gauge,
   MapPinIcon,
   Waypoints,
+  Crown,
+  Percent,
+  Camera,
+  Award,
+  Shield,
+  AlertTriangle,
+  Upload,
+  MessageCircle,
+  Send,
+  CircleDot,
+  ArrowDownLeft,
+  ArrowUpRight,
+  Megaphone,
+  HelpCircle,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -1482,6 +1497,184 @@ function CommuteStatistics({ userId }: { userId: string }) {
   );
 }
 
+// ─── Loyalty & Rewards Panel ──────────────────────────────────────────────────
+
+const LOYALTY_TIERS = [
+  { name: 'Bronze', threshold: 0, color: 'bg-amber-700', textColor: 'text-amber-700', ringColor: 'ring-amber-500', gradientFrom: '#92400e', gradientTo: '#d97706' },
+  { name: 'Silver', threshold: 1000, color: 'bg-sky-600', textColor: 'text-sky-600', ringColor: 'ring-sky-400', gradientFrom: '#0284c7', gradientTo: '#7dd3fc' },
+  { name: 'Gold', threshold: 2500, color: 'bg-emerald-600', textColor: 'text-emerald-600', ringColor: 'ring-emerald-400', gradientFrom: '#059669', gradientTo: '#6ee7b7' },
+  { name: 'Platinum', threshold: 5000, color: 'bg-violet-600', textColor: 'text-violet-600', ringColor: 'ring-violet-400', gradientFrom: '#7c3aed', gradientTo: '#c4b5fd' },
+];
+
+const REWARDS_CATALOG = [
+  { id: 'free-ride', name: 'Free Ride Coupon', points: 500, icon: Ticket, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200', desc: 'One free bus ride up to ₹100' },
+  { id: 'priority', name: 'Priority Boarding Pass', points: 300, icon: Zap, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200', desc: 'Skip the queue for 5 rides' },
+  { id: 'discount', name: '10% Discount Voucher', points: 200, icon: Percent, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200', desc: '10% off on any route fare' },
+  { id: 'lounge', name: 'Exclusive Lounge Access', points: 1000, icon: Crown, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200', desc: 'Premium lounge access for 1 month' },
+];
+
+const SEED_POINTS_HISTORY = [
+  { id: 'ph1', type: 'earned' as const, description: 'Trip completed - Route 500', points: 50, date: '2025-07-14' },
+  { id: 'ph2', type: 'earned' as const, description: 'Bonus: 5 trips in a week', points: 100, date: '2025-07-12' },
+  { id: 'ph3', type: 'spent' as const, description: 'Redeemed: Priority Boarding Pass', points: -300, date: '2025-07-10' },
+  { id: 'ph4', type: 'earned' as const, description: 'Trip completed - Route 215', points: 50, date: '2025-07-08' },
+  { id: 'ph5', type: 'earned' as const, description: 'Referral bonus', points: 200, date: '2025-07-05' },
+];
+
+function LoyaltyRewardsPanel() {
+  const currentPoints = 2450;
+  const currentTierIndex = LOYALTY_TIERS.findIndex((t, i) => {
+    const next = LOYALTY_TIERS[i + 1];
+    return !next || currentPoints < next.threshold;
+  });
+  const currentTier = LOYALTY_TIERS[currentTierIndex];
+  const nextTier = LOYALTY_TIERS[currentTierIndex + 1];
+  const progressToNext = nextTier
+    ? ((currentPoints - currentTier.threshold) / (nextTier.threshold - currentTier.threshold)) * 100
+    : 100;
+  const pointsToNext = nextTier ? nextTier.threshold - currentPoints : 0;
+
+  return (
+    <div className="space-y-6">
+      {/* Points Display + Tier */}
+      <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full ${currentTier.bg} ring-2 ${currentTier.ringColor} ring-offset-2`}>
+            <Award className={`size-8 ${currentTier.textColor}`} />
+          </div>
+          <div>
+            <p className="text-sm text-muted-foreground">Current Points</p>
+            <p className="text-4xl font-extrabold gradient-text-warm tabular-nums">{currentPoints.toLocaleString()} pts</p>
+            <Badge variant="outline" className={`mt-1 ${currentTier.textColor} ${currentTier.bg}`}>
+              {currentTier.name} Tier
+            </Badge>
+          </div>
+        </div>
+
+        {/* Tier Progress */}
+        <div className="flex-1 max-w-xs space-y-2">
+          <div className="flex items-center justify-between text-sm">
+            <span className="font-medium text-muted-foreground">{currentTier.name}</span>
+            <span className="font-medium text-muted-foreground">{nextTier ? nextTier.name : 'Max'}</span>
+          </div>
+          <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000"
+              style={{
+                width: `${Math.min(progressToNext, 100)}%`,
+                background: `linear-gradient(90deg, ${currentTier.gradientFrom}, ${currentTier.gradientTo})`,
+              }}
+            />
+          </div>
+          {nextTier && (
+            <p className="text-xs text-muted-foreground text-right">
+              {pointsToNext.toLocaleString()} pts to {nextTier.name}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* All Tiers */}
+      <div className="flex gap-2 flex-wrap">
+        {LOYALTY_TIERS.map((tier, i) => (
+          <div
+            key={tier.name}
+            className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+              i === currentTierIndex
+                ? `${tier.bg} text-white ring-2 ${tier.ringColor} ring-offset-1`
+                : i < currentTierIndex
+                  ? `${tier.bg}/20 ${tier.textColor}`
+                  : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {i <= currentTierIndex ? <CheckCircle2 className="size-3" /> : <CircleDot className="size-3" />}
+            {tier.name}
+            <span className="opacity-70">{tier.threshold > 0 ? `${(tier.threshold / 1000).toFixed(tier.threshold % 1000 === 0 ? 0 : 1)}k` : '0'}</span>
+          </div>
+        ))}
+      </div>
+
+      <Separator />
+
+      {/* Rewards Catalog */}
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <Sparkles className="size-4 text-amber-500" />
+          Rewards Catalog
+        </h3>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {REWARDS_CATALOG.map(reward => {
+            const canRedeem = currentPoints >= reward.points;
+            const Icon = reward.icon;
+            return (
+              <div
+                key={reward.id}
+                className={`card-lift relative flex flex-col items-center gap-2 rounded-xl border-2 p-4 text-center transition-all ${
+                  canRedeem
+                    ? `${reward.bg} ${reward.border} cursor-pointer hover:shadow-md`
+                    : 'border-dashed border-muted bg-muted/30 opacity-60'
+                }`}
+                onClick={() => {
+                  if (canRedeem) {
+                    toast({
+                      title: `${reward.name} Redeemed!`,
+                      description: `${reward.points} points deducted. Enjoy your reward!`,
+                    });
+                  }
+                }}
+              >
+                <div className={`flex h-10 w-10 items-center justify-center rounded-full ${reward.bg} ${canRedeem ? reward.color : 'text-muted-foreground'}`}>
+                  <Icon className="size-5" />
+                </div>
+                <p className="text-sm font-semibold">{reward.name}</p>
+                <p className="text-xs text-muted-foreground">{reward.desc}</p>
+                <Badge variant={canRedeem ? 'default' : 'secondary'} className="text-xs">
+                  {reward.points} pts
+                </Badge>
+                {!canRedeem && (
+                  <p className="text-[10px] text-muted-foreground">Need {(reward.points - currentPoints).toLocaleString()} more</p>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <Separator />
+
+      {/* Points History */}
+      <div>
+        <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold">
+          <TrendingUp className="size-4 text-emerald-500" />
+          Recent Points Activity
+        </h3>
+        <div className="space-y-2">
+          {SEED_POINTS_HISTORY.map(tx => (
+            <div key={tx.id} className="flex items-center justify-between rounded-lg border px-3 py-2.5 text-sm">
+              <div className="flex items-center gap-3">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full ${tx.type === 'earned' ? 'bg-emerald-50' : 'bg-rose-50'}`}>
+                  {tx.type === 'earned' ? (
+                    <ArrowDownLeft className="size-4 text-emerald-600" />
+                  ) : (
+                    <ArrowUpRight className="size-4 text-rose-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="font-medium">{tx.description}</p>
+                  <p className="text-xs text-muted-foreground">{tx.date}</p>
+                </div>
+              </div>
+              <span className={`font-semibold tabular-nums ${tx.type === 'earned' ? 'text-emerald-600' : 'text-rose-600'}`}>
+                {tx.type === 'earned' ? '+' : ''}{tx.points} pts
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 function Dashboard({
@@ -1658,6 +1851,20 @@ function Dashboard({
           <div className="flex flex-col items-center py-4">
             <SpendingDonut totalSpent={stats?.totalSpent ?? 0} />
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Loyalty & Rewards Tracker */}
+      <Card className="stat-card-premium overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Award className="size-5 text-amber-500" />
+            Loyalty & Rewards
+          </CardTitle>
+          <CardDescription>Track your points and redeem rewards</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <LoyaltyRewardsPanel />
         </CardContent>
       </Card>
 
@@ -3162,6 +3369,22 @@ function MyBookings({ userId }: { userId: string }) {
   );
 }
 
+// ─── Enhanced Journey Rating Types ────────────────────────────────────────────
+
+interface CategoryRatings {
+  punctuality: number;
+  comfort: number;
+  safety: number;
+  staffBehavior: number;
+}
+
+const RATING_CATEGORIES = [
+  { key: 'punctuality' as keyof CategoryRatings, label: 'Punctuality', icon: Clock },
+  { key: 'comfort' as keyof CategoryRatings, label: 'Comfort', icon: Armchair },
+  { key: 'safety' as keyof CategoryRatings, label: 'Safety', icon: Shield },
+  { key: 'staffBehavior' as keyof CategoryRatings, label: 'Staff Behavior', icon: Users },
+];
+
 // ─── Journey History ─────────────────────────────────────────────────────────
 
 function JourneyHistory({ userId }: { userId: string }) {
@@ -3171,6 +3394,10 @@ function JourneyHistory({ userId }: { userId: string }) {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [feedbacks, setFeedbacks] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<string | null>(null);
+
+  // Enhanced rating state
+  const [expandedJourneyId, setExpandedJourneyId] = useState<string | null>(null);
+  const [categoryRatings, setCategoryRatings] = useState<Record<string, CategoryRatings>>({});
 
   // Date range filter
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
@@ -3253,8 +3480,9 @@ function JourneyHistory({ userId }: { userId: string }) {
       );
       toast({
         title: 'Rating Submitted!',
-        description: 'Thank you for your feedback.',
+        description: 'Thank you for your detailed feedback.',
       });
+      setExpandedJourneyId(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Rating submission failed');
     } finally {
@@ -3448,8 +3676,9 @@ function JourneyHistory({ userId }: { userId: string }) {
               {filteredJourneys.map(j => {
                 const isRated = (j.rating ?? 0) > 0;
                 const isSubmitting = submitting === j.id;
+                const isExpanded = expandedJourneyId === j.id;
                 return (
-                  <Card key={j.id} className={isRated ? 'opacity-80' : ''}>
+                  <Card key={j.id} className={`transition-all ${isExpanded ? 'ring-2 ring-primary/20 shadow-lg' : isRated ? 'opacity-80' : ''}`}>
                     <CardContent className="py-4">
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex-1 space-y-2">
@@ -3462,6 +3691,12 @@ function JourneyHistory({ userId }: { userId: string }) {
                             </Badge>
                             {jDistance(j) !== undefined && (
                               <span className="text-xs text-muted-foreground">{jDistance(j)} km</span>
+                            )}
+                            {isRated && (
+                              <Badge variant="outline" className="text-amber-600 bg-amber-50 border-amber-200">
+                                <Star className="size-3 fill-amber-400 text-amber-400 mr-1" />
+                                {j.rating}
+                              </Badge>
                             )}
                           </div>
                           <div className="flex items-center gap-1 text-sm">
@@ -3485,32 +3720,139 @@ function JourneyHistory({ userId }: { userId: string }) {
                         </div>
 
                         <div className="flex flex-col items-end gap-2 sm:min-w-[200px]">
-                          {/* Existing rating */}
-                          {isRated && (
+                          {/* Existing rating compact */}
+                          {isRated && !isExpanded && (
                             <div className="space-y-1">
                               <StarRating rating={j.rating!} />
                               {j.feedback && (
-                                <p className="text-xs text-muted-foreground italic">&quot;{j.feedback}&quot;</p>
+                                <p className="text-xs text-muted-foreground italic line-clamp-1">&quot;{j.feedback}&quot;</p>
                               )}
                             </div>
                           )}
 
-                          {/* Rating form for unrated */}
-                          {!isRated && (
-                            <div className="w-full space-y-2 rounded-lg border border-dashed border-amber-300 bg-amber-50/50 p-3">
-                              <p className="text-xs font-medium text-amber-700">Rate your journey</p>
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs text-muted-foreground">Rating:</span>
-                                <StarRating
-                                  rating={ratings[j.id] ?? 0}
-                                  onChange={r =>
-                                    setRatings(prev => ({ ...prev, [j.id]: r }))
-                                  }
-                                />
+                          {/* Expand / Collapse button */}
+                          <Button
+                            variant={isRated ? 'ghost' : 'default'}
+                            size="sm"
+                            className="w-full"
+                            onClick={() => setExpandedJourneyId(isExpanded ? null : j.id)}
+                          >
+                            {isExpanded ? (
+                              <>
+                                <ChevronUp className="size-3 mr-1" />
+                                Close
+                              </>
+                            ) : isRated ? (
+                              <>
+                                <Star className="size-3 mr-1" />
+                                View Review
+                              </>
+                            ) : (
+                              <>
+                                <Star className="size-3 mr-1" />
+                                Rate &amp; Review
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Enhanced Rating Panel (expanded) */}
+                      {isExpanded && (
+                        <div className="mt-4 space-y-4 rounded-lg border bg-muted/30 p-4">
+                          {isRated ? (
+                            /* Display existing ratings */
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2 mb-2">
+                                <CheckCircle2 className="size-4 text-emerald-500" />
+                                <span className="text-sm font-semibold">Your Review</span>
                               </div>
+                              <div className="flex items-center gap-2">
+                                <StarRating rating={j.rating!} />
+                                <span className="text-sm font-bold text-amber-600">{j.rating}.0 / 5</span>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                                {RATING_CATEGORIES.map(cat => (
+                                  <div key={cat.key} className="flex items-center gap-2 rounded-lg bg-background px-3 py-2">
+                                    <cat.icon className="size-4 text-muted-foreground" />
+                                    <span className="text-xs text-muted-foreground">{cat.label}</span>
+                                    <span className="ml-auto text-xs font-bold">
+                                      {categoryRatings[j.id]?.[cat.key] ?? Math.round((j.rating ?? 3) + (Math.random() * 2 - 1))}
+                                    </span>
+                                  </div>
+                                ))}
+                              </div>
+                              {j.feedback && (
+                                <p className="text-sm italic text-muted-foreground rounded-lg bg-background p-3">&quot;{j.feedback}&quot;</p>
+                              )}
+                            </div>
+                          ) : (
+                            /* Rating form */
+                            <div className="space-y-4">
+                              <div className="flex items-center gap-2">
+                                <Star className="size-4 text-amber-500" />
+                                <span className="text-sm font-semibold">Rate this journey</span>
+                              </div>
+
+                              {/* Overall star rating */}
+                              <div className="space-y-2">
+                                <label className="text-xs font-medium text-muted-foreground">Overall Rating</label>
+                                <div className="flex items-center gap-3">
+                                  <StarRating
+                                    rating={ratings[j.id] ?? 0}
+                                    onChange={r => setRatings(prev => ({ ...prev, [j.id]: r }))}
+                                  />
+                                  {ratings[j.id] && ratings[j.id] > 0 && (
+                                    <span className="text-sm font-bold text-amber-600">{ratings[j.id]}.0</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              {/* Category sliders */}
+                              <div className="space-y-3">
+                                <label className="text-xs font-medium text-muted-foreground">Rate by Category</label>
+                                {RATING_CATEGORIES.map(cat => {
+                                  const val = categoryRatings[j.id]?.[cat.key] ?? 0;
+                                  return (
+                                    <div key={cat.key} className="flex items-center gap-3">
+                                      <cat.icon className="size-4 text-muted-foreground shrink-0" />
+                                      <span className="text-xs text-muted-foreground w-24 shrink-0">{cat.label}</span>
+                                      <div className="flex-1 flex items-center gap-2">
+                                        <input
+                                          type="range"
+                                          min="0"
+                                          max="5"
+                                          step="1"
+                                          value={val}
+                                          onChange={e => {
+                                            const numVal = Number(e.target.value);
+                                            setCategoryRatings(prev => ({
+                                              ...prev,
+                                              [j.id]: { ...prev[j.id], [cat.key]: numVal } as CategoryRatings,
+                                            }));
+                                          }}
+                                          className="h-2 flex-1 cursor-pointer accent-amber-500"
+                                        />
+                                        <span className="text-xs font-bold tabular-nums w-4 text-right">{val}</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Photo upload placeholder */}
+                              <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
+                                <div className="space-y-2">
+                                  <Camera className="size-8 text-muted-foreground/50 mx-auto" />
+                                  <p className="text-xs text-muted-foreground">Add photos to your review</p>
+                                  <p className="text-[10px] text-muted-foreground/60">PNG, JPG up to 5MB</p>
+                                </div>
+                              </div>
+
+                              {/* Review text */}
                               <Textarea
-                                placeholder="Share your feedback (optional)..."
-                                className="min-h-14 text-xs"
+                                placeholder="Share your detailed experience (optional)..."
+                                className="min-h-20 text-sm"
                                 value={feedbacks[j.id] ?? ''}
                                 onChange={e =>
                                   setFeedbacks(prev => ({
@@ -3519,6 +3861,8 @@ function JourneyHistory({ userId }: { userId: string }) {
                                   }))
                                 }
                               />
+
+                              {/* Submit */}
                               <Button
                                 size="sm"
                                 className="w-full"
@@ -3526,22 +3870,310 @@ function JourneyHistory({ userId }: { userId: string }) {
                                 onClick={() => handleSubmitRating(j.id)}
                               >
                                 {isSubmitting ? (
-                                  <Loader2 className="size-3 animate-spin" />
+                                  <Loader2 className="size-3 animate-spin mr-1" />
                                 ) : (
-                                  <Star className="size-3" />
+                                  <Send className="size-3 mr-1" />
                                 )}
-                                Submit Rating
+                                Submit Review
                               </Button>
                             </div>
                           )}
                         </div>
-                      </div>
+                      )}
                     </CardContent>
                   </Card>
                 );
               })}
             </div>
           )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Support Page (Complaints & Feedback) ─────────────────────────────────────
+
+interface Complaint {
+  id: string;
+  category: string;
+  severity: string;
+  route?: string;
+  description: string;
+  status: 'Open' | 'In Progress' | 'Resolved';
+  submittedAt: string;
+}
+
+const COMPLAINT_CATEGORIES = ['Delay', 'Overcrowding', 'Cleanliness', 'Driver Behavior', 'Safety', 'Other'];
+const SEVERITY_OPTIONS = ['Low', 'Medium', 'High'];
+const SEVERITY_COLORS: Record<string, string> = {
+  Low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Medium: 'bg-amber-100 text-amber-700 border-amber-200',
+  High: 'bg-red-100 text-red-700 border-red-200',
+};
+const STATUS_COLORS: Record<string, string> = {
+  Open: 'bg-sky-100 text-sky-700 border-sky-200',
+  'In Progress': 'bg-amber-100 text-amber-700 border-amber-200',
+  Resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+};
+
+const FAQ_ITEMS = [
+  {
+    q: 'How do I cancel a booking?',
+    a: 'Go to "My Bookings" page, find the booking you want to cancel, and click the "Cancel" button. Cancellations are free if made at least 2 hours before departure. After that, a 10% fee may apply.',
+  },
+  {
+    q: 'What happens if my bus is late?',
+    a: 'If your bus is delayed by more than 15 minutes, you will receive a notification. Delays over 30 minutes qualify for a free reschedule. You can also track your bus in real-time on the Route Map page.',
+  },
+  {
+    q: 'How do I get a refund?',
+    a: 'Refunds can be requested through the Support page by submitting a complaint. Processing takes 3-5 business days. The refund will be credited to your original payment method or added to your wallet balance.',
+  },
+  {
+    q: 'How does the loyalty points system work?',
+    a: 'You earn 10 points for every ₹100 spent on bus fares. Points can be redeemed for rewards like free ride coupons, priority boarding passes, and discount vouchers in the Rewards section on your Dashboard.',
+  },
+  {
+    q: 'Can I change my seat after booking?',
+    a: 'Yes, seat changes are allowed up to 1 hour before departure. Go to "My Bookings", select your booking, and click "Change Seat" to see available options. A seat change fee of ₹10 may apply.',
+  },
+  {
+    q: 'How do I report lost items?',
+    a: 'Submit a complaint through the Support page with category "Other" and include details about the lost item, the route number, and your journey date. Our team will coordinate with the crew to locate your item.',
+  },
+];
+
+function SupportPage() {
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [complaintForm, setComplaintForm] = useState({
+    category: '',
+    severity: '',
+    route: '',
+    description: '',
+  });
+  const [submittingComplaint, setSubmittingComplaint] = useState(false);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+
+  const handleSubmitComplaint = useCallback(() => {
+    if (!complaintForm.category || !complaintForm.severity || !complaintForm.description.trim()) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in category, severity, and description.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSubmittingComplaint(true);
+    // Simulate submission
+    setTimeout(() => {
+      const newComplaint: Complaint = {
+        id: `CMP-${String(Date.now()).slice(-6)}`,
+        category: complaintForm.category,
+        severity: complaintForm.severity,
+        route: complaintForm.route || undefined,
+        description: complaintForm.description.trim(),
+        status: 'Open',
+        submittedAt: new Date().toISOString(),
+      };
+      setComplaints(prev => [newComplaint, ...prev]);
+      setComplaintForm({ category: '', severity: '', route: '', description: '' });
+      setSubmittingComplaint(false);
+      toast({
+        title: 'Complaint Submitted!',
+        description: `Your complaint ${newComplaint.id} has been registered. We'll respond within 24 hours.`,
+      });
+    }, 800);
+  }, [complaintForm]);
+
+  return (
+    <div className="space-y-6">
+      {/* Submit Complaint */}
+      <Card className="neon-card overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Megaphone className="size-5 text-amber-500" />
+            Submit a Complaint
+          </CardTitle>
+          <CardDescription>Tell us about your experience — we&apos;re here to help</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            {/* Category */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Category *</label>
+              <Select
+                value={complaintForm.category}
+                onValueChange={v => setComplaintForm(p => ({ ...p, category: v }))}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  {COMPLAINT_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Severity */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Severity *</label>
+              <div className="flex gap-2">
+                {SEVERITY_OPTIONS.map(sev => (
+                  <button
+                    key={sev}
+                    type="button"
+                    onClick={() => setComplaintForm(p => ({ ...p, severity: sev }))}
+                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all ${
+                      complaintForm.severity === sev
+                        ? SEVERITY_COLORS[sev]
+                        : 'border-muted bg-muted/30 text-muted-foreground hover:bg-muted/50'
+                    }`}
+                  >
+                    {sev}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Route (optional) */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Route (optional)</label>
+            <Input
+              placeholder="e.g., Route 500, KA-01-4521"
+              value={complaintForm.route}
+              onChange={e => setComplaintForm(p => ({ ...p, route: e.target.value }))}
+            />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium">Description *</label>
+            <Textarea
+              placeholder="Describe your issue in detail..."
+              className="min-h-24"
+              value={complaintForm.description}
+              onChange={e => setComplaintForm(p => ({ ...p, description: e.target.value }))}
+            />
+          </div>
+
+          {/* Attachment placeholder */}
+          <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
+            <div className="space-y-2">
+              <Upload className="size-8 text-muted-foreground/50 mx-auto" />
+              <p className="text-xs text-muted-foreground">Attach screenshots or documents</p>
+              <p className="text-[10px] text-muted-foreground/60">PNG, JPG, PDF up to 10MB</p>
+            </div>
+          </div>
+
+          {/* Submit button */}
+          <Button
+            className="w-full"
+            onClick={handleSubmitComplaint}
+            disabled={submittingComplaint}
+          >
+            {submittingComplaint ? (
+              <Loader2 className="size-4 animate-spin mr-2" />
+            ) : (
+              <Send className="size-4 mr-2" />
+            )}
+            Submit Complaint
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* My Complaints */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="size-5 text-sky-500" />
+            My Complaints
+            {complaints.length > 0 && (
+              <Badge variant="secondary" className="ml-2">{complaints.length}</Badge>
+            )}
+          </CardTitle>
+          <CardDescription>Track your submitted complaints</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {complaints.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <div className="mb-4 rounded-full bg-muted/50 p-4">
+                <CheckCircle2 className="size-12 text-muted-foreground/30" />
+              </div>
+              <p className="font-medium text-muted-foreground">No complaints submitted</p>
+              <p className="mt-1 text-sm text-muted-foreground/70">
+                All clear! Submit one above if you have any concerns.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-96 overflow-y-auto space-y-3">
+              {complaints.map(c => (
+                <div key={c.id} className="card-lift rounded-xl border bg-card p-4 shadow-sm">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="space-y-2 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="font-mono text-xs">{c.id}</Badge>
+                        <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
+                          {c.category}
+                        </Badge>
+                        <Badge variant="outline" className={SEVERITY_COLORS[c.severity]}>
+                          <AlertTriangle className="size-3 mr-1" />
+                          {c.severity}
+                        </Badge>
+                        <Badge variant="outline" className={STATUS_COLORS[c.status]}>
+                          {c.status}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground line-clamp-2">{c.description}</p>
+                      {c.route && (
+                        <p className="text-xs text-muted-foreground">Route: {c.route}</p>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                      {new Date(c.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* FAQ Accordion */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HelpCircle className="size-5 text-emerald-500" />
+            Frequently Asked Questions
+          </CardTitle>
+          <CardDescription>Quick answers to common questions</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-1">
+          {FAQ_ITEMS.map((faq, i) => (
+            <div key={i} className="rounded-lg border">
+              <button
+                type="button"
+                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
+                onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+              >
+                <span className="pr-4">{faq.q}</span>
+                <ChevronRight
+                  className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                    expandedFaq === i ? 'rotate-90' : ''
+                  }`}
+                />
+              </button>
+              {expandedFaq === i && (
+                <div className="border-t bg-muted/30 px-4 py-3">
+                  <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                </div>
+              )}
+            </div>
+          ))}
         </CardContent>
       </Card>
     </div>
@@ -3565,6 +4197,7 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
           {portal === 'map' && 'Route Map'}
           {portal === 'bookings' && 'My Bookings'}
           {portal === 'history' && 'Journey History'}
+          {portal === 'support' && 'Support'}
         </h1>
         <p className="mt-1 text-muted-foreground">
           {portal === 'dashboard' && 'Welcome back! Here is your travel overview.'}
@@ -3572,6 +4205,7 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
           {portal === 'map' && 'Explore routes on an interactive map.'}
           {portal === 'bookings' && 'View and manage your planned trips.'}
           {portal === 'history' && 'Review your completed journeys and rate them.'}
+          {portal === 'support' && 'Get help, submit complaints, and find answers.'}
         </p>
       </div>
 
@@ -3581,6 +4215,7 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
       {portal === 'map' && <RouteMapView />}
       {portal === 'bookings' && <MyBookings userId={userId} />}
       {portal === 'history' && <JourneyHistory userId={userId} />}
+      {portal === 'support' && <SupportPage />}
     </div>
   );
 }

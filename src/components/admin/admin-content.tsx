@@ -82,7 +82,20 @@ import {
   ArrowRightLeft,
   TrendingDown,
   Compass,
+  Bell,
+  BellRing,
+  Send,
+  Eye,
+  EyeOff,
+  RotateCcw,
+  Download,
+  Globe,
+  Smartphone,
+  Monitor,
+  MessageSquare,
 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Props {
   portal: string;
@@ -1310,6 +1323,7 @@ function DashboardPage({
   return (
     <div className="space-y-6">
       {/* STYLE: Welcome Banner */}
+      <div className="page-section">
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-gray-900 to-slate-800 p-6 text-white">
         <div className="absolute inset-0 overflow-hidden">
           <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
@@ -1326,8 +1340,10 @@ function DashboardPage({
           </p>
         </div>
       </div>
+      </div>
 
       {/* Stats with Sparklines */}
+      <div className="page-section">
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -1359,8 +1375,10 @@ function DashboardPage({
           ))
         )}
       </div>
+      </div>
 
       {/* NEW: Operations Overview Bar Chart + System Health */}
+      <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
@@ -1409,17 +1427,23 @@ function DashboardPage({
           </CardContent>
         </Card>
       </div>
+      </div>
 
       {/* Live Fleet Tracker + Passenger Analytics */}
+      <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <LiveFleetTracker />
         <PassengerAnalytics />
       </div>
+      </div>
 
       {/* Live Departure Board */}
+      <div className="page-section">
       <DepartureBoard />
+      </div>
 
       {/* STYLE: Improved Quick Actions — icon cards */}
+      <div className="page-section">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -1459,8 +1483,15 @@ function DashboardPage({
           </div>
         </CardContent>
       </Card>
+      </div>
+
+      {/* Broadcast Messaging */}
+      <div className="page-section">
+      <BroadcastMessaging showToast={showToast} />
+      </div>
 
       {/* Recent Activity + Traffic Alerts side by side on desktop */}
+      <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* STYLE: Recent Activity */}
         <Card>
@@ -1551,7 +1582,174 @@ function DashboardPage({
           </CardContent>
         </Card>
       </div>
+      </div>
     </div>
+  );
+}
+
+/* ================================================================== */
+/*  Broadcast Messaging Component                                      */
+/* ================================================================== */
+function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'success' | 'error') => void }) {
+  const [broadcasts, setBroadcasts] = useState<Array<{
+    id: number;
+    title: string;
+    message: string;
+    priority: string;
+    audience: string;
+    timestamp: string;
+    status: string;
+  }>>([]);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [title, setTitle] = useState('');
+  const [message, setMessage] = useState('');
+  const [priority, setPriority] = useState('Normal');
+  const [audience, setAudience] = useState('All Users');
+  const idRef = useRef(0);
+
+  const priorityColors: Record<string, string> = {
+    Low: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+    Normal: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800',
+    High: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+    Urgent: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800',
+  };
+
+  const audienceColors: Record<string, string> = {
+    'All Users': 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300 dark:border-violet-800',
+    Drivers: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300 dark:border-amber-800',
+    Conductors: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-950/60 dark:text-teal-300 dark:border-teal-800',
+    Customers: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800',
+  };
+
+  const handleSend = () => {
+    if (!title.trim() || !message.trim()) {
+      showToast('Please fill in both title and message.', 'error');
+      return;
+    }
+    const newBroadcast = {
+      id: ++idRef.current,
+      title: title.trim(),
+      message: message.trim(),
+      priority,
+      audience,
+      timestamp: new Date().toLocaleString(),
+      status: 'Sent',
+    };
+    setBroadcasts((prev) => [newBroadcast, ...prev]);
+    showToast(`Broadcast sent to ${audience}: "${title}"`, 'success');
+    setTitle('');
+    setMessage('');
+    setPriority('Normal');
+    setAudience('All Users');
+    setDialogOpen(false);
+    // Simulate delivery after 2s
+    setTimeout(() => {
+      setBroadcasts((prev) =>
+        prev.map((b) => b.id === newBroadcast.id ? { ...b, status: 'Delivered' } : b)
+      );
+    }, 2000);
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BellRing className="size-5" /> Broadcast Messaging
+            </CardTitle>
+            <CardDescription>Send notifications to users, crew, or all</CardDescription>
+          </div>
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">
+                <Send className="size-4 mr-1.5" />
+                Broadcast Message
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>New Broadcast Message</DialogTitle>
+                <DialogDescription>Send a notification to selected audience</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label>Title</Label>
+                  <Input placeholder="Broadcast title" value={title} onChange={(e) => setTitle(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Message</Label>
+                  <Textarea placeholder="Type your message here..." rows={4} value={message} onChange={(e) => setMessage(e.target.value)} />
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Priority</Label>
+                    <Select value={priority} onValueChange={setPriority}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['Low', 'Normal', 'High', 'Urgent'].map((p) => (
+                          <SelectItem key={p} value={p}>
+                            <span className="flex items-center gap-2">
+                              <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold ${priorityColors[p]}`}>{p}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Audience</Label>
+                    <Select value={audience} onValueChange={setAudience}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {['All Users', 'Drivers', 'Conductors', 'Customers'].map((a) => (
+                          <SelectItem key={a} value={a}>{a}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                <Button onClick={handleSend}>
+                  <Send className="size-4 mr-1.5" />
+                  Send Broadcast
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {broadcasts.length === 0 ? (
+          <div className="text-center py-6 text-muted-foreground">
+            <Bell className="size-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">No broadcasts sent yet</p>
+            <p className="text-xs mt-1">Click &quot;Broadcast Message&quot; to send your first notification</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {broadcasts.map((b) => (
+              <div key={b.id} className="card-lift flex items-center gap-3 rounded-lg border p-3 transition-all">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <p className="text-sm font-semibold truncate">{b.title}</p>
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${priorityColors[b.priority]}`}>{b.priority}</Badge>
+                    <Badge variant="outline" className={`text-[10px] shrink-0 ${audienceColors[b.audience]}`}>{b.audience}</Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground truncate">{b.message}</p>
+                  <p className="text-[10px] text-muted-foreground mt-1">{b.timestamp}</p>
+                </div>
+                <Badge variant="outline" className={`shrink-0 text-[10px] ${b.status === 'Delivered' ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300' : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300'}`}>
+                  {b.status === 'Delivered' ? <><CheckCircle2 className="size-3 mr-1" />Delivered</> : <><Clock className="size-3 mr-1" />Sent</>}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -3022,6 +3220,300 @@ function MaintenancePage({ token }: { token: string }) {
 }
 
 /* ================================================================== */
+/*  Page: System Settings                                              */
+/* ================================================================== */
+function SettingsPage() {
+  const { showToast } = useToast();
+  const [appName, setAppName] = useState(() => localStorage.getItem('bt_appName') || 'BusTrack Pro');
+  const [timezone, setTimezone] = useState(() => localStorage.getItem('bt_timezone') || 'IST');
+  const [language, setLanguage] = useState(() => localStorage.getItem('bt_language') || 'English');
+  const [dateFormat, setDateFormat] = useState(() => localStorage.getItem('bt_dateFormat') || 'DD/MM/YYYY');
+  const [emailNotif, setEmailNotif] = useState(() => localStorage.getItem('bt_emailNotif') === 'true');
+  const [smsAlerts, setSmsAlerts] = useState(() => localStorage.getItem('bt_smsAlerts') === 'true');
+  const [pushNotif, setPushNotif] = useState(() => localStorage.getItem('bt_pushNotif') === 'true');
+  const [inAppNotif, setInAppNotif] = useState(() => localStorage.getItem('bt_inAppNotif') !== 'false');
+  const [defaultPage, setDefaultPage] = useState(() => localStorage.getItem('bt_defaultPage') || 'dashboard');
+  const [itemsPerPage, setItemsPerPage] = useState(() => localStorage.getItem('bt_itemsPerPage') || '10');
+  const [compactMode, setCompactMode] = useState(() => localStorage.getItem('bt_compactMode') === 'true');
+  const [autoRefresh, setAutoRefresh] = useState(() => parseInt(localStorage.getItem('bt_autoRefresh') || '30', 10));
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [webhookUrl, setWebhookUrl] = useState(() => localStorage.getItem('bt_webhookUrl') || '');
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+
+  const saveSetting = (key: string, value: string) => {
+    localStorage.setItem(key, value);
+  };
+
+  const handleToggle = (key: string, setter: (v: boolean) => void, value: boolean) => {
+    setter(value);
+    saveSetting(key, String(value));
+  };
+
+  const handleResetAll = () => {
+    const keys = ['bt_appName', 'bt_timezone', 'bt_language', 'bt_dateFormat', 'bt_emailNotif', 'bt_smsAlerts', 'bt_pushNotif', 'bt_inAppNotif', 'bt_defaultPage', 'bt_itemsPerPage', 'bt_compactMode', 'bt_autoRefresh', 'bt_webhookUrl'];
+    keys.forEach((k) => localStorage.removeItem(k));
+    setAppName('BusTrack Pro');
+    setTimezone('IST');
+    setLanguage('English');
+    setDateFormat('DD/MM/YYYY');
+    setEmailNotif(false);
+    setSmsAlerts(false);
+    setPushNotif(false);
+    setInAppNotif(true);
+    setDefaultPage('dashboard');
+    setItemsPerPage('10');
+    setCompactMode(false);
+    setAutoRefresh(30);
+    setWebhookUrl('');
+    setResetDialogOpen(false);
+    showToast('All settings reset to defaults.', 'success');
+  };
+
+  const handleExportDb = () => {
+    const data: Record<string, string | null> = {};
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key?.startsWith('bt_')) {
+        data[key] = localStorage.getItem(key);
+      }
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'bustrack-settings-export.json';
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Settings exported successfully.', 'success');
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* General Settings */}
+      <div className="neon-card rounded-xl p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Settings2 className="size-5 text-emerald-500" /> General Settings
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Application Name</Label>
+            <Input value={appName} onChange={(e) => { setAppName(e.target.value); saveSetting('bt_appName', e.target.value); }} />
+          </div>
+          <div className="space-y-1.5">
+            <Label>Timezone</Label>
+            <Select value={timezone} onValueChange={(v) => { setTimezone(v); saveSetting('bt_timezone', v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="IST">IST (UTC+5:30)</SelectItem>
+                <SelectItem value="UTC">UTC (UTC+0:00)</SelectItem>
+                <SelectItem value="EST">EST (UTC-5:00)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Language</Label>
+            <Select value={language} onValueChange={(v) => { setLanguage(v); saveSetting('bt_language', v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="English">English</SelectItem>
+                <SelectItem value="Hindi">Hindi</SelectItem>
+                <SelectItem value="Kannada">Kannada</SelectItem>
+                <SelectItem value="Tamil">Tamil</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Date Format</Label>
+            <Select value={dateFormat} onValueChange={(v) => { setDateFormat(v); saveSetting('bt_dateFormat', v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
+                <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
+                <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      </div>
+
+      {/* Notification Settings */}
+      <div className="neon-card rounded-xl p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Bell className="size-5 text-amber-500" /> Notification Settings
+        </h3>
+        <div className="space-y-4">
+          {[
+            { label: 'Email Notifications', desc: 'Receive updates and alerts via email', key: 'bt_emailNotif', value: emailNotif, setter: setEmailNotif, icon: Mail },
+            { label: 'SMS Alerts', desc: 'Get critical alerts as SMS messages', key: 'bt_smsAlerts', value: smsAlerts, setter: setSmsAlerts, icon: Smartphone },
+            { label: 'Push Notifications', desc: 'Browser push notifications for real-time updates', key: 'bt_pushNotif', value: pushNotif, setter: setPushNotif, icon: Bell },
+            { label: 'In-App Notifications', desc: 'Show notifications within the application', key: 'bt_inAppNotif', value: inAppNotif, setter: setInAppNotif, icon: Monitor },
+          ].map((item) => (
+            <div key={item.key} className="flex items-center justify-between rounded-lg border p-4">
+              <div className="flex items-center gap-3">
+                <div className="rounded-lg bg-muted p-2 text-muted-foreground">
+                  <item.icon className="size-4" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium">{item.label}</p>
+                  <p className="text-xs text-muted-foreground">{item.desc}</p>
+                </div>
+              </div>
+              <Switch checked={item.value} onCheckedChange={(v) => handleToggle(item.key, item.setter, v)} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Display Settings */}
+      <div className="neon-card rounded-xl p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Monitor className="size-5 text-sky-500" /> Display Settings
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label>Default Page on Login</Label>
+            <Select value={defaultPage} onValueChange={(v) => { setDefaultPage(v); saveSetting('bt_defaultPage', v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="dashboard">Dashboard</SelectItem>
+                <SelectItem value="routes">Routes</SelectItem>
+                <SelectItem value="schedules">Schedules</SelectItem>
+                <SelectItem value="analytics">Analytics</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Items Per Page</Label>
+            <Select value={itemsPerPage} onValueChange={(v) => { setItemsPerPage(v); saveSetting('bt_itemsPerPage', v); }}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="5">5</SelectItem>
+                <SelectItem value="10">10</SelectItem>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="flex items-center justify-between rounded-lg border p-4 sm:col-span-2">
+            <div>
+              <p className="text-sm font-medium">Compact Mode</p>
+              <p className="text-xs text-muted-foreground">Reduce spacing for denser information display</p>
+            </div>
+            <Switch checked={compactMode} onCheckedChange={(v) => handleToggle('bt_compactMode', setCompactMode, v)} />
+          </div>
+          <div className="rounded-lg border p-4 sm:col-span-2">
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <p className="text-sm font-medium">Auto-Refresh Interval</p>
+                <p className="text-xs text-muted-foreground">How often data refreshes automatically</p>
+              </div>
+              <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">{autoRefresh}s</span>
+            </div>
+            <Slider
+              value={[autoRefresh]}
+              onValueChange={(v) => { setAutoRefresh(v[0]); saveSetting('bt_autoRefresh', String(v[0])); }}
+              min={5}
+              max={120}
+              step={5}
+              className="w-full"
+            />
+            <div className="flex justify-between text-[10px] text-muted-foreground mt-1">
+              <span>5s</span>
+              <span>60s</span>
+              <span>120s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* API Settings */}
+      <div className="neon-card rounded-xl p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <Wifi className="size-5 text-violet-500" /> API Settings
+        </h3>
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label>API Key</Label>
+            <div className="flex gap-2">
+              <Input
+                type={showApiKey ? 'text' : 'password'}
+                value="bustrack_sk_a1b2c3d4e5f6g7h8i9j0"
+                readOnly
+                className="font-mono text-sm"
+              />
+              <Button variant="outline" size="icon" onClick={() => setShowApiKey(!showApiKey)}>
+                {showApiKey ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+              </Button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label>Webhook URL</Label>
+            <Input
+              placeholder="https://your-server.com/webhook"
+              value={webhookUrl}
+              onChange={(e) => { setWebhookUrl(e.target.value); saveSetting('bt_webhookUrl', e.target.value); }}
+            />
+          </div>
+          <div className="rounded-lg border p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium">Rate Limit</p>
+                <p className="text-xs text-muted-foreground">API requests allowed per minute</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-lg font-bold text-foreground">100</span>
+                <span className="text-xs text-muted-foreground">req/min</span>
+                <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 ml-2">
+                  <CheckCircle2 className="size-3 mr-1" />
+                  Normal
+                </Badge>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Danger Zone */}
+      <div className="rounded-xl border-2 border-rose-200 dark:border-rose-800/50 p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4 text-rose-600 dark:text-rose-400">
+          <AlertTriangle className="size-5" /> Danger Zone
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">Irreversible actions that affect your entire account.</p>
+        <div className="flex flex-wrap gap-3">
+          <Dialog open={resetDialogOpen} onOpenChange={setResetDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="destructive">
+                <RotateCcw className="size-4 mr-1.5" />
+                Reset All Settings
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Reset All Settings?</DialogTitle>
+                <DialogDescription>
+                  This will reset all settings to their default values. This action cannot be undone.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setResetDialogOpen(false)}>Cancel</Button>
+                <Button variant="destructive" onClick={handleResetAll}>
+                  <RotateCcw className="size-4 mr-1.5" />
+                  Reset All
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline" onClick={handleExportDb}>
+            <Download className="size-4 mr-1.5" />
+            Export Settings
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  Footer                                                             */
 /* ================================================================== */
 function AdminFooter() {
@@ -3075,14 +3567,35 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
         return <AnalyticsPage token={token} />;
       case 'maintenance':
         return <MaintenancePage token={token} />;
+      case 'settings':
+        return <SettingsPage />;
       default:
         return <DashboardPage token={token} setPortal={setPortal} />;
     }
   })();
 
+  /* Scroll progress state */
+  const [scrollPercent, setScrollPercent] = useState(0);
+  const portalRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrollTop = document.documentElement.scrollTop || document.body.scrollTop || 0;
+      const scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight || 1;
+      const clientHeight = document.documentElement.clientHeight || document.body.clientHeight || 1;
+      const percent = (scrollTop / (scrollHeight - clientHeight)) * 100;
+      setScrollPercent(Math.min(Math.max(percent, 0), 100));
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   return (
     <ToastContext.Provider value={toastContextValue}>
-      <div className="flex min-h-full flex-col">
+      <div ref={portalRef} className="flex min-h-full flex-col">
+        {/* Scroll Progress Indicator */}
+        <div className="scroll-progress" style={{ width: `${scrollPercent}%` }} />
         <div className="flex-1">
           <QuickStatsRibbon />
           {pageContent}
