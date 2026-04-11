@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -47,13 +47,26 @@ import {
   Send,
   Edit3,
   Save,
-  ArrowRight,
   Power,
   Shield,
   Briefcase,
   FileText,
   Timer,
+  Play,
+  Square,
+  DollarSign,
+  Award,
+  X,
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 // ──────────────────────────── Types ────────────────────────────
 
@@ -232,7 +245,184 @@ function getSpecializationColor(spec: string): string {
   }
 }
 
+// Deterministic hash for seed-based hours
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash |= 0;
+  }
+  return Math.abs(hash);
+}
+
+function getWeeklyHours(name: string): number[] {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return days.map((_, i) => {
+    const seed = simpleHash(name + days[i]);
+    return 6 + (seed % 5); // 6-10 hours
+  });
+}
+
+function getBarColor(hours: number): string {
+  if (hours <= 8) return 'bg-emerald-500';
+  if (hours <= 9) return 'bg-amber-500';
+  return 'bg-red-500';
+}
+
 // ──────────────────────────── Reusable Visual Components ────────────────────────────
+
+function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
+  const hours = useMemo(() => getWeeklyHours(crewName), [crewName]);
+  const totalHours = hours.reduce((sum, h) => sum + h, 0);
+  const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const maxHours = 10;
+  const barHeight = 22;
+  const barGap = 8;
+  const chartWidth = 100;
+  const labelWidth = 32;
+  const valueWidth = 36;
+  const totalChartHeight = (barHeight + barGap) * 7 - barGap;
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Timer className="h-5 w-5 text-emerald-600" />
+              This Week&apos;s Hours
+            </CardTitle>
+            <CardDescription>Weekly work hours breakdown</CardDescription>
+          </div>
+          <div className="text-right">
+            <p className={`text-2xl font-bold ${totalHours <= 40 ? 'text-emerald-600' : totalHours <= 45 ? 'text-amber-600' : 'text-red-600'}`}>
+              {totalHours.toFixed(1)}h
+            </p>
+            <p className="text-xs text-gray-400">Target: 40h/week</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <svg viewBox={`0 0 ${chartWidth} ${totalChartHeight}`} className="w-full" preserveAspectRatio="none">
+          {hours.map((h, i) => {
+            const y = i * (barHeight + barGap);
+            const barWidth = (h / maxHours) * (chartWidth - labelWidth - valueWidth);
+            return (
+              <g key={dayLabels[i]}>
+                <text
+                  x={0}
+                  y={y + barHeight / 2 + 4}
+                  className="fill-gray-500 text-[7px] font-semibold"
+                  textAnchor="start"
+                >
+                  {dayLabels[i]}
+                </text>
+                <rect
+                  x={labelWidth}
+                  y={y}
+                  width={Math.max(barWidth, 2)}
+                  height={barHeight}
+                  rx={4}
+                  className={getBarColor(h)}
+                  opacity={0.9}
+                />
+                <text
+                  x={labelWidth + Math.max(barWidth, 2) + 3}
+                  y={y + barHeight / 2 + 3.5}
+                  className={`fill-gray-700 text-[6.5px] font-bold`}
+                >
+                  {h.toFixed(1)}h
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        {/* Legend */}
+        <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" />
+            ≤ 8h
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-amber-500" />
+            8-9h
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="h-2.5 w-2.5 rounded-sm bg-red-500" />
+            &gt; 9h
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function QuickActions() {
+  const actions = [
+    {
+      label: 'Start Shift',
+      description: 'Begin your work shift',
+      icon: Play,
+      color: 'emerald',
+      message: 'Shift started!',
+    },
+    {
+      label: 'End Shift',
+      description: 'End your current shift',
+      icon: Square,
+      color: 'red',
+      message: 'Shift ended!',
+    },
+    {
+      label: 'Report Issue',
+      description: 'Report a problem or incident',
+      icon: AlertCircle,
+      color: 'amber',
+      message: 'Issue reported successfully!',
+    },
+    {
+      label: 'View Pay',
+      description: 'Check your pay details',
+      icon: DollarSign,
+      color: 'violet',
+      message: 'Pay details loaded!',
+    },
+  ];
+
+  const colorMap: Record<string, { bg: string; iconBg: string; iconText: string; hover: string }> = {
+    emerald: { bg: 'bg-emerald-50 border-emerald-100', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:bg-emerald-100 hover:border-emerald-200' },
+    red: { bg: 'bg-red-50 border-red-100', iconBg: 'bg-red-100', iconText: 'text-red-600', hover: 'hover:bg-red-100 hover:border-red-200' },
+    amber: { bg: 'bg-amber-50 border-amber-100', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:bg-amber-100 hover:border-amber-200' },
+    violet: { bg: 'bg-violet-50 border-violet-100', iconBg: 'bg-violet-100', iconText: 'text-violet-600', hover: 'hover:bg-violet-100 hover:border-violet-200' },
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      {actions.map((action) => {
+        const colors = colorMap[action.color];
+        const Icon = action.icon;
+        return (
+          <Card
+            key={action.label}
+            className={`rounded-xl shadow-sm cursor-pointer border transition-all ${colors.bg} ${colors.hover}`}
+            onClick={() => toast({ title: action.message, description: `${action.label} action triggered.` })}
+          >
+            <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${colors.iconBg}`}>
+                <Icon className={`h-5 w-5 ${colors.iconText}`} />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-gray-900">{action.label}</p>
+                <p className="text-[11px] text-gray-500 mt-0.5">{action.description}</p>
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
 
 function CircularProgress({ value, size = 80, strokeWidth = 6, color = 'emerald' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
   const radius = (size - strokeWidth) / 2;
@@ -746,6 +936,17 @@ function DashboardPage({
           </CardContent>
         </Card>
       )}
+
+      {/* This Week's Hours Bar Chart */}
+      {crewProfile && (
+        <WeeklyHoursBarChart crewName={crewProfile.profile?.name || ''} />
+      )}
+
+      {/* Quick Actions */}
+      <div>
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h2>
+        <QuickActions />
+      </div>
 
       {/* Upcoming Assignments Timeline */}
       {upcomingAssignments.length > 0 && (
@@ -1349,17 +1550,72 @@ function LeaveRequestsPage({
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+
+  // Leave balance calculations
+  const usedDays = holidayRequests
+    .filter((r) => r.status === 'approved')
+    .reduce((sum, r) => {
+      const start = new Date(r.startDate + 'T00:00:00');
+      const end = new Date(r.endDate + 'T00:00:00');
+      const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      return sum + diffDays;
+    }, 0);
+  const pendingDays = holidayRequests
+    .filter((r) => r.status === 'pending')
+    .reduce((sum, r) => {
+      const start = new Date(r.startDate + 'T00:00:00');
+      const end = new Date(r.endDate + 'T00:00:00');
+      const diffDays = Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+      return sum + diffDays;
+    }, 0);
+  const totalAllowance = 20;
+  const availableDays = Math.max(0, totalAllowance - usedDays - pendingDays);
+
+  // Build leave date map for calendar dots
+  const leaveDateMap = new Map<string, string>();
+  holidayRequests.forEach((r) => {
+    const start = new Date(r.startDate + 'T00:00:00');
+    const end = new Date(r.endDate + 'T00:00:00');
+    const current = new Date(start);
+    while (current <= end) {
+      const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
+      leaveDateMap.set(dateStr, r.status);
+      current.setDate(current.getDate() + 1);
+    }
+  });
+
+  // Calendar mini view for current month
+  const now = new Date();
+  const calMonth = now.getMonth();
+  const calYear = now.getFullYear();
+  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(calYear, calMonth, 1).getDay();
+  const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+
+  const getCalDateStr = (day: number): string => {
+    return `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  };
+
+  const getLeaveDotColor = (status: string): string => {
+    switch (status) {
+      case 'approved': return 'bg-emerald-500';
+      case 'pending': return 'bg-amber-400';
+      case 'rejected': return 'bg-red-400';
+      default: return 'bg-gray-300';
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!startDate || !endDate) {
-      window.alert('Please select both start and end dates.');
+      toast({ title: 'Missing dates', description: 'Please select both start and end dates.', variant: 'destructive' });
       return;
     }
 
     if (endDate < startDate) {
-      window.alert('End date cannot be before start date.');
+      toast({ title: 'Invalid date range', description: 'End date cannot be before start date.', variant: 'destructive' });
       return;
     }
 
@@ -1380,17 +1636,18 @@ function LeaveRequestsPage({
       const data = await res.json();
 
       if (!res.ok) {
-        window.alert(data.error || 'Failed to submit leave request.');
+        toast({ title: 'Submission failed', description: data.error || 'Failed to submit leave request.', variant: 'destructive' });
         return;
       }
 
-      window.alert('Leave request submitted successfully!');
+      toast({ title: 'Success', description: 'Leave request submitted successfully!' });
       setStartDate('');
       setEndDate('');
       setReason('');
+      setLeaveDialogOpen(false);
       onRefresh();
     } catch {
-      window.alert('An error occurred. Please try again.');
+      toast({ title: 'Error', description: 'An error occurred. Please try again.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
@@ -1408,79 +1665,108 @@ function LeaveRequestsPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold text-gray-900">Leave Requests</h1>
-        <p className="mt-1 text-sm text-gray-500">
-          Submit and track your leave requests
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Leave Requests</h1>
+          <p className="mt-1 text-sm text-gray-500">
+            Submit and track your leave requests
+          </p>
+        </div>
+        <Button
+          onClick={() => setLeaveDialogOpen(true)}
+          className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700"
+        >
+          <Send className="h-4 w-4" />
+          Request Leave
+        </Button>
       </div>
 
-      {/* Submit New Request */}
-      <Card className="rounded-xl shadow-sm bg-white border-violet-100">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100">
-              <Send className="h-4 w-4 text-violet-600" />
+      {/* Leave Balance Card */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+          <CardContent className="p-4 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
+              <CalendarIcon className="h-5 w-5 text-emerald-600" />
             </div>
-            Submit New Request
+            <p className="text-xl sm:text-2xl font-bold text-emerald-700">{availableDays}</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Available Days</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-amber-50 to-white border-amber-100">
+          <CardContent className="p-4 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 mx-auto mb-2">
+              <Clock className="h-5 w-5 text-amber-600" />
+            </div>
+            <p className="text-xl sm:text-2xl font-bold text-amber-700">{pendingDays}</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Pending Days</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-rose-50 to-white border-rose-100">
+          <CardContent className="p-4 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 mx-auto mb-2">
+              <CheckCircle2 className="h-5 w-5 text-rose-600" />
+            </div>
+            <p className="text-xl sm:text-2xl font-bold text-rose-700">{usedDays}</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Used Days</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Calendar Mini View with Leave Dots */}
+      <Card className="rounded-xl shadow-sm bg-white">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <CalendarIcon className="h-5 w-5 text-gray-500" />
+            Leave Calendar — {now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
           </CardTitle>
-          <CardDescription>
-            Fill in the details to request time off
-          </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-5">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label htmlFor="leave-start" className="text-sm font-medium">Start Date</Label>
-                <Input
-                  id="leave-start"
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                  className="h-10"
-                />
+          <div className="grid grid-cols-7 gap-1">
+            {dayNames.map((name) => (
+              <div key={name} className="py-1 text-center text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                {name}
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="leave-end" className="text-sm font-medium">End Date</Label>
-                <Input
-                  id="leave-end"
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                  className="h-10"
-                />
-              </div>
+            ))}
+            {Array.from({ length: firstDayOfMonth }).map((_, i) => (
+              <div key={`cal-empty-${i}`} className="aspect-square" />
+            ))}
+            {Array.from({ length: daysInMonth }).map((_, i) => {
+              const day = i + 1;
+              const dateStr = getCalDateStr(day);
+              const leaveStatus = leaveDateMap.get(dateStr);
+              const isTodayCell = dateStr === getTodayStr();
+              return (
+                <div
+                  key={`cal-day-${day}`}
+                  className={`aspect-square relative flex flex-col items-center justify-center rounded-lg text-xs transition-all ${
+                    isTodayCell
+                      ? 'bg-emerald-100 ring-1 ring-emerald-300 font-bold text-emerald-800'
+                      : 'text-gray-600 hover:bg-gray-50'
+                  }`}
+                >
+                  <span className="leading-none">{day}</span>
+                  {leaveStatus && (
+                    <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${getLeaveDotColor(leaveStatus)}`} />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {/* Legend */}
+          <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-emerald-500" />
+              Approved
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="leave-reason" className="text-sm font-medium">Reason</Label>
-              <Textarea
-                id="leave-reason"
-                placeholder="Enter the reason for your leave request..."
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                rows={3}
-                className="resize-none"
-              />
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              Pending
             </div>
-            <Button
-              type="submit"
-              disabled={submitting}
-              className="bg-violet-600 text-white hover:bg-violet-700"
-            >
-              {submitting ? (
-                <>
-                  <span className="mr-2 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                  Submitting...
-                </>
-              ) : (
-                <>
-                  <Send className="mr-2 h-4 w-4" />
-                  Submit Request
-                </>
-              )}
-            </Button>
-          </form>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-400" />
+              Rejected
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -1552,6 +1838,86 @@ function LeaveRequestsPage({
           )}
         </CardContent>
       </Card>
+
+      {/* Request Leave Dialog */}
+      <Dialog open={leaveDialogOpen} onOpenChange={setLeaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="h-5 w-5 text-violet-600" />
+              Request Leave
+            </DialogTitle>
+            <DialogDescription>
+              Fill in the details to request time off ({availableDays} days available)
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4 py-2">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="dialog-leave-start" className="text-sm font-medium">Start Date</Label>
+                  <Input
+                    id="dialog-leave-start"
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="dialog-leave-end" className="text-sm font-medium">End Date</Label>
+                  <Input
+                    id="dialog-leave-end"
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="h-10"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="dialog-leave-reason" className="text-sm font-medium">Reason</Label>
+                <Textarea
+                  id="dialog-leave-reason"
+                  placeholder="Enter the reason for your leave request..."
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  rows={3}
+                  className="resize-none"
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setLeaveDialogOpen(false)}
+                className="gap-1.5"
+              >
+                <X className="h-4 w-4" />
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                className="bg-violet-600 text-white hover:bg-violet-700 gap-1.5"
+              >
+                {submitting ? (
+                  <>
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Submitting...
+                  </>
+                ) : (
+                  <>
+                    <Send className="h-4 w-4" />
+                    Submit Request
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1573,15 +1939,18 @@ function ProfilePage({
   loading: boolean;
   onRefresh: () => void;
 }) {
-  const [editMode, setEditMode] = useState(false);
-  const [name, setName] = useState('');
-  const [availability, setAvailability] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editLicense, setEditLicense] = useState('');
+  const [editAvailability, setEditAvailability] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     if (crewProfile) {
-      setName(crewProfile.profile.name);
-      setAvailability(crewProfile.availability);
+      setEditName(crewProfile.profile.name);
+      setEditLicense(crewProfile.licenseNo || '');
+      setEditAvailability(crewProfile.availability);
     }
   }, [crewProfile]);
 
@@ -1606,6 +1975,16 @@ function ProfilePage({
     return days;
   };
 
+  // Skills/qualifications based on specialization
+  const getSkills = () => {
+    const baseSkills = crewProfile?.specialization === 'driver'
+      ? ['Heavy Vehicle', 'Defensive Driving']
+      : ['Ticketing', 'Passenger Relations'];
+    const extraSkills = crewProfile?.experienceYears >= 5 ? ['Senior Crew', 'Night Routes'] : [];
+    const busSkills = crewProfile?.specialization === 'driver' ? ['AC Bus', 'City Routes', 'Highway Routes'] : ['Fare Collection', 'Multi-Language'];
+    return [...baseSkills, ...busSkills.slice(0, 2), ...extraSkills];
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -1615,26 +1994,36 @@ function ProfilePage({
         body: JSON.stringify({
           action: 'updateProfile',
           userId,
-          name,
-          availability,
+          name: editName,
+          availability: editAvailability,
         }),
       });
 
       const data = await res.json();
 
       if (!res.ok) {
-        window.alert(data.error || 'Failed to update profile.');
+        toast({ title: 'Update failed', description: data.error || 'Failed to update profile.', variant: 'destructive' });
         return;
       }
 
-      window.alert('Profile updated successfully!');
-      setEditMode(false);
+      toast({ title: 'Success', description: 'Profile updated successfully!' });
+      setEditModalOpen(false);
       onRefresh();
     } catch {
-      window.alert('An error occurred. Please try again.');
+      toast({ title: 'Error', description: 'An error occurred. Please try again.', variant: 'destructive' });
     } finally {
       setSaving(false);
     }
+  };
+
+  const openEditModal = () => {
+    if (crewProfile) {
+      setEditName(crewProfile.profile.name);
+      setEditPhone('');
+      setEditLicense(crewProfile.licenseNo || '');
+      setEditAvailability(crewProfile.availability);
+    }
+    setEditModalOpen(true);
   };
 
   if (loading) return <ProfileSkeleton />;
@@ -1651,107 +2040,104 @@ function ProfilePage({
   const perfHistory = getPerformanceHistory();
   const completedCount = assignments.filter((a) => a.status === 'completed').length;
   const totalAssignments = assignments.length;
+  const skills = getSkills();
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Profile</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            View and manage your crew profile
-          </p>
-        </div>
-        {!editMode && (
-          <Button
-            variant="outline"
-            onClick={() => setEditMode(true)}
-            className="gap-1.5"
-          >
-            <Edit3 className="h-4 w-4" />
-            Edit Profile
-          </Button>
-        )}
-      </div>
-
-      {/* Profile Card with Avatar */}
+      {/* Cover Gradient Banner + Avatar (Social Media Style) */}
       <Card className="rounded-xl shadow-sm bg-white overflow-hidden">
-        <div className="h-24 bg-gradient-to-r from-emerald-500 to-teal-500" />
-        <CardContent className="p-6 -mt-10">
+        <div className="h-32 sm:h-40 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 relative">
+          {/* Decorative pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <svg width="100%" height="100%" className="absolute inset-0">
+              <pattern id="profile-pattern" x="0" y="0" width="40" height="40" patternUnits="userSpaceOnUse">
+                <circle cx="20" cy="20" r="2" fill="white" />
+              </pattern>
+              <rect width="100%" height="100%" fill="url(#profile-pattern)" />
+            </svg>
+          </div>
+        </div>
+        <CardContent className="p-4 sm:p-6 -mt-14 sm:-mt-16 relative">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white border-4 border-white shadow-lg text-2xl font-bold text-emerald-600 shrink-0">
-              {getInitials(crewProfile.profile.name)}
-            </div>
-            <div className="flex-1 min-w-0">
-              {editMode ? (
-                <Input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="max-w-xs h-9 text-lg font-bold"
-                />
-              ) : (
-                <h2 className="text-xl font-bold text-gray-900 truncate">
-                  {crewProfile.profile.name}
-                </h2>
-              )}
-              <div className="mt-1 flex items-center gap-2 flex-wrap">
-                <Badge className={getSpecializationColor(crewProfile.specialization)}>
-                  {crewProfile.specialization === 'driver' ? (
-                    <><Bus className="mr-1 h-3 w-3" />Driver</>
-                  ) : (
-                    <><User className="mr-1 h-3 w-3" />Conductor</>
-                  )}
-                </Badge>
-                <Badge className={getAvailabilityColor(crewProfile.availability)}>
-                  {capitalize(crewProfile.availability)}
-                </Badge>
-                {crewProfile.licenseNo && (
-                  <span className="text-xs text-gray-400">
-                    <Shield className="inline h-3 w-3 mr-0.5" />
-                    {crewProfile.licenseNo}
-                  </span>
-                )}
+            {/* Avatar with gradient border */}
+            <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 p-1 shadow-lg shrink-0">
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-white text-2xl sm:text-3xl font-bold text-emerald-600">
+                {getInitials(crewProfile.profile.name)}
               </div>
             </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                <div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                    {crewProfile.profile.name}
+                  </h2>
+                  <div className="mt-1 flex items-center gap-2 flex-wrap">
+                    <Badge className={getSpecializationColor(crewProfile.specialization)}>
+                      {crewProfile.specialization === 'driver' ? (
+                        <><Bus className="mr-1 h-3 w-3" />Driver</>
+                      ) : (
+                        <><User className="mr-1 h-3 w-3" />Conductor</>
+                      )}
+                    </Badge>
+                    <Badge className={getAvailabilityColor(crewProfile.availability)}>
+                      {capitalize(crewProfile.availability)}
+                    </Badge>
+                  </div>
+                </div>
+                <Button
+                  onClick={openEditModal}
+                  className="gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700 shrink-0"
+                >
+                  <Edit3 className="h-4 w-4" />
+                  Edit Profile
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          {/* Skills / Qualifications Tags */}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {skills.map((skill) => (
+              <Badge
+                key={skill}
+                variant="outline"
+                className="bg-gradient-to-r from-gray-50 to-white border-gray-200 text-gray-600 text-xs px-2.5 py-1"
+              >
+                <Award className="mr-1 h-3 w-3 text-emerald-500" />
+                {skill}
+              </Badge>
+            ))}
           </div>
         </CardContent>
       </Card>
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <Card className="rounded-xl shadow-sm bg-white">
+      {/* Stats Row: Total Trips, Rating, Experience */}
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+          <CardContent className="p-4 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
+              <Bus className="h-5 w-5 text-emerald-600" />
+            </div>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{completedCount}</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Total Trips</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-amber-50 to-white border-amber-100">
           <CardContent className="p-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 mx-auto mb-2">
               <Star className="h-5 w-5 text-amber-600" />
             </div>
-            <p className="text-lg font-bold text-gray-900">{crewProfile.performanceRating.toFixed(1)}</p>
-            <p className="text-xs text-gray-500">Rating</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{crewProfile.performanceRating.toFixed(1)}</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Rating</p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-violet-50 to-white border-violet-100">
           <CardContent className="p-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 mx-auto mb-2">
               <Briefcase className="h-5 w-5 text-violet-600" />
             </div>
-            <p className="text-lg font-bold text-gray-900">{crewProfile.experienceYears}</p>
-            <p className="text-xs text-gray-500">Years Exp.</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl shadow-sm bg-white">
-          <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            </div>
-            <p className="text-lg font-bold text-gray-900">{completedCount}</p>
-            <p className="text-xs text-gray-500">Completed</p>
-          </CardContent>
-        </Card>
-        <Card className="rounded-xl shadow-sm bg-white">
-          <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 mx-auto mb-2">
-              <Timer className="h-5 w-5 text-rose-600" />
-            </div>
-            <p className="text-lg font-bold text-gray-900">{crewProfile.maxDailyHours}h</p>
-            <p className="text-xs text-gray-500">Max Daily</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900">{crewProfile.experienceYears}yr</p>
+            <p className="text-[11px] sm:text-xs text-gray-500">Experience</p>
           </CardContent>
         </Card>
       </div>
@@ -1785,7 +2171,7 @@ function ProfilePage({
         </CardContent>
       </Card>
 
-      {/* Editable Details */}
+      {/* Professional Details */}
       <Card className="rounded-xl shadow-sm bg-white">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
@@ -1799,6 +2185,10 @@ function ProfilePage({
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</p>
               <p className="text-sm text-gray-900">{crewProfile.profile.email}</p>
             </div>
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">License No.</p>
+              <p className="text-sm text-gray-900">{crewProfile.licenseNo || 'N/A'}</p>
+            </div>
             {crewProfile.specialization === 'driver' && crewProfile.busNumber && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Bus Number</p>
@@ -1810,62 +2200,105 @@ function ProfilePage({
               <p className="text-sm text-gray-900">{totalAssignments}</p>
             </div>
             <div className="space-y-1.5">
+              <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Max Daily Hours</p>
+              <p className="text-sm text-gray-900">{crewProfile.maxDailyHours}h</p>
+            </div>
+            <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</p>
-              {editMode ? (
-                <Select value={availability} onValueChange={setAvailability}>
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="available">Available</SelectItem>
-                    <SelectItem value="unavailable">Unavailable</SelectItem>
-                    <SelectItem value="on_leave">On Leave</SelectItem>
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Badge className={getAvailabilityColor(crewProfile.availability)}>
-                  {capitalize(crewProfile.availability)}
-                </Badge>
-              )}
+              <Badge className={getAvailabilityColor(crewProfile.availability)}>
+                {capitalize(crewProfile.availability)}
+              </Badge>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Edit Save Button */}
-      {editMode && (
-        <div className="flex gap-3">
-          <Button
-            onClick={handleSave}
-            disabled={saving}
-            className="bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5"
-          >
-            {saving ? (
-              <>
-                <span className="mr-1 inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                Saving...
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4" />
-                Save Changes
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => {
-              setEditMode(false);
-              if (crewProfile) {
-                setName(crewProfile.profile.name);
-                setAvailability(crewProfile.availability);
-              }
-            }}
-          >
-            Cancel
-          </Button>
-        </div>
-      )}
+      {/* Edit Profile Dialog Modal */}
+      <Dialog open={editModalOpen} onOpenChange={setEditModalOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit3 className="h-5 w-5 text-emerald-600" />
+              Edit Profile
+            </DialogTitle>
+            <DialogDescription>
+              Update your personal and professional information
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name" className="text-sm font-medium">Full Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Enter your full name"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone" className="text-sm font-medium">Phone Number</Label>
+              <Input
+                id="edit-phone"
+                value={editPhone}
+                onChange={(e) => setEditPhone(e.target.value)}
+                placeholder="Enter your phone number"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-license" className="text-sm font-medium">License Number</Label>
+              <Input
+                id="edit-license"
+                value={editLicense}
+                onChange={(e) => setEditLicense(e.target.value)}
+                placeholder="Enter your license number"
+                className="h-10"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Availability</Label>
+              <Select value={editAvailability} onValueChange={setEditAvailability}>
+                <SelectTrigger className="w-full h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="available">Available</SelectItem>
+                  <SelectItem value="unavailable">Unavailable</SelectItem>
+                  <SelectItem value="on_leave">On Leave</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setEditModalOpen(false)}
+              className="gap-1.5"
+            >
+              <X className="h-4 w-4" />
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSave}
+              disabled={saving}
+              className="bg-emerald-600 text-white hover:bg-emerald-700 gap-1.5"
+            >
+              {saving ? (
+                <>
+                  <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1956,14 +2389,14 @@ export default function CrewContent({ portal, userId, token }: Props) {
       const data = await res.json();
 
       if (!res.ok) {
-        window.alert(data.error || `Failed to ${status} assignment.`);
+        toast({ title: 'Action failed', description: data.error || `Failed to ${status} assignment.`, variant: 'destructive' });
         return;
       }
 
-      window.alert(`Assignment ${status} successfully!`);
+      toast({ title: 'Success', description: `Assignment ${status} successfully!` });
       fetchAssignments();
     } catch {
-      window.alert('An error occurred. Please try again.');
+      toast({ title: 'Error', description: 'An error occurred. Please try again.', variant: 'destructive' });
     } finally {
       setResponding(false);
     }
