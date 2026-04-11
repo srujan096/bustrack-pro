@@ -827,3 +827,288 @@ body,
   20%, 40%, 60%, 80% { transform: translateX(4px); }
 }
 .animate-error-shake { animation: errorShake 0.5s ease; }
+
+/* ============================================================
+   Neon Glow Cards (Premium hover effect)
+   ============================================================ */
+.neon-card {
+  position: relative;
+  border: 1px solid oklch(0.55 0.2 260 / 15%);
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.neon-card:hover {
+  border-color: oklch(0.55 0.2 260 / 40%);
+  box-shadow:
+    0 0 15px oklch(0.55 0.2 260 / 8%),
+    0 0 30px oklch(0.55 0.2 260 / 4%),
+    inset 0 0 15px oklch(0.55 0.2 260 / 3%);
+}
+.neon-card-emerald:hover {
+  border-color: oklch(0.65 0.17 163 / 40%);
+  box-shadow:
+    0 0 15px oklch(0.65 0.17 163 / 8%),
+    0 0 30px oklch(0.65 0.17 163 / 4%),
+    inset 0 0 15px oklch(0.65 0.17 163 / 3%);
+}
+.neon-card-amber:hover {
+  border-color: oklch(0.75 0.15 85 / 40%);
+  box-shadow:
+    0 0 15px oklch(0.75 0.15 85 / 8%),
+    0 0 30px oklch(0.75 0.15 85 / 4%),
+    inset 0 0 15px oklch(0.75 0.15 85 / 3%);
+}
+
+/* ============================================================
+   Blob / Organic Shape Background
+   ============================================================ */
+.blob-shape {
+  border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+  animation: blobMorph 8s ease-in-out infinite;
+}
+@keyframes blobMorph {
+  0%, 100% { border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%; }
+  25% { border-radius: 58% 42% 75% 25% / 76% 46% 54% 24%; }
+  50% { border-radius: 50% 50% 33% 67% / 55% 27% 73% 45%; }
+  75% { border-radius: 33% 67% 58% 42% / 63% 68% 32% 37%; }
+}
+
+/* ============================================================
+   Conic Gradient Accent Ring (decorative)
+   ============================================================ */
+.conic-ring {
+  background: conic-gradient(
+    from 0deg,
+    oklch(0.55 0.2 260),
+    oklch(0.65 0.17 163),
+    oklch(0.75 0.15 85),
+    oklch(0.55 0.2 293),
+    oklch(0.55 0.2 260)
+  );
+  animation: conicSpin 6s linear infinite;
+}
+@keyframes conicSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   Morphing Blob Background
+   ============================================================ */
+@keyframes blobFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(30px, -50px) scale(1.1); }
+  66% { transform: translate(-20px, 20px) scale(0.9); }
+}
+@keyframes blobFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(-30px, 20px) scale(0.9); }
+  66% { transform: translate(20px, -50px) scale(1.1); }
+}
+.blob-bg-1 { animation: blobFloat1 15s ease-in-out infinite; }
+.blob-bg-2 { animation: blobFloat2 18s ease-in-out infinite; }
+
+/* ============================================================
+   Slide-Up Staggered Entry (for card groups)
+   ============================================================ */
+@keyframes slideUpStagger {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.stagger-entry > *:nth-child(1) { animation: slideUpStagger 0.5s ease-out 0s both; }
+.stagger-entry > *:nth-child(2) { animation: slideUpStagger 0.5s ease-out 0.08s both; }
+.stagger-entry > *:nth-child(3) { animation: slideUpStagger 0.5s ease-out 0.16s both; }
+.stagger-entry > *:nth-child(4) { animation: slideUpStagger 0.5s ease-out 0.24s both; }
+.stagger-entry > *:nth-child(5) { animation: slideUpStagger 0.5s ease-out 0.32s both; }
+.stagger-entry > *:nth-child(6) { animation: slideUpStagger 0.5s ease-out 0.4s both; }
+.stagger-entry > *:nth-child(7) { animation: slideUpStagger 0.5s ease-out 0.48s both; }
+.stagger-entry > *:nth-child(8) { animation: slideUpStagger 0.5s ease-out 0.56s both; }
+
+/* ============================================================
+   Infinite Scroll Marquee (horizontal)
+   ============================================================ */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.marquee-track {
+  display: flex;
+  animation: marqueeScroll 25s linear infinite;
+  width: max-content;
+}
+.marquee-track:hover { animation-play-state: paused; }
+
+/* ============================================================
+   Dashboard Stat Card Premium
+   ============================================================ */
+.stat-card-premium {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stat-card-premium::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary), oklch(0.65 0.17 163));
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+.stat-card-premium:hover::after {
+  transform: scaleX(1);
+}
+.stat-card-premium:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 30px -5px oklch(0.55 0.2 260 / 12%);
+}
+
+/* ============================================================
+   Ticket / Receipt Card Style
+   ============================================================ */
+.ticket-card {
+  position: relative;
+  border-radius: 1rem;
+  overflow: hidden;
+}
+.ticket-card::before,
+.ticket-card::after {
+  content: '';
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: var(--background);
+  border-radius: 50%;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+}
+.ticket-card::before { left: -10px; }
+.ticket-card::after { right: -10px; }
+
+/* ============================================================
+   Skeleton Pulse (lightweight loading)
+   ============================================================ */
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.skeleton-pulse {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* ============================================================
+   Slide-In from Bottom (toast-like)
+   ============================================================ */
+@keyframes slideInBottom {
+  from { opacity: 0; transform: translateY(20px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-slide-in-bottom {
+  animation: slideInBottom 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ============================================================
+   Bus Route Line Animation (decorative)
+   ============================================================ */
+@keyframes routeDash {
+  to { stroke-dashoffset: -20; }
+}
+.route-line-animated {
+  stroke-dasharray: 8 4;
+  animation: routeDash 1.5s linear infinite;
+}
+
+/* ============================================================
+   Magnetic Hover (subtle pull effect)
+   ============================================================ */
+.magnetic-hover {
+  transition: transform 0.2s ease;
+}
+
+/* ============================================================
+   Text Gradient Animation
+   ============================================================ */
+@keyframes textGradient {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+.text-gradient-animated {
+  background-size: 200% auto;
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: textGradient 3s ease infinite;
+}
+
+/* ============================================================
+   Overlay Backdrop Blur (modal backgrounds)
+   ============================================================ */
+.overlay-blur {
+  backdrop-filter: blur(8px) saturate(150%);
+  -webkit-backdrop-filter: blur(8px) saturate(150%);
+  background: oklch(0 0 0 / 40%);
+}
+
+/* ============================================================
+   Transit Badge Styles
+   ============================================================ */
+.transit-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 0.375rem;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  letter-spacing: 0.02em;
+}
+.transit-badge-live {
+  background: oklch(0.65 0.17 163 / 15%);
+  color: oklch(0.35 0.08 163);
+  border: 1px solid oklch(0.65 0.17 163 / 25%);
+}
+
+/* ============================================================
+   Responsive Overflow Container
+   ============================================================ */
+.overflow-container {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.overflow-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   Icon Container Sizes
+   ============================================================ */
+.icon-sm { width: 1.25rem; height: 1.25rem; }
+.icon-md { width: 1.5rem; height: 1.5rem; }
+.icon-lg { width: 2rem; height: 2rem; }
+.icon-xl { width: 2.5rem; height: 2.5rem; }
+
+/* ============================================================
+   Scroll Progress Bar (top of page)
+   ============================================================ */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, oklch(0.55 0.2 260), oklch(0.65 0.17 163), oklch(0.75 0.15 85));
+  z-index: 9999;
+  transition: width 0.1s linear;
+}
+
+/* ============================================================
+   Smooth Page Section Transitions
+   ============================================================ */
+.page-section {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: slideUpStagger 0.5s ease-out forwards;
+}

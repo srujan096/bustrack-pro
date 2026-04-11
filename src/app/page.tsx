@@ -1,9 +1,135 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { UserProfile } from '@/types';
 import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon } from 'lucide-react';
 import { useTheme } from 'next-themes';
+
+// ============================================================
+// Error Boundary (catches rendering crashes)
+// ============================================================
+interface ErrorBoundaryProps { children: React.ReactNode; fallback?: React.ReactNode; }
+interface ErrorBoundaryState { hasError: boolean; error: Error | null; }
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('[ErrorBoundary] Caught:', error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      if (this.props.fallback) return this.props.fallback;
+      return (
+        <div className="flex items-center justify-center min-h-[400px] p-8">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
+              <svg className="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+            </div>
+            <h2 className="text-lg font-bold text-foreground mb-2">Something went wrong</h2>
+            <p className="text-sm text-muted-foreground mb-4">An unexpected error occurred. Please try refreshing the page.</p>
+            <button
+              onClick={() => { this.setState({ hasError: false, error: null }); }}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ============================================================
+// Live Notification Ticker (WebSocket-powered)
+// ============================================================
+function NotificationTicker() {
+  const [events, setEvents] = useState<{ id: number; type: string; message: string; severity: string }[]>([]);
+  const wsRef = useRef<WebSocket | null>(null);
+  const idRef = useRef(0);
+
+  useEffect(() => {
+    const connect = () => {
+      try {
+        const ws = new WebSocket(`ws://localhost:3005/?XTransformPort=3005`);
+        wsRef.current = ws;
+
+        ws.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data.type === 'connected' || data.type === 'pong') return;
+            if (data.type && data.message) {
+              const id = ++idRef.current;
+              setEvents((prev) => {
+                const updated = [...prev, { id, type: data.type, message: data.message, severity: data.severity || 'info' }];
+                return updated.slice(-20);
+              });
+            }
+          } catch { /* ignore parse errors */ }
+        };
+
+        ws.onclose = () => {
+          // Reconnect after 5 seconds
+          setTimeout(connect, 5000);
+        };
+
+        ws.onerror = () => {
+          ws.close();
+        };
+      } catch {
+        // WebSocket not available, use fallback events
+        setTimeout(connect, 10000);
+      }
+    };
+    connect();
+    return () => {
+      wsRef.current?.close();
+    };
+  }, []);
+
+  const severityColors: Record<string, string> = {
+    warning: 'text-amber-500',
+    success: 'text-emerald-500',
+    info: 'text-sky-500',
+  };
+
+  const typeIcons: Record<string, string> = {
+    delay: '⚠',
+    arrival: '🚌',
+    departure: '🚀',
+    crew_status: '👷',
+    system: '⚡',
+    weather: '🌤',
+  };
+
+  if (events.length === 0) return null;
+
+  // Duplicate events for seamless marquee loop
+  const displayEvents = [...events, ...events];
+
+  return (
+    <div className="border-t border-b border-border/50 bg-muted/30 px-0 overflow-hidden">
+      <div className="marquee-track py-1.5 gap-6">
+        {displayEvents.map((e, i) => (
+          <div
+            key={`${e.id}-${i}`}
+            className={`flex items-center gap-1.5 px-4 text-xs whitespace-nowrap ${severityColors[e.severity] || 'text-muted-foreground'}`}
+          >
+            <span className="text-sm">{typeIcons[e.type] || '📡'}</span>
+            <span className="font-medium text-foreground/80">{e.message}</span>
+            <span className="text-muted-foreground/50">•</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // ============================================================
 // Bus SVG Icon Component
@@ -782,20 +908,24 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col mesh-gradient">
-      <AppShell
+      <ErrorBoundary>
+        <AppShell
         user={user}
         token={token || ''}
         portal={portal}
         setPortal={setPortal}
         onLogout={handleLogout}
       />
+        {/* Live Notification Ticker */}
+        <NotificationTicker />
+      </ErrorBoundary>
       {/* Enhanced Footer */}
       <footer className="bg-card border-t border-border px-4 py-2.5 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)]">
         <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <span>&copy; 2025 BusTrack Pro</span>
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span>v4.0.0</span>
+            <span>v5.0.0</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
