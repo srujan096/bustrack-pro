@@ -86,6 +86,11 @@ import {
   Hourglass,
   Thermometer,
   TreePalm,
+  ChevronDown,
+  ChevronUp,
+  GraduationCap,
+  Heart,
+  Snowflake,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -356,6 +361,143 @@ function getWeeklyOnTimeData(seed: string): { day: string; onTime: number; total
     const onTime = 2 + (simpleHash(seed + d + 'ot') % (total - 1));
     return { day: d, onTime, total };
   });
+}
+
+// ──────────────────────────── Assignment Performance Helper ────────────────────────────
+
+function AssignmentPerformanceBadge({ assignmentId }: { assignmentId: string }) {
+  const onTimeRate = 75 + getSeededValue(assignmentId + 'otr', 0, 24);
+  const tripsThisWeek = 8 + getSeededValue(assignmentId + 'ttw', 0, 7);
+  const perfColor = onTimeRate >= 90 ? 'emerald' : onTimeRate >= 75 ? 'amber' : 'red';
+  const barColor = onTimeRate >= 90 ? 'bg-emerald-500' : onTimeRate >= 75 ? 'bg-amber-500' : 'bg-red-500';
+  const textColor = onTimeRate >= 90 ? 'text-emerald-600' : onTimeRate >= 75 ? 'text-amber-600' : 'text-red-600';
+  const barBg = onTimeRate >= 90 ? 'bg-emerald-100 dark:bg-emerald-900/50' : onTimeRate >= 75 ? 'bg-amber-100 dark:bg-amber-900/50' : 'bg-red-100 dark:bg-red-900/50';
+
+  return (
+    <div className="mt-2 flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-1.5 min-w-0">
+        <span className="text-[10px] text-gray-400 shrink-0">On Time:</span>
+        <div className={`h-1.5 w-16 ${barBg} rounded-full overflow-hidden`}>
+          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${onTimeRate}%` }} />
+        </div>
+        <span className={`text-[10px] font-bold ${textColor}`}>{onTimeRate}%</span>
+      </div>
+      <div className="flex items-center gap-1">
+        <Navigation className="h-3 w-3 text-gray-400" />
+        <span className="text-[10px] text-gray-500 font-medium">{tripsThisWeek} trips this week</span>
+      </div>
+    </div>
+  );
+}
+
+// ──────────────────────────── End-of-Shift Summary ────────────────────────────
+
+function EndOfShiftSummary({ crewName }: { crewName: string }) {
+  const totalTrips = 6 + getSeededValue(crewName + 'eodt' + getTodayStr(), 0, 8);
+  const totalHours = 7 + getSeededValue(crewName + 'eodh' + getTodayStr(), 0, 3) + getSeededValue(crewName + 'eodh2', 0, 60) / 60;
+  const totalDistance = 120 + getSeededValue(crewName + 'eodd' + getTodayStr(), 0, 180);
+  const perfScore = 3 + getSeededValue(crewName + 'eods' + getTodayStr(), 0, 2);
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubmitReport = () => {
+    setSubmitted(true);
+    toast({ title: 'Daily report submitted successfully!', description: `Report for ${formatDate(getTodayStr())} has been recorded.` });
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border border-dashed border-gray-200 dark:border-gray-700">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-violet-100 to-amber-100">
+            <FileText className="h-4 w-4 text-violet-600" />
+          </div>
+          <div>
+            <CardTitle className="text-base">End of Day Summary</CardTitle>
+            <CardDescription className="text-xs">Daily shift report</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 p-3 text-center">
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{totalTrips}</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Trips Done</p>
+          </div>
+          <div className="rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 p-3 text-center">
+            <p className="text-lg font-bold text-sky-700 dark:text-sky-300">{totalHours.toFixed(1)}h</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Hours Worked</p>
+          </div>
+          <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 p-3 text-center">
+            <p className="text-lg font-bold text-amber-700 dark:text-amber-300">{totalDistance} km</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Distance</p>
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-500 dark:text-gray-400">Performance:</span>
+            <StarRating rating={perfScore} size={16} />
+          </div>
+          {submitted ? (
+            <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
+              <CheckCircle2 className="mr-1 h-3 w-3" /> Submitted
+            </Badge>
+          ) : (
+            <Button size="sm" className="gap-1.5 bg-violet-600 text-white hover:bg-violet-700 h-8 px-4 text-xs" onClick={handleSubmitReport}>
+              <Send className="h-3.5 w-3.5" />
+              Submit Report
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── Certification Badges ────────────────────────────
+
+function CertificationBadges({ crewName }: { crewName: string }) {
+  const certifications = [
+    { name: 'Heavy Vehicle License', icon: GraduationCap, expiry: `Dec ${2025 + (simpleHash(crewName + 'cert1') % 3)}`, active: simpleHash(crewName + 'cert1') % 5 !== 0, gradient: 'from-emerald-500 to-teal-600', bgLight: 'from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30', border: 'border-emerald-200 dark:border-emerald-800' },
+    { name: 'Defensive Driving', icon: Shield, expiry: `Mar ${2026 + (simpleHash(crewName + 'cert2') % 2)}`, active: simpleHash(crewName + 'cert2') % 6 !== 0, gradient: 'from-amber-500 to-orange-600', bgLight: 'from-amber-50 to-orange-50 dark:from-amber-900/30 dark:to-orange-900/30', border: 'border-amber-200 dark:border-amber-800' },
+    { name: 'First Aid Certified', icon: Heart, expiry: `Jun ${2025 + (simpleHash(crewName + 'cert3') % 3)}`, active: simpleHash(crewName + 'cert3') % 4 !== 0, gradient: 'from-rose-500 to-pink-600', bgLight: 'from-rose-50 to-pink-50 dark:from-rose-900/30 dark:to-pink-900/30', border: 'border-rose-200 dark:border-rose-800' },
+    { name: 'AC Bus Certified', icon: Snowflake, expiry: `Sep ${2026 + (simpleHash(crewName + 'cert4') % 2)}`, active: simpleHash(crewName + 'cert4') % 7 !== 0, gradient: 'from-sky-500 to-blue-600', bgLight: 'from-sky-50 to-blue-50 dark:from-sky-900/30 dark:to-blue-900/30', border: 'border-sky-200 dark:border-sky-800' },
+  ];
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Award className="h-5 w-5 text-amber-500" />
+          Certifications
+        </CardTitle>
+        <CardDescription>Professional certifications and licenses</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-3 sm:grid-cols-2">
+          {certifications.map((cert) => {
+            const Icon = cert.icon;
+            return (
+              <div key={cert.name} className={`rounded-xl border p-4 bg-gradient-to-br ${cert.bgLight} ${cert.border} transition-all hover:shadow-sm`}>
+                <div className="flex items-start gap-3">
+                  <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br ${cert.gradient} shadow-sm`}>
+                    <Icon className="h-5 w-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{cert.name}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Expires: {cert.expiry}</p>
+                    <Badge className={`mt-1.5 text-[10px] ${cert.active ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800'}`}>
+                      {cert.active ? <CheckCircle2 className="mr-0.5 h-2.5 w-2.5" /> : <XCircle className="mr-0.5 h-2.5 w-2.5" />}
+                      {cert.active ? 'Active' : 'Expired'}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
 // ──────────────────────────── New Feature: Digital Trip Manifest ────────────────────────────
@@ -1993,27 +2135,25 @@ function RouteMiniVisualization({
   );
 }
 
-function StatusTimeline({ status, createdAt, reviewedAt }: { status: string; createdAt?: string; reviewedAt?: string }) {
+function StatusTimeline({ status, createdAt, reviewedAt, reviewerName }: { status: string; createdAt?: string; reviewedAt?: string; reviewerName?: string | null }) {
   const steps = [
-    { label: 'Submitted', done: true, date: createdAt },
-    { label: 'Under Review', done: status === 'approved' || status === 'rejected', date: null },
-    { label: status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Decision', done: status === 'approved' || status === 'rejected', date: reviewedAt },
+    { label: 'Applied', done: true, date: createdAt, dotColor: 'bg-gray-400 dark:bg-gray-500', lineColor: 'bg-gray-300 dark:bg-gray-600' },
+    { label: 'Under Review', done: status === 'approved' || status === 'rejected', date: null, dotColor: status === 'approved' || status === 'rejected' ? 'bg-amber-500' : 'bg-gray-300 dark:bg-gray-600', lineColor: status === 'approved' || status === 'rejected' ? 'bg-amber-400' : 'bg-gray-200 dark:bg-gray-700' },
+    { label: status === 'approved' ? 'Approved' : status === 'rejected' ? 'Rejected' : 'Decision', done: status === 'approved' || status === 'rejected', date: reviewedAt, dotColor: status === 'rejected' ? 'bg-red-500' : status === 'approved' ? 'bg-emerald-500' : 'bg-gray-300 dark:bg-gray-600', lineColor: status === 'rejected' ? 'bg-red-400' : status === 'approved' ? 'bg-emerald-400' : 'bg-gray-200 dark:bg-gray-700' },
   ];
 
   return (
     <div className="flex items-center gap-0 w-full">
       {steps.map((step, i) => (
         <React.Fragment key={step.label}>
-          <div className="flex flex-col items-center min-w-0">
+          <div className="flex flex-col items-center min-w-0 flex-1">
             <div className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold shrink-0 ${
               step.done
-                ? status === 'rejected' && step.label === 'Rejected'
-                  ? 'bg-red-500 text-white'
-                  : 'bg-emerald-500 text-white'
-                : 'bg-gray-200 text-gray-400'
+                ? step.dotColor + ' text-white ring-2 ' + (step.dotColor === 'bg-emerald-500' ? 'ring-emerald-200' : step.dotColor === 'bg-red-500' ? 'ring-red-200' : step.dotColor === 'bg-amber-500' ? 'ring-amber-200' : 'ring-gray-200')
+                : 'bg-gray-200 dark:bg-gray-700 text-gray-400'
             }`}>
               {step.done ? (
-                status === 'rejected' && step.label === 'Rejected' ? (
+                step.label === 'Rejected' ? (
                   <XCircle className="h-3.5 w-3.5" />
                 ) : (
                   <CheckCircle2 className="h-3.5 w-3.5" />
@@ -2025,9 +2165,15 @@ function StatusTimeline({ status, createdAt, reviewedAt }: { status: string; cre
             <span className="mt-1 text-[10px] text-gray-500 text-center leading-tight whitespace-nowrap">
               {step.label}
             </span>
+            {step.date && (
+              <span className="text-[8px] text-gray-400 text-center whitespace-nowrap">{formatDateShort(step.date)}</span>
+            )}
+            {(step.label === 'Approved' || step.label === 'Rejected') && reviewerName && step.done && (
+              <span className="text-[8px] text-gray-400 text-center whitespace-nowrap">by {reviewerName}</span>
+            )}
           </div>
           {i < steps.length - 1 && (
-            <div className={`flex-1 h-0.5 mx-1 mb-4 mt-[-12px] ${step.done ? 'bg-emerald-400' : 'bg-gray-200'}`} />
+            <div className={`flex-1 h-0.5 mx-1 mb-4 mt-[-12px] ${step.done ? step.lineColor : 'bg-gray-200 dark:bg-gray-700'}`} />
           )}
         </React.Fragment>
       ))}
@@ -2285,6 +2431,64 @@ function DashboardPage({
         </Card>
       </div>
 
+      {/* This Week Stats Row */}
+      {crewProfile && (
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-emerald-500 stat-accent-emerald p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
+                <Navigation className="h-4 w-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  {completedCount + getSeededValue(crewProfile.profile?.name || '' + 'wt', 3, 8)}
+                </p>
+                <p className="text-[11px] text-gray-500">Trips This Week</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-sky-500 stat-accent-blue p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50">
+                <Timer className="h-4 w-4 text-sky-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  {getWeeklyHours(crewProfile.profile?.name || '').reduce((s, h) => s + h, 0).toFixed(0)}h
+                </p>
+                <p className="text-[11px] text-gray-500">Hours Worked</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-amber-500 stat-accent-amber p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50">
+                <Gauge className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  {320 + getSeededValue(crewProfile.profile?.name || '' + 'wd', 0, 180)} km
+                </p>
+                <p className="text-[11px] text-gray-500">Distance Covered</p>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-rose-500 stat-accent-rose p-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50">
+                <Fuel className="h-4 w-4 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-gray-900">
+                  {38 + getSeededValue(crewProfile.profile?.name || '' + 'wf', 0, 25)} L
+                </p>
+                <p className="text-[11px] text-gray-500">Fuel Used</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Today's Weather Widget */}
       <DailyWeatherWidget crewName={crewProfile?.profile?.name || ''} />
 
@@ -2330,6 +2534,9 @@ function DashboardPage({
                       )}
                     </div>
                   </div>
+                  {/* Assignment Performance Metrics */}
+                  <AssignmentPerformanceBadge assignmentId={assignment.id} />
+
                   {/* Actions */}
                   <div className="mt-3 flex items-center gap-2 border-t border-gray-100 pt-3">
                     <Badge className={getStatusColor(assignment.status)}>
@@ -2451,6 +2658,9 @@ function DashboardPage({
       {/* Break Timer */}
       <BreakTimer />
 
+      {/* End of Day Summary */}
+      <EndOfShiftSummary crewName={crewProfile?.profile?.name || ''} />
+
       {/* Route Performance */}
       {crewProfile && (
         <RoutePerformance crewName={crewProfile.profile?.name || ''} />
@@ -2508,6 +2718,7 @@ function DashboardPage({
                         </span>
                       )}
                     </div>
+                    <AssignmentPerformanceBadge assignmentId={assignment.id} />
                   </div>
                   {/* Action buttons */}
                   {assignment.status === 'pending' && (
@@ -2556,11 +2767,24 @@ function AssignmentsPage({
   const [delayDialogOpen, setDelayDialogOpen] = useState(false);
   const [delayReason, setDelayReason] = useState('');
   const [delayAssignmentId, setDelayAssignmentId] = useState('');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
   const handleReportDelay = (assignmentId: string) => {
     setDelayAssignmentId(assignmentId);
     setDelayReason('');
     setDelayDialogOpen(true);
+  };
+
+  const toggleGroup = (groupKey: string) => {
+    setCollapsedGroups((prev) => {
+      const next = new Set(prev);
+      if (next.has(groupKey)) {
+        next.delete(groupKey);
+      } else {
+        next.add(groupKey);
+      }
+      return next;
+    });
   };
 
   const handleSubmitDelay = () => {
@@ -2736,72 +2960,96 @@ function AssignmentsPage({
               {/* Today */}
               {filterGroup(todayUpcoming).length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
+                  <button
+                    className="flex items-center gap-2 mb-3 w-full text-left group"
+                    onClick={() => toggleGroup('today')}
+                  >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700">Today</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Today</h3>
                     <span className="text-xs text-gray-400">({todayUpcoming.length})</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filterGroup(todayUpcoming).map((a) => (
-                      <AssignmentCard key={a.id} assignment={a} />
-                    ))}
-                  </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('today') ? '-rotate-90' : ''}`} />
+                  </button>
+                  {!collapsedGroups.has('today') && (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {filterGroup(todayUpcoming).map((a) => (
+                        <AssignmentCard key={a.id} assignment={a} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Tomorrow */}
               {filterGroup(tomorrowUpcoming).length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
+                  <button
+                    className="flex items-center gap-2 mb-3 w-full text-left group"
+                    onClick={() => toggleGroup('tomorrow')}
+                  >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700">Tomorrow</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Tomorrow</h3>
                     <span className="text-xs text-gray-400">({tomorrowUpcoming.length})</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filterGroup(tomorrowUpcoming).map((a) => (
-                      <AssignmentCard key={a.id} assignment={a} />
-                    ))}
-                  </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('tomorrow') ? '-rotate-90' : ''}`} />
+                  </button>
+                  {!collapsedGroups.has('tomorrow') && (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {filterGroup(tomorrowUpcoming).map((a) => (
+                        <AssignmentCard key={a.id} assignment={a} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* This Week */}
               {filterGroup(thisWeekUpcoming).length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
+                  <button
+                    className="flex items-center gap-2 mb-3 w-full text-left group"
+                    onClick={() => toggleGroup('thisweek')}
+                  >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700">This Week</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">This Week</h3>
                     <span className="text-xs text-gray-400">({thisWeekUpcoming.length})</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filterGroup(thisWeekUpcoming).map((a) => (
-                      <AssignmentCard key={a.id} assignment={a} />
-                    ))}
-                  </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('thisweek') ? '-rotate-90' : ''}`} />
+                  </button>
+                  {!collapsedGroups.has('thisweek') && (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {filterGroup(thisWeekUpcoming).map((a) => (
+                        <AssignmentCard key={a.id} assignment={a} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
               {/* Later */}
               {filterGroup(laterUpcoming).length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2 mb-3">
+                  <button
+                    className="flex items-center gap-2 mb-3 w-full text-left group"
+                    onClick={() => toggleGroup('later')}
+                  >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-400 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700">Later</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Later</h3>
                     <span className="text-xs text-gray-400">({laterUpcoming.length})</span>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filterGroup(laterUpcoming).map((a) => (
-                      <AssignmentCard key={a.id} assignment={a} />
-                    ))}
-                  </div>
+                    <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('later') ? '-rotate-90' : ''}`} />
+                  </button>
+                  {!collapsedGroups.has('later') && (
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {filterGroup(laterUpcoming).map((a) => (
+                        <AssignmentCard key={a.id} assignment={a} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -3103,6 +3351,81 @@ function CalendarPage({
           <CardContent>
             {/* Shift Summary Card */}
             <ShiftSummaryCard dateStr={selectedDate} assignments={assignments} crewName={crewProfile?.profile?.name || ''} />
+
+            {/* Enhanced Day Detail */}
+            {selectedAssignments.length > 0 && (
+              <div className="mt-4 space-y-3">
+                {/* Total Hours & Estimated Distance */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 p-3">
+                    <div className="flex items-center gap-2">
+                      <Timer className="h-4 w-4 text-sky-500" />
+                      <span className="text-xs font-medium text-sky-700 dark:text-sky-300">
+                        Total Scheduled: {
+                          (() => {
+                            const seed = simpleHash(selectedDate + (crewProfile?.profile?.name || ''));
+                            let hrs = 0;
+                            const morningH = parseInt(selectedAssignments[0]?.schedule.departureTime.split(':')[0] || '0', 10);
+                            if (morningH > 0 && morningH < 13) hrs += 4 + (seed % 3) * 0.5;
+                            const eveningAsgn = selectedAssignments.find((a) => parseInt(a.schedule.departureTime.split(':')[0], 10) >= 13);
+                            if (eveningAsgn) hrs += 3 + (seed % 2) * 0.5;
+                            return hrs > 0 ? `${hrs.toFixed(1)}h` : 'N/A';
+                          })()
+                        }
+                      </span>
+                    </div>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 p-3">
+                    <div className="flex items-center gap-2">
+                      <Navigation className="h-4 w-4 text-amber-500" />
+                      <span className="text-xs font-medium text-amber-700 dark:text-amber-300">
+                        Est. Distance: {selectedAssignments.reduce((s, a) => s + (a.schedule.route?.distanceKm || 15 + getSeededValue(a.id + 'dist', 5, 35)), 0)} km
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shift Summary Line */}
+                <div className="rounded-lg border border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50 px-3 py-2">
+                  <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Shift Summary</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600 dark:text-gray-300">
+                    {selectedAssignments.filter((a) => parseInt(a.schedule.departureTime.split(':')[0], 10) < 13).map((a) => {
+                      const endH = parseInt(a.schedule.departureTime.split(':')[0], 10) + 4;
+                      return (
+                        <span key={a.id} className="flex items-center gap-1">
+                          <Sun className="h-3 w-3 text-amber-500" />
+                          Morning: {a.schedule.departureTime}-{endH}:00 ({endH - parseInt(a.schedule.departureTime.split(':')[0], 10)}h)
+                        </span>
+                      );
+                    })}
+                    {selectedAssignments.filter((a) => parseInt(a.schedule.departureTime.split(':')[0], 10) >= 13).map((a) => {
+                      const endH = parseInt(a.schedule.departureTime.split(':')[0], 10) + 5;
+                      return (
+                        <span key={a.id} className="flex items-center gap-1">
+                          <Moon className="h-3 w-3 text-violet-500" />
+                          Evening: {a.schedule.departureTime}-{endH % 24}:00 ({endH - parseInt(a.schedule.departureTime.split(':')[0], 10)}h)
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Bus Assignments List */}
+                {selectedAssignments.some((a) => a.schedule.route?.busRegistration) && (
+                  <div className="rounded-lg border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2">
+                    <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1">Bus Assignments</p>
+                    <div className="flex flex-wrap gap-2">
+                      {selectedAssignments.filter((a) => a.schedule.route?.busRegistration).map((a) => (
+                        <span key={a.id} className="flex items-center gap-1.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-300">
+                          <Bus className="h-3 w-3" />
+                          {a.schedule.route!.busRegistration}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {selectedAssignments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-gray-400">
@@ -3535,6 +3858,7 @@ function LeaveRequestsPage({
                           status={req.status}
                           createdAt={req.startDate}
                           reviewedAt={req.reviewedAt || undefined}
+                          reviewerName={req.reviewedBy || undefined}
                         />
                       </div>
                     </div>
@@ -3939,14 +4263,27 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                   <text x={padL - 5} y={getEffY(v) + 3} textAnchor="end" className="fill-gray-400 text-[9px]">{v.toFixed(1)}</text>
                 </g>
               ))}
+              {/* Target line at 8 km/L */}
+              {8 >= minEff && 8 <= maxEff && (
+                <line x1={padL} y1={getEffY(8)} x2={chartW - padR} y2={getEffY(8)} stroke="#ef4444" strokeWidth="1.5" strokeDasharray="6 4" />
+              )}
+              {8 >= minEff && 8 <= maxEff && (
+                <text x={chartW - padR + 2} y={getEffY(8) + 3} className="fill-red-400 text-[8px] font-semibold">Target: 8</text>
+              )}
               {effAreaPath && <path d={effAreaPath} fill="url(#effGrad)" />}
               <path d={effLinePath} fill="none" stroke="#0ea5e9" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-              {vals.map((v, i) => (
-                <g key={i}>
-                  <circle cx={getEffX(i)} cy={getEffY(v)} r="4" fill="white" stroke="#0ea5e9" strokeWidth="2" />
-                  <text x={getEffX(i)} y={getEffY(v) - 10} textAnchor="middle" className="fill-gray-600 text-[9px] font-semibold">{v.toFixed(1)}</text>
-                </g>
-              ))}
+              {vals.map((v, i) => {
+                const barColor = v >= 8 ? '#10b981' : v >= 6 ? '#f59e0b' : '#ef4444';
+                const dotColor = v >= 8 ? '#10b981' : v >= 6 ? '#f59e0b' : '#ef4444';
+                return (
+                  <g key={i}>
+                    <circle cx={getEffX(i)} cy={getEffY(v)} r="6" fill={dotColor} fillOpacity="0.08" stroke="none" />
+                    <circle cx={getEffX(i)} cy={getEffY(v)} r="4" fill="white" stroke={dotColor} strokeWidth="2" />
+                    <title>{`${v.toFixed(1)} km/L${v >= 8 ? ' (Good)' : v >= 6 ? ' (Fair)' : ' (Poor)'}`}</title>
+                    <text x={getEffX(i)} y={getEffY(v) - 10} textAnchor="middle" className={`fill-gray-600 text-[9px] font-semibold`}>{v.toFixed(1)}</text>
+                  </g>
+                );
+              })}
             </svg>
           </CardContent>
         </Card>
@@ -3989,6 +4326,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                     const dist = sortedByOdo[sortedIdx].odometer - sortedByOdo[sortedIdx - 1].odometer;
                     eff = dist > 0 && entry.liters > 0 ? parseFloat((dist / entry.liters).toFixed(1)) : null;
                   }
+                  const effColor = eff !== null ? (eff >= 8 ? 'text-emerald-600' : eff >= 6 ? 'text-amber-600' : 'text-red-600') : '';
                   const typeColor = entry.fuelType === 'Diesel' ? 'bg-amber-100 text-amber-700'
                     : entry.fuelType === 'CNG' ? 'bg-sky-100 text-sky-700'
                     : 'bg-emerald-100 text-emerald-700';
@@ -4002,7 +4340,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                       <TableCell className="text-xs py-2">
                         <span className={`px-1.5 py-0.5 rounded text-[10px] font-semibold ${typeColor}`}>{entry.fuelType}</span>
                       </TableCell>
-                      <TableCell className="text-xs py-2 font-mono">{eff !== null ? `${eff} km/L` : '—'}</TableCell>
+                      <TableCell className="text-xs py-2 font-mono">{eff !== null ? <span className={effColor} title={eff >= 8 ? 'Good efficiency' : eff >= 6 ? 'Fair efficiency' : 'Poor efficiency'}>{eff} km/L</span> : '—'}</TableCell>
                       <TableCell className="text-xs py-2">
                         <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteEntry(entry.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
@@ -4249,6 +4587,9 @@ function ProfilePage({
 
       {/* Performance Scorecard */}
       <PerformanceScorecard crewName={crewProfile.profile?.name || ''} />
+
+      {/* Certification Badges */}
+      <CertificationBadges crewName={crewProfile.profile?.name || ''} />
 
       {/* Earnings Tracker */}
       <EarningsTracker crewName={crewProfile.profile?.name || ''} />

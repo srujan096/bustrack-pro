@@ -218,13 +218,13 @@ function formatDuration(minutes: number | undefined): string {
 function trafficBadge(level: string | undefined) {
   if (!level) return <Badge variant="secondary">Unknown</Badge>;
   const cls: Record<string, string> = {
-    low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    moderate: 'bg-amber-100 text-amber-700 border-amber-200',
-    high: 'bg-orange-100 text-orange-700 border-orange-200',
-    severe: 'bg-red-100 text-red-700 border-red-200',
+    low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+    moderate: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
+    high: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+    severe: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
   };
   return (
-    <Badge variant="outline" className={cls[level.toLowerCase()] ?? cls.moderate}>
+    <Badge variant="outline" className={`${cls[level.toLowerCase()] ?? cls.moderate} transition-all duration-300`}>
       {level.charAt(0).toUpperCase() + level.slice(1)}
     </Badge>
   );
@@ -233,13 +233,13 @@ function trafficBadge(level: string | undefined) {
 function statusBadge(status: string | undefined) {
   if (!status) return <Badge variant="secondary">Unknown</Badge>;
   const cls: Record<string, string> = {
-    planned: 'bg-sky-100 text-sky-700 border-sky-200',
-    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-    cancelled: 'bg-red-100 text-red-700 border-red-200',
-    confirmed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    planned: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:border-sky-700 dark:text-sky-300',
+    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+    cancelled: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
+    confirmed: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
   };
   return (
-    <Badge variant="outline" className={cls[status.toLowerCase()] ?? cls.planned}>
+    <Badge variant="outline" className={`${cls[status.toLowerCase()] ?? cls.planned} transition-all duration-300`}>
       {status.charAt(0).toUpperCase() + status.slice(1)}
     </Badge>
   );
@@ -876,12 +876,12 @@ function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
           </div>
         )}
 
-        {/* Step 3: Route Suggestion with Visual */}
+        {/* Step 3: Route Suggestions with Results Panel */}
         {step === 3 && (
           <div className="space-y-4 animate-in fade-in duration-300">
-            {/* Visual route */}
+            {/* Visual route summary */}
             <div className="rounded-xl border bg-muted/20 p-4">
-              <p className="mb-4 text-sm font-medium text-muted-foreground">Suggested Route</p>
+              <p className="mb-3 text-sm font-medium text-muted-foreground">Suggested Routes</p>
               <div className="flex items-center gap-2 overflow-x-auto pb-2">
                 <div className="flex flex-col items-center gap-1 shrink-0">
                   <div className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
@@ -901,18 +901,68 @@ function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
                   <span className="text-xs font-medium max-w-[80px] text-center">{destination}</span>
                 </div>
               </div>
-              <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <div className="mt-3 flex flex-wrap gap-3 text-xs text-muted-foreground">
                 <span className="flex items-center gap-1"><CalendarClock className="size-3" />{tripDate}</span>
                 <span className="flex items-center gap-1"><Clock className="size-3" />{tripTime}</span>
                 <span className="flex items-center gap-1"><UserPlus className="size-3" />{passengers} {passengers === 1 ? 'Passenger' : 'Passengers'}</span>
               </div>
             </div>
+
+            {/* 3 Suggested Routes */}
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-muted-foreground">Available Routes</p>
+              {[
+                { routeNum: 'R-500', departure: `${tripTime}`, duration: 45, fare: 35, seats: 28, traffic: 'low' },
+                { routeNum: 'R-215', departure: `${String(Number(tripTime.split(':')[0]) + 1).padStart(2, '0')}:15`, duration: 55, fare: 30, seats: 12, traffic: 'moderate' },
+                { routeNum: 'R-335', departure: `${String(Number(tripTime.split(':')[0]) + 2).padStart(2, '0')}:00`, duration: 35, fare: 45, seats: 22, traffic: 'low' },
+              ].map((suggestion, idx) => (
+                <div
+                  key={idx}
+                  className="flex items-center justify-between rounded-lg border p-3 transition-all hover:bg-muted/30 dark:hover:bg-muted/10 hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
+                      <Bus className="size-4 text-primary" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-mono text-xs">{suggestion.routeNum}</Badge>
+                        <SeatBadge trafficLevel={suggestion.traffic} />
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1"><Clock className="size-3" />{suggestion.departure}</span>
+                        <span className="flex items-center gap-1"><Timer className="size-3" />{suggestion.duration} min</span>
+                        <span className="flex items-center gap-1"><Users className="size-3" />{suggestion.seats} seats</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <p className="text-lg font-bold text-emerald-700">{formatCurrency(suggestion.fare * passengers)}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => {
+                        toast({
+                          title: 'Route Selected!',
+                          description: `${suggestion.routeNum} selected for ${passengers} passenger${passengers > 1 ? 's' : ''}. Redirecting to book...`,
+                        });
+                        handleFindRoutes();
+                      }}
+                    >
+                      Select
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="flex gap-3">
               <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
                 Back
               </Button>
               <Button className="flex-1" onClick={handleFindRoutes}>
-                <Search className="size-4" /> Find Routes
+                <Search className="size-4" /> Find More Routes
               </Button>
             </div>
           </div>
@@ -2789,6 +2839,134 @@ function SearchRoutes({
   );
 }
 
+// ─── Route ETA Calculator ───────────────────────────────────────────────────
+
+function RouteETACalculator({ selectedRoute, stops }: { selectedRoute: RouteResult | null; stops: { name: string; lat: number; lng: number }[] }) {
+  const [startStop, setStartStop] = useState('');
+  const [endStop, setEndStop] = useState('');
+  const [calculated, setCalculated] = useState<{ time: string; distance: string; fare: string; stopsCount: number } | null>(null);
+
+  const availableStops = useMemo(() => {
+    return stops.map(s => s.name);
+  }, [stops]);
+
+  const handleCalculate = useCallback(() => {
+    if (!startStop || !endStop || startStop === endStop) {
+      toast({
+        title: 'Invalid Selection',
+        description: 'Please select different start and end stops.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    const startIdx = availableStops.indexOf(startStop);
+    const endIdx = availableStops.indexOf(endStop);
+    if (startIdx < 0 || endIdx < 0) return;
+
+    const stopDiff = Math.abs(endIdx - startIdx);
+    const distPerStop = (selectedRoute?.distanceKm ?? 20) / Math.max(availableStops.length, 1);
+    const distance = stopDiff * distPerStop;
+    const durationMin = Math.round(distance * 2.5 + stopDiff * 3);
+    const fare = Math.round(5 + distance * 2);
+    const hours = Math.floor(durationMin / 60);
+    const mins = durationMin % 60;
+
+    setCalculated({
+      time: hours > 0 ? `${hours}h ${mins}m` : `${mins}m`,
+      distance: `${distance.toFixed(1)} km`,
+      fare: formatCurrency(fare),
+      stopsCount: stopDiff,
+    });
+  }, [startStop, endStop, availableStops, selectedRoute]);
+
+  return (
+    <Card className="transit-card overflow-hidden">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Gauge className="size-5 text-emerald-500" />
+          Route ETA Calculator
+        </CardTitle>
+        <CardDescription>Estimate travel time between stops</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {!selectedRoute ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Select a route to calculate ETA</p>
+        ) : availableStops.length < 2 ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Not enough stops data for this route</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPin className="size-3.5 text-emerald-500" /> Start Stop
+                </label>
+                <Select value={startStop} onValueChange={setStartStop}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select start stop..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableStops.map((s, i) => (
+                      <SelectItem key={i} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <MapPinned className="size-3.5 text-rose-500" /> End Stop
+                </label>
+                <Select value={endStop} onValueChange={setEndStop}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select end stop..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableStops.map((s, i) => (
+                      <SelectItem key={i} value={s}>{s}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <Button
+              className="w-full"
+              disabled={!startStop || !endStop || startStop === endStop}
+              onClick={handleCalculate}
+            >
+              <Calculator className="size-4 mr-1" />
+              Calculate ETA
+            </Button>
+
+            {calculated && (
+              <div className="grid grid-cols-2 gap-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                <div className="rounded-lg border bg-muted/30 dark:bg-muted/10 p-3 text-center">
+                  <Clock className="mx-auto size-5 text-sky-500 mb-1" />
+                  <p className="text-lg font-bold text-sky-700 dark:text-sky-400">{calculated.time}</p>
+                  <p className="text-[10px] text-muted-foreground">Est. Time</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 dark:bg-muted/10 p-3 text-center">
+                  <Navigation className="mx-auto size-5 text-emerald-500 mb-1" />
+                  <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{calculated.distance}</p>
+                  <p className="text-[10px] text-muted-foreground">Distance</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 dark:bg-muted/10 p-3 text-center">
+                  <IndianRupee className="mx-auto size-5 text-amber-500 mb-1" />
+                  <p className="text-lg font-bold text-amber-700 dark:text-amber-400">{calculated.fare}</p>
+                  <p className="text-[10px] text-muted-foreground">Est. Fare</p>
+                </div>
+                <div className="rounded-lg border bg-muted/30 dark:bg-muted/10 p-3 text-center">
+                  <Waypoints className="mx-auto size-5 text-violet-500 mb-1" />
+                  <p className="text-lg font-bold text-violet-700 dark:text-violet-400">{calculated.stopsCount}</p>
+                  <p className="text-[10px] text-muted-foreground">Stops</p>
+                </div>
+              </div>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Route Map ───────────────────────────────────────────────────────────────
 
 function RouteMapView() {
@@ -3224,6 +3402,9 @@ function RouteMapView() {
           </CardContent>
         </Card>
       )}
+
+      {/* Route ETA Calculator */}
+      <RouteETACalculator selectedRoute={selectedRoute} stops={stops} />
     </div>
   );
 }
@@ -3314,6 +3495,80 @@ function TravelTimeline({ userId }: { userId: string }) {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Booking Status Timeline ─────────────────────────────────────────────────
+
+const BOOKING_STAGES = [
+  { label: 'Booked', dotColor: 'bg-emerald-500', ringColor: 'ring-emerald-200', darkRing: 'dark:ring-emerald-800' },
+  { label: 'Confirmed', dotColor: 'bg-blue-500', ringColor: 'ring-blue-200', darkRing: 'dark:ring-blue-800' },
+  { label: 'Boarding', dotColor: 'bg-amber-500', ringColor: 'ring-amber-200', darkRing: 'dark:ring-amber-800' },
+  { label: 'Completed', dotColor: 'bg-emerald-500', ringColor: 'ring-emerald-200', darkRing: 'dark:ring-emerald-800' },
+];
+
+function BookingStatusTimeline({ status }: { status: string | undefined }) {
+  const statusIdx = (() => {
+    const s = status?.toLowerCase() ?? 'planned';
+    if (s === 'planned' || s === 'booked') return 0;
+    if (s === 'confirmed') return 1;
+    if (s === 'boarding') return 2;
+    if (s === 'completed') return 3;
+    return 0;
+  })();
+
+  return (
+    <div className="flex items-center justify-between px-2 py-3">
+      {BOOKING_STAGES.map((stage, idx) => {
+        const isCompleted = idx < statusIdx;
+        const isActive = idx === statusIdx;
+        const isFuture = idx > statusIdx;
+        return (
+          <React.Fragment key={stage.label}>
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="relative">
+                <div
+                  className={`h-4 w-4 rounded-full ring-2 transition-all duration-500 ${
+                    isCompleted
+                      ? `${stage.dotColor} ${stage.ringColor} ${stage.darkRing}`
+                      : isActive
+                        ? `${stage.dotColor} ${stage.ringColor} ${stage.darkRing}`
+                        : 'bg-gray-300 ring-gray-200 dark:bg-gray-600 dark:ring-gray-700'
+                  }`}
+                />
+                {isActive && (
+                  <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+                    <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${stage.dotColor} opacity-75`} />
+                    <span className={`relative inline-flex h-2 w-2 rounded-full ${stage.dotColor}`} />
+                  </span>
+                )}
+                {isCompleted && (
+                  <CheckCircle2 className="absolute inset-0 size-4 text-white" strokeWidth={3} />
+                )}
+              </div>
+              <span
+                className={`text-[10px] font-medium transition-colors duration-300 ${
+                  isCompleted || isActive
+                    ? 'text-foreground'
+                    : 'text-muted-foreground/40'
+                }`}
+              >
+                {stage.label}
+              </span>
+            </div>
+            {idx < BOOKING_STAGES.length - 1 && (
+              <div
+                className={`h-0.5 flex-1 mx-1 rounded-full transition-colors duration-500 ${
+                  idx < statusIdx
+                    ? 'bg-emerald-400 dark:bg-emerald-600'
+                    : 'bg-gray-200 dark:bg-gray-700'
+                }`}
+              />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
   );
 }
 
@@ -3456,6 +3711,11 @@ function MyBookings({ userId }: { userId: string }) {
                       <TearLine />
                     </div>
 
+                    {/* Status Timeline */}
+                    <div className="px-4">
+                      <BookingStatusTimeline status={j.status} />
+                    </div>
+
                     {/* Middle section: Journey details + QR */}
                     <div className="flex items-stretch px-5 py-4">
                       <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-3">
@@ -3548,6 +3808,51 @@ function MyBookings({ userId }: { userId: string }) {
           )}
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+// ─── Monthly Spending Trend Chart ────────────────────────────────────────────
+
+function MonthlySpendingChart({ journeys }: { journeys: Journey[] }) {
+  const monthlyData = useMemo(() => {
+    const monthMap: Record<string, number> = {};
+    for (const j of journeys) {
+      const d = j.schedule?.date;
+      if (!d) continue;
+      const monthKey = d.slice(0, 7); // "YYYY-MM"
+      monthMap[monthKey] = (monthMap[monthKey] ?? 0) + (j.cost ?? 0);
+    }
+    // Get last 6 months
+    const now = new Date();
+    const months: { label: string; value: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = format(d, 'yyyy-MM');
+      const label = format(d, 'MMM');
+      months.push({ label, value: monthMap[key] ?? 0 });
+    }
+    return months;
+  }, [journeys]);
+
+  const maxValue = Math.max(...monthlyData.map(m => m.value), 1);
+
+  return (
+    <div className="flex items-end gap-2 h-32">
+      {monthlyData.map((m) => (
+        <div key={m.label} className="flex-1 flex flex-col items-center gap-1">
+          <span className="text-[10px] font-medium text-muted-foreground tabular-nums">
+            {m.value > 0 ? `₹${(m.value / 100).toFixed(0)}${m.value >= 1000 ? '' : ''}` : ''}
+          </span>
+          <div className="w-full relative" style={{ height: '80px' }}>
+            <div
+              className="absolute bottom-0 left-1/2 -translate-x-1/2 w-5 rounded-t-md bg-gradient-to-t from-emerald-500 to-emerald-300 dark:from-emerald-600 dark:to-emerald-400 transition-all duration-700"
+              style={{ height: `${Math.max((m.value / maxValue) * 100, 4)}%` }}
+            />
+          </div>
+          <span className="text-[10px] text-muted-foreground">{m.label}</span>
+        </div>
+      ))}
     </div>
   );
 }
@@ -3678,6 +3983,99 @@ function JourneyHistory({ userId }: { userId: string }) {
       {/* Travel Stats */}
       {!loading && journeys.length > 0 && (
         <TravelStats journeys={journeys} visible={true} />
+      )}
+
+      {/* Enhanced Stats Cards */}
+      {!loading && journeys.length > 0 && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          {/* Most Visited Route */}
+          <Card className="card-lift hover:scale-[1.02] transition-all duration-300">
+            <CardContent className="py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                  <Route className="size-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Most Visited Route</p>
+                  <p className="text-lg font-bold">{(() => {
+                    const routeCounts: Record<string, number> = {};
+                    for (const j of journeys) {
+                      const rn = jRouteNumber(j);
+                      if (rn && rn !== '—') routeCounts[rn] = (routeCounts[rn] ?? 0) + 1;
+                    }
+                    const sorted = Object.entries(routeCounts).sort((a, b) => b[1] - a[1]);
+                    return sorted.length > 0 ? sorted[0][0] : '—';
+                  })()}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{(() => {
+                const routeCounts: Record<string, number> = {};
+                for (const j of journeys) {
+                  const rn = jRouteNumber(j);
+                  if (rn && rn !== '—') routeCounts[rn] = (routeCounts[rn] ?? 0) + 1;
+                }
+                const sorted = Object.entries(routeCounts).sort((a, b) => b[1] - a[1]);
+                return sorted.length > 0 ? `${sorted[0][1]} journey${sorted[0][1] > 1 ? 's' : ''} on this route` : 'No data';
+              })()}</p>
+            </CardContent>
+          </Card>
+
+          {/* Favorite Travel Time */}
+          <Card className="card-lift hover:scale-[1.02] transition-all duration-300">
+            <CardContent className="py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                  <Clock className="size-5 text-amber-600 dark:text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Favorite Travel Time</p>
+                  <p className="text-lg font-bold">{(() => {
+                    const hourCounts: Record<number, number> = {};
+                    for (const j of journeys) {
+                      const t = j.schedule?.departureTime;
+                      if (!t) continue;
+                      const h = parseInt(t.split(':')[0], 10);
+                      if (!isNaN(h)) hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+                    }
+                    const sorted = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+                    if (sorted.length === 0) return '—';
+                    const hour = Number(sorted[0][0]);
+                    const ampm = hour >= 12 ? 'PM' : 'AM';
+                    const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+                    return `${h12}:00 ${ampm}`;
+                  })()}</p>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">{(() => {
+                const hourCounts: Record<number, number> = {};
+                for (const j of journeys) {
+                  const t = j.schedule?.departureTime;
+                  if (!t) continue;
+                  const h = parseInt(t.split(':')[0], 10);
+                  if (!isNaN(h)) hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+                }
+                const sorted = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+                return sorted.length > 0 ? `${sorted[0][1]} trips at this hour` : 'No data';
+              })()}</p>
+            </CardContent>
+          </Card>
+
+          {/* Monthly Spending Trend */}
+          <Card className="card-lift hover:scale-[1.02] transition-all duration-300">
+            <CardContent className="py-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                  <TrendingUp className="size-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Monthly Spending</p>
+                  <p className="text-sm font-bold">Last 6 Months Trend</p>
+                </div>
+              </div>
+              <MonthlySpendingChart journeys={journeys} />
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Spending Summary Card */}
@@ -4136,23 +4534,23 @@ const STATUS_COLORS: Record<string, string> = {
 const FAQ_ITEMS = [
   {
     q: 'How do I book a ticket?',
-    a: 'Search for your route using the Search Routes page, select a schedule that works for you, pick your preferred seat, and click "Book Now". You can pay using UPI, Credit/Debit cards, or Net Banking. Your ticket will be confirmed instantly.',
+    a: 'Search for your route, select a schedule, and click Book Now. You\'ll receive a confirmation with ticket details and QR code.',
   },
   {
     q: 'Can I cancel my booking?',
-    a: 'Yes, you can cancel up to 30 minutes before departure for a full refund. Go to "My Bookings" page, find your booking, and click "Cancel". Cancellations within 30 minutes of departure may incur a 10% fee.',
+    a: 'Yes! Navigate to My Bookings and click Cancel on any booking made less than 30 minutes before departure.',
   },
   {
-    q: 'How do the loyalty points work?',
-    a: 'Earn 10 points per trip, 50 points for maintaining a weekly streak, and 200 points for referrals. Points can be redeemed for free ride coupons, priority boarding passes, and discount vouchers in the Rewards section on your Dashboard.',
+    q: 'How do loyalty points work?',
+    a: 'Earn 10 points per trip. Weekly streak of 5+ trips earns 100 bonus points. Redeem for free rides, priority boarding, or discounts.',
   },
   {
     q: 'What payment methods are accepted?',
-    a: 'We accept UPI (GPay, PhonePe, Paytm), Credit/Debit cards (Visa, Mastercard, Rupay), and Net Banking from all major Indian banks. Wallet balance can also be used for payments.',
+    a: 'We accept UPI, Credit/Debit cards, Net Banking, and BusTrack Wallet. All transactions are secured with 256-bit encryption.',
   },
   {
     q: 'How do I contact support?',
-    a: 'Email us at support@bustrack.in or call our 24/7 helpline at 1800-BUS-HELP (1800-287-4357). You can also submit a complaint through this Support page for a response within 24 hours.',
+    a: 'Email: support@bustrack.in | Phone: 1800-BUS-HELP | Available 24/7',
   },
 ];
 
@@ -4209,6 +4607,60 @@ function SupportPage() {
 
   return (
     <div className="space-y-6">
+      {/* FAQ Accordion - Above complaint form */}
+      <Card className="transit-card overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <HelpCircle className="size-5 text-emerald-500" />
+            Frequently Asked Questions
+          </CardTitle>
+          <CardDescription>Quick answers to common questions</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Search FAQ */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search questions and answers..."
+              value={faqSearch}
+              onChange={e => setFaqSearch(e.target.value)}
+              className="pl-10 h-9"
+            />
+          </div>
+
+          <div className="space-y-1">
+            {filteredFaqs.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <HelpCircle className="mx-auto mb-2 size-8 opacity-30" />
+                <p className="text-sm">No matching questions found</p>
+              </div>
+            ) : (
+              filteredFaqs.map((faq, i) => (
+                <div key={i} className="rounded-lg border dark:border-muted-foreground/20 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors"
+                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                  >
+                    <span className="pr-4">{faq.q}</span>
+                    <ChevronDown
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-300 ${
+                        expandedFaq === i ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+                  {expandedFaq === i && (
+                    <div className="border-t bg-muted/30 dark:bg-muted/10 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                      <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Submit Complaint */}
       <Card className="neon-card overflow-hidden">
         <CardHeader>
@@ -4364,60 +4816,6 @@ function SupportPage() {
         </CardContent>
       </Card>
 
-      {/* FAQ Accordion */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HelpCircle className="size-5 text-emerald-500" />
-            Frequently Asked Questions
-          </CardTitle>
-          <CardDescription>Quick answers to common questions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search FAQ */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search FAQ..."
-              value={faqSearch}
-              onChange={e => setFaqSearch(e.target.value)}
-              className="pl-10 h-9"
-            />
-          </div>
-
-          <div className="space-y-1">
-            {filteredFaqs.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                <HelpCircle className="mx-auto mb-2 size-8 opacity-30" />
-                <p className="text-sm">No matching questions found</p>
-              </div>
-            ) : (
-              filteredFaqs.map((faq, i) => (
-                <div key={i} className="rounded-lg border dark:border-muted-foreground/20">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors"
-                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-                  >
-                    <span className="pr-4">{faq.q}</span>
-                    <ChevronRight
-                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-                        expandedFaq === i ? 'rotate-90' : ''
-                      }`}
-                    />
-                  </button>
-                  {expandedFaq === i && (
-                    <div className="border-t bg-muted/30 dark:bg-muted/10 px-4 py-3">
-                      <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Contact Us Card */}
       <Card className="neon-card overflow-hidden">
         <CardHeader>
@@ -4481,9 +4879,9 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
   void _token;
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
+    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6 lg:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* Page Header */}
-      <div>
+      <div className="animate-in fade-in slide-in-from-bottom-3 duration-300">
         <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
           {portal === 'dashboard' && 'Dashboard'}
           {portal === 'search' && 'Search Routes'}

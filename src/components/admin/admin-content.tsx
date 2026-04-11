@@ -409,7 +409,7 @@ function WeeklyBarChart() {
 function QuickStatsRibbon() {
   const [stats, setStats] = useState<Record<string, string>>({});
   useEffect(() => {
-    apiFetch('/api/analytics').then((d: Record<string, unknown>) => {
+    apiFetch('/api/analytics').then((d: any) => {
       const dash = d?.dashboard as Record<string, number> | undefined;
       const summary = d?.summary as Record<string, number> | undefined;
       const avgCompletion = summary?.avgCompletionRate;
@@ -648,6 +648,8 @@ function FuelCostCalculator() {
 function DepartureBoard() {
   const [refreshKey, setRefreshKey] = useState(0);
   const [animating, setAnimating] = useState(false);
+  const [lastRefresh, setLastRefresh] = useState(Date.now());
+  const [secondsAgo, setSecondsAgo] = useState(0);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -655,10 +657,19 @@ function DepartureBoard() {
       setTimeout(() => {
         setRefreshKey((k) => k + 1);
         setAnimating(false);
+        setLastRefresh(Date.now());
       }, 500);
     }, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  // Update "Xs ago" counter every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setSecondsAgo(Math.floor((Date.now() - lastRefresh) / 1000));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lastRefresh]);
 
   const now = new Date();
   const baseHour = now.getHours();
@@ -703,8 +714,12 @@ function DepartureBoard() {
         <div className="flex items-center justify-between">
           <CardTitle className="led-text text-lg tracking-wider">DEPARTURES</CardTitle>
           <div className="flex items-center gap-2">
-            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Live</span>
+            {/* LIVE pulsing red dot */}
+            <span className="relative flex size-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75" />
+              <span className="relative inline-flex size-2.5 rounded-full bg-red-500" />
+            </span>
+            <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider">LIVE</span>
           </div>
         </div>
       </CardHeader>
@@ -721,21 +736,25 @@ function DepartureBoard() {
             {departures.map((d, i) => (
               <div
                 key={`${i}-${refreshKey}`}
-                className="grid grid-cols-[1fr_1.3fr_auto_auto_auto] gap-3 text-sm px-2 py-1.5 rounded hover:bg-slate-800/70 transition-colors"
+                className={`grid grid-cols-[1fr_1.3fr_auto_auto_auto] gap-3 text-sm px-2 py-1.5 rounded transition-colors hover:bg-slate-800/70 ${
+                  d.status === 'Delayed' ? 'animate-delayed-blink' : ''
+                }`}
               >
                 <span className="font-bold text-amber-400 font-mono text-xs">{d.route}</span>
                 <span className="text-slate-300 truncate text-xs">{d.destination}</span>
                 <span className="text-emerald-400 font-mono font-bold text-xs text-center tabular-nums">{d.time}</span>
                 <span className="text-slate-400 font-mono text-xs text-center">{d.platform}</span>
                 <div className="flex items-center justify-end gap-1.5">
-                  <span className={`size-2 rounded-full ${statusDotColors[d.status]} animate-pulse`} />
+                  <span className={`size-2 rounded-full ${statusDotColors[d.status]} ${d.status === 'Delayed' ? 'animate-pulse' : ''}`} />
                   <span className={`text-[11px] font-semibold ${statusColors[d.status]}`}>{d.status}</span>
                 </div>
               </div>
             ))}
           </div>
           <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between">
-            <span className="text-[10px] text-slate-600">Auto-refreshes every 30s</span>
+            <span className="text-[10px] text-slate-600">
+              Updated {secondsAgo === 0 ? 'just now' : `${secondsAgo}s ago`} · Auto-refreshes every 30s
+            </span>
             <span className="text-[10px] text-slate-600 font-mono tabular-nums">
               {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}:{String(now.getSeconds()).padStart(2, '0')} IST
             </span>
@@ -2017,25 +2036,39 @@ function RoutesPage({ token }: { token: string }) {
 /* ================================================================== */
 /*  Page: Schedules                                                    */
 /* ================================================================== */
+function ScheduleStatusDot({ status }: { status?: string }) {
+  const s = (status ?? '').toLowerCase();
+  const colorMap: Record<string, string> = {
+    scheduled: 'bg-green-500',
+    in_progress: 'bg-blue-500',
+    completed: 'bg-emerald-500',
+    cancelled: 'bg-red-500',
+  };
+  return <span className={`inline-block size-2.5 rounded-full ${colorMap[s] ?? 'bg-gray-400'}`} />;
+}
+
 function SchedulesPage({ token }: { token: string }) {
   const { showToast } = useToast();
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
   const [timelineView, setTimelineView] = useState(false);
-  const today = todayStr();
+  const [selectedDate, setSelectedDate] = useState(todayStr());
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const statusFilters = ['all', 'scheduled', 'in_progress', 'completed', 'cancelled'];
 
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<any>(`/api/schedules?date=${today}`);
+      const data = await apiFetch<any>(`/api/schedules?date=${selectedDate}`);
       setSchedules(Array.isArray(data) ? data : data.schedules ?? data.data ?? []);
     } catch {
       setSchedules([]);
     } finally {
       setLoading(false);
     }
-  }, [today]);
+  }, [selectedDate]);
 
   useEffect(() => {
     fetchSchedules();
@@ -2046,9 +2079,9 @@ function SchedulesPage({ token }: { token: string }) {
     try {
       await apiFetch('/api/schedules', {
         method: 'POST',
-        body: JSON.stringify({ action: 'generate', date: today }),
+        body: JSON.stringify({ action: 'generate', date: selectedDate }),
       });
-      showToast("Today's schedules generated successfully!", 'success');
+      showToast(`Schedules generated for ${formatDate(selectedDate)}!`, 'success');
       fetchSchedules();
     } catch (err: unknown) {
       showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
@@ -2057,6 +2090,20 @@ function SchedulesPage({ token }: { token: string }) {
     }
   };
 
+  const filteredSchedules = useMemo(() => {
+    if (statusFilter === 'all') return schedules;
+    return schedules.filter((s: any) => (s.status ?? '').toLowerCase() === statusFilter);
+  }, [schedules, statusFilter]);
+
+  const statusLabel: Record<string, string> = {
+    all: 'All', scheduled: 'Scheduled', in_progress: 'In Progress', completed: 'Completed', cancelled: 'Cancelled',
+  };
+
+  const filterActiveClass = (f: string) =>
+    statusFilter === f
+      ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-500'
+      : 'bg-muted/60 text-muted-foreground hover:bg-muted dark:hover:bg-muted/80';
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2064,41 +2111,68 @@ function SchedulesPage({ token }: { token: string }) {
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg">
-                <Calendar className="size-5" /> Today&apos;s Schedules
+                <Calendar className="size-5" /> Schedules
               </CardTitle>
               <CardDescription className="mt-1">
-                Schedules for{' '}
+                <span className="font-semibold text-foreground dark:text-foreground">{schedules.length}</span>{' '}
+                schedules for{' '}
                 <span className="font-medium text-foreground">
-                  {formatDate(today)}
+                  {formatDate(selectedDate)}
                 </span>
               </CardDescription>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="relative">
+                <Input
+                  type="date"
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  className="w-40 text-sm"
+                />
+              </div>
               <Button variant={timelineView ? 'outline' : 'default'} size="sm" onClick={() => setTimelineView(false)}>
                 <Calendar className="size-3.5 mr-1" /> Table
               </Button>
               <Button variant={timelineView ? 'default' : 'outline'} size="sm" onClick={() => setTimelineView(true)}>
                 <LayoutList className="size-3.5 mr-1" /> Timeline
               </Button>
-              <Button onClick={handleGenerate} disabled={generating}>
+              <Button onClick={handleGenerate} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700">
                 {generating ? (
                   <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
                   <Play className="size-4" />
                 )}
-                Generate
+                <span className="hidden sm:inline ml-1.5">Generate Schedules</span>
+                <span className="sm:hidden ml-1.5">Generate</span>
               </Button>
             </div>
           </div>
         </CardHeader>
         <CardContent>
+          {/* Status Filter Pills */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {statusFilters.map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${filterActiveClass(f)}`}
+              >
+                {f !== 'all' && <ScheduleStatusDot status={f} />}
+                {statusLabel[f]}
+                {f !== 'all' && (
+                  <span className="ml-0.5 opacity-70">({schedules.filter((s: any) => (s.status ?? '').toLowerCase() === f).length})</span>
+                )}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
             <TableSkeleton rows={8} cols={4} />
-          ) : schedules.length === 0 ? (
+          ) : filteredSchedules.length === 0 ? (
             <EmptyState
               icon={Calendar}
-              title="No Schedules Yet"
-              description="Click &quot;Generate&quot; to auto-create today's bus schedules based on route configurations."
+              title={statusFilter === 'all' ? 'No Schedules Yet' : `No ${statusLabel[statusFilter]} Schedules`}
+              description={statusFilter === 'all' ? 'Click &quot;Generate&quot; to auto-create bus schedules based on route configurations.' : `No ${statusLabel[statusFilter].toLowerCase()} schedules found for ${formatDate(selectedDate)}.`}
             />
           ) : timelineView ? (
             <div className="overflow-x-auto">
@@ -2114,7 +2188,7 @@ function SchedulesPage({ token }: { token: string }) {
                 </div>
                 {/* Timeline rows */}
                 <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
-                  {schedules.slice(0, 20).map((s: any) => {
+                  {filteredSchedules.slice(0, 20).map((s: any) => {
                     const time = s.departureTime ?? s.time ?? '08:00';
                     const parts = time.split(':');
                     const hr = parseInt(parts[0] || '8', 10);
@@ -2149,11 +2223,9 @@ function SchedulesPage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedules.map((s: any, idx: number) => (
-                    /* STYLE: alternating row colors + hover */
+                  {filteredSchedules.map((s: any, idx: number) => (
                     <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
                       <TableCell className="font-medium">
-                        {/* FIX #4: s.route?.routeNumber */}
                         {s.route?.routeNumber ?? s.routeNumber ?? '—'}
                       </TableCell>
                       <TableCell>
@@ -2163,11 +2235,13 @@ function SchedulesPage({ token }: { token: string }) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {/* FIX #4: s.route?.busRegistration */}
                         {s.route?.busRegistration ?? s.busNumber ?? '—'}
                       </TableCell>
                       <TableCell>
-                        <ScheduleStatusBadge status={s.status} />
+                        <div className="flex items-center gap-2">
+                          <ScheduleStatusDot status={s.status} />
+                          <ScheduleStatusBadge status={s.status} />
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -2797,12 +2871,15 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState('all');
+
+  const statusFilters = ['all', 'pending', 'approved', 'rejected'];
 
   const fetchHolidays = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await apiFetch<any>('/api/holidays?status=pending');
-      // FIX #9: access from requests array, then crew?.name
+      const data = await apiFetch<any>('/api/holidays');
+      // Fetch all requests (not just pending) so we can filter
       const arr = Array.isArray(data) ? data : data.requests ?? data.holidays ?? data.data ?? [];
       setHolidays(arr);
     } catch {
@@ -2815,6 +2892,11 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
   useEffect(() => {
     fetchHolidays();
   }, [fetchHolidays]);
+
+  const filteredHolidays = useMemo(() => {
+    if (statusFilter === 'all') return holidays;
+    return holidays.filter((h: any) => (h.status ?? 'pending').toLowerCase() === statusFilter);
+  }, [holidays, statusFilter]);
 
   const handleReview = async (id: string, status: 'approved' | 'rejected') => {
     setReviewing(id);
@@ -2840,6 +2922,43 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
     }
   };
 
+  const formatCompactDateRange = (startDate: string, endDate: string) => {
+    try {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      const sMonth = s.toLocaleDateString('en-US', { month: 'short' });
+      const sDay = s.getDate();
+      const eMonth = e.toLocaleDateString('en-US', { month: 'short' });
+      const eDay = e.getDate();
+      const year = s.getFullYear();
+      if (sMonth === eMonth) return `${sMonth} ${sDay} - ${eDay}, ${year}`;
+      return `${sMonth} ${sDay} - ${eMonth} ${eDay}, ${year}`;
+    } catch {
+      return `${startDate} - ${endDate}`;
+    }
+  };
+
+  const getDaysCount = (startDate: string, endDate: string) => {
+    try {
+      const diff = (new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24);
+      return Math.max(1, Math.round(diff) + 1);
+    } catch {
+      return '—';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const s = (status ?? 'pending').toLowerCase();
+    if (s === 'approved') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300';
+    if (s === 'rejected') return 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300';
+    return 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300';
+  };
+
+  const filterActiveClass = (f: string) =>
+    statusFilter === f
+      ? 'bg-emerald-600 text-white shadow-sm dark:bg-emerald-500'
+      : 'bg-muted/60 text-muted-foreground hover:bg-muted dark:hover:bg-muted/80';
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2852,96 +2971,125 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Filter Pills */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {statusFilters.map((f) => (
+              <button
+                key={f}
+                onClick={() => setStatusFilter(f)}
+                className={`rounded-full px-3 py-1.5 text-xs font-medium capitalize transition-all ${filterActiveClass(f)}`}
+              >
+                {f}
+                {f !== 'all' && (
+                  <span className="ml-1 opacity-70">({holidays.filter((h: any) => (h.status ?? 'pending').toLowerCase() === f).length})</span>
+                )}
+              </button>
+            ))}
+          </div>
+
           {loading ? (
             <TableSkeleton rows={6} cols={6} />
-          ) : holidays.length === 0 ? (
+          ) : filteredHolidays.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
               title="All Caught Up!"
-              description="No pending holiday requests to review. Check back later."
+              description="No holiday requests matching this filter. Check back later."
             />
           ) : (
-            <div className="max-h-[500px] overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Crew Name</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Start Date</TableHead>
-                    <TableHead>End Date</TableHead>
-                    <TableHead>Days</TableHead>
-                    <TableHead>Reason</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {holidays.map((h: any, idx: number) => {
-                    const id = h.id ?? h._id;
-                    return (
-                      /* STYLE: alternating row colors + hover */
-                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
-                        <TableCell className="font-medium">
-                          {/* FIX #9: h.crew?.name */}
-                          {h.crew?.name ?? h.crewName ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {h.crew?.email ?? '—'}
-                        </TableCell>
-                        <TableCell>{formatDate(h.startDate)}</TableCell>
-                        <TableCell>{formatDate(h.endDate)}</TableCell>
-                        <TableCell>
-                          {(() => {
-                            try {
-                              const diff =
-                                (new Date(h.endDate).getTime() -
-                                  new Date(h.startDate).getTime()) /
-                                (1000 * 60 * 60 * 24);
-                              return `${Math.max(1, Math.round(diff) + 1)}`;
-                            } catch {
-                              return '—';
-                            }
-                          })()}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {h.reason ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-emerald-600 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/50"
-                              disabled={reviewing === id}
-                              onClick={() => handleReview(id, 'approved')}
-                            >
-                              {reviewing === id ? (
-                                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              ) : (
-                                <CheckCircle2 className="size-3.5" />
-                              )}
-                              Approve
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/50"
-                              disabled={reviewing === id}
-                              onClick={() => handleReview(id, 'rejected')}
-                            >
-                              {reviewing === id ? (
-                                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              ) : (
-                                <XCircle className="size-3.5" />
-                              )}
-                              Reject
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
+              {filteredHolidays.map((h: any) => {
+                const id = h.id ?? h._id;
+                const crewName = h.crew?.name ?? h.crewName ?? '—';
+                const role = h.crew?.role ?? h.role ?? (crewName.includes('Driver') ? 'Driver' : 'Conductor');
+                const status = (h.status ?? 'pending').toLowerCase();
+                const isPending = status === 'pending';
+
+                return (
+                  <div
+                    key={id}
+                    className={`card-lift rounded-xl border bg-card p-4 transition-all dark:bg-card ${
+                      status === 'approved' ? 'border-emerald-200 dark:border-emerald-800/60' :
+                      status === 'rejected' ? 'border-rose-200 dark:border-rose-800/60' :
+                      'border-amber-200 dark:border-amber-800/60'
+                    }`}
+                  >
+                    {/* Header: Name + Role + Status */}
+                    <div className="flex items-start justify-between mb-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="flex size-8 items-center justify-center rounded-full bg-muted text-muted-foreground shrink-0">
+                          <Users className="size-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <h3 className="text-sm font-semibold text-foreground dark:text-foreground truncate">{crewName}</h3>
+                          <Badge
+                            variant="outline"
+                            className={`text-[10px] capitalize mt-0.5 ${
+                              role.toLowerCase() === 'driver'
+                                ? 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800'
+                                : 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300 dark:border-violet-800'
+                            }`}
+                          >
+                            {role}
+                          </Badge>
+                        </div>
+                      </div>
+                      <Badge className={`text-[10px] capitalize shrink-0 ${getStatusBadge(status)}`}>
+                        {status}
+                      </Badge>
+                    </div>
+
+                    {/* Date Range */}
+                    <div className="flex items-center gap-2 mb-2 text-sm">
+                      <Clock className="size-3.5 text-muted-foreground shrink-0" />
+                      <span className="font-medium text-foreground dark:text-foreground">
+                        {formatCompactDateRange(h.startDate, h.endDate)}
+                      </span>
+                      <span className="text-xs text-muted-foreground dark:text-muted-foreground">
+                        ({getDaysCount(h.startDate, h.endDate)}d)
+                      </span>
+                    </div>
+
+                    {/* Reason */}
+                    {h.reason && (
+                      <p className="text-xs text-muted-foreground dark:text-muted-foreground mb-3 line-clamp-2">{h.reason}</p>
+                    )}
+
+                    {/* Action Buttons (only for pending) */}
+                    {isPending && (
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+                          disabled={reviewing === id}
+                          onClick={() => handleReview(id, 'approved')}
+                        >
+                          {reviewing === id ? (
+                            <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <CheckCircle2 className="size-3.5 mr-1" />
+                          )}
+                          Approve
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 text-xs border-rose-300 text-rose-700 hover:bg-rose-50 hover:text-rose-800 dark:border-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/50 dark:hover:text-rose-300"
+                          disabled={reviewing === id}
+                          onClick={() => handleReview(id, 'rejected')}
+                        >
+                          {reviewing === id ? (
+                            <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                          ) : (
+                            <XCircle className="size-3.5 mr-1" />
+                          )}
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -3317,10 +3465,10 @@ function AnalyticsPage({ token }: { token: string }) {
                           <div className="h-2 w-16 overflow-hidden rounded-full bg-muted">
                             <div
                               className="h-full rounded-full bg-emerald-500"
-                              style={{ width: `${c.completionRate}%` }}
+                              style={{ width: `${c.completionRate ?? 0}%` }}
                             />
                           </div>
-                          <span className="text-sm">{c.completionRate.toFixed(1)}%</span>
+                          <span className="text-sm">{(c.completionRate ?? 0).toFixed(1)}%</span>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -3339,6 +3487,7 @@ function AnalyticsPage({ token }: { token: string }) {
 /*  Page: Maintenance                                                  */
 /* ================================================================== */
 function MaintenancePage({ token }: { token: string }) {
+  const { showToast } = useToast();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -3354,6 +3503,45 @@ function MaintenancePage({ token }: { token: string }) {
       }
     })();
   }, []);
+
+  const getBusStatus = (r: any) => {
+    if (!r.nextServiceDate) return { status: 'active', border: 'border-l-green-500', label: 'Active' };
+    try {
+      const now = new Date();
+      const next = new Date(r.nextServiceDate);
+      const diffDays = Math.ceil((next.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays < 0) return { status: 'overdue', border: 'border-l-red-500', label: 'Overdue', days: diffDays };
+      if (diffDays <= 7) return { status: 'due', border: 'border-l-amber-500', label: 'Due Soon', days: diffDays };
+      return { status: 'active', border: 'border-l-green-500', label: 'Active', days: diffDays };
+    } catch {
+      return { status: 'active', border: 'border-l-green-500', label: 'Active' };
+    }
+  };
+
+  const getServiceBadgeClass = (type: string) => {
+    const t = (type ?? '').toLowerCase();
+    if (t.includes('routine')) return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800';
+    if (t.includes('repair')) return 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300 dark:border-rose-800';
+    if (t.includes('inspection')) return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800';
+    return 'bg-gray-100 text-gray-700 border-gray-200 dark:bg-gray-800/60 dark:text-gray-300 dark:border-gray-700';
+  };
+
+  const summaryCounts = useMemo(() => {
+    let active = 0, due = 0, overdue = 0;
+    records.forEach((r) => {
+      const { status } = getBusStatus(r);
+      if (status === 'active') active++;
+      else if (status === 'due') due++;
+      else if (status === 'overdue') overdue++;
+    });
+    return { active, due, overdue };
+  }, [records]);
+
+  const handleMarkComplete = (r: any) => {
+    const reg = r.busRegistration ?? r.registration ?? 'Unknown';
+    showToast(`Maintenance marked as complete for ${reg}`, 'success');
+    setRecords((prev) => prev.filter((rec) => (rec.id ?? rec._id) !== (r.id ?? r._id)));
+  };
 
   return (
     <div className="space-y-6">
@@ -3377,50 +3565,108 @@ function MaintenancePage({ token }: { token: string }) {
               description="Maintenance records will appear here after bus service entries are created."
             />
           ) : (
-            <div className="max-h-[500px] overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Bus Registration</TableHead>
-                    <TableHead>Service Type</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Cost</TableHead>
-                    <TableHead>Next Service</TableHead>
-                    <TableHead>Notes</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {records.map((r: any, idx: number) => (
-                    /* STYLE: alternating row colors + hover */
-                    <TableRow key={r.id ?? r._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
-                      <TableCell className="font-medium">
-                        <span className="inline-flex items-center gap-1.5">
-                          <Bus className="size-4 text-muted-foreground" />
-                          {r.busRegistration ?? r.registration ?? '—'}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="secondary" className="capitalize">
-                          {r.serviceType ?? r.type ?? '—'}
+            <>
+              {/* Summary Row */}
+              <div className="flex flex-wrap gap-4 mb-6">
+                <div className="flex items-center gap-2 rounded-lg border border-l-4 border-l-green-500 bg-green-50/50 dark:bg-green-950/20 px-4 py-2.5">
+                  <div className="size-2.5 rounded-full bg-green-500" />
+                  <span className="text-sm text-muted-foreground">Active</span>
+                  <span className="text-lg font-bold text-green-700 dark:text-green-400">{summaryCounts.active}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20 px-4 py-2.5">
+                  <div className="size-2.5 rounded-full bg-amber-500" />
+                  <span className="text-sm text-muted-foreground">Need Service</span>
+                  <span className="text-lg font-bold text-amber-700 dark:text-amber-400">{summaryCounts.due}</span>
+                </div>
+                <div className="flex items-center gap-2 rounded-lg border border-l-4 border-l-red-500 bg-red-50/50 dark:bg-red-950/20 px-4 py-2.5">
+                  <div className="size-2.5 rounded-full bg-red-500" />
+                  <span className="text-sm text-muted-foreground">Overdue</span>
+                  <span className="text-lg font-bold text-red-700 dark:text-red-400">{summaryCounts.overdue}</span>
+                </div>
+              </div>
+
+              {/* Maintenance Cards */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 max-h-[600px] overflow-y-auto">
+                {records.map((r: any) => {
+                  const busInfo = getBusStatus(r);
+                  const reg = r.busRegistration ?? r.registration ?? '—';
+                  const serviceType = r.serviceType ?? r.type ?? '—';
+                  const cost = r.cost;
+                  const nextDate = r.nextServiceDate;
+                  const daysText = busInfo.days != null
+                    ? busInfo.days < 0
+                      ? `${Math.abs(busInfo.days)}d overdue`
+                      : busInfo.days === 0
+                        ? 'Due today'
+                        : `${busInfo.days}d remaining`
+                    : null;
+
+                  return (
+                    <div
+                      key={r.id ?? r._id}
+                      className={`card-lift rounded-xl border border-l-4 ${busInfo.border} bg-card p-4 transition-all dark:bg-card`}
+                    >
+                      <div className="flex items-start justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          <Bus className="size-4 text-muted-foreground shrink-0" />
+                          <h3 className="text-base font-bold text-foreground dark:text-foreground">{reg}</h3>
+                        </div>
+                        <Badge variant="outline" className={`text-[10px] capitalize shrink-0 ${getServiceBadgeClass(serviceType)}`}>
+                          {serviceType}
                         </Badge>
-                      </TableCell>
-                      <TableCell>{formatDate(r.date ?? r.serviceDate)}</TableCell>
-                      <TableCell>
-                        {r.cost != null ? `₹${r.cost.toLocaleString()}` : '—'}
-                      </TableCell>
-                      <TableCell>
-                        {r.nextServiceDate
-                          ? formatDate(r.nextServiceDate)
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="max-w-[250px] truncate text-muted-foreground">
-                        {r.notes ?? '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+                      </div>
+
+                      <div className="space-y-2 mb-3">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="text-muted-foreground dark:text-muted-foreground">Service Date</span>
+                          <span className="font-medium text-foreground dark:text-foreground">{formatDate(r.date ?? r.serviceDate)}</span>
+                        </div>
+                        {nextDate && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground dark:text-muted-foreground">Next Service</span>
+                            <span className="font-medium text-foreground dark:text-foreground">{formatDate(nextDate)}</span>
+                          </div>
+                        )}
+                        {daysText && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground dark:text-muted-foreground">Status</span>
+                            <span className={`font-semibold text-xs px-2 py-0.5 rounded-full ${
+                              busInfo.status === 'overdue'
+                                ? 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300'
+                                : busInfo.status === 'due'
+                                  ? 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300'
+                                  : 'bg-green-100 text-green-700 dark:bg-green-950/60 dark:text-green-300'
+                            }`}>
+                              {daysText}
+                            </span>
+                          </div>
+                        )}
+                        {cost != null && (
+                          <div className="flex items-center justify-between text-sm">
+                            <span className="text-muted-foreground dark:text-muted-foreground">Cost Estimate</span>
+                            <span className="font-bold text-foreground dark:text-foreground">₹{cost.toLocaleString()}</span>
+                          </div>
+                        )}
+                      </div>
+
+                      {r.notes && (
+                        <p className="text-xs text-muted-foreground dark:text-muted-foreground mb-3 line-clamp-2">{r.notes}</p>
+                      )}
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full text-xs border-emerald-300 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:border-emerald-700 dark:text-emerald-400 dark:hover:bg-emerald-950/50 dark:hover:text-emerald-300"
+                        onClick={() => handleMarkComplete(r)}
+                      >
+                        <CheckCircle2 className="size-3.5 mr-1.5" />
+                        Mark Complete
+                      </Button>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </CardContent>
       </Card>
@@ -3815,6 +4061,36 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [portal]);
 
+  // Keyboard shortcuts: 1-9 to switch pages
+  const pageMap: Record<string, string> = {
+    '1': 'dashboard',
+    '2': 'routes',
+    '3': 'schedules',
+    '4': 'crew',
+    '5': 'traffic',
+    '6': 'holidays',
+    '7': 'analytics',
+    '8': 'maintenance',
+    '9': 'settings',
+  };
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input, textarea, or select
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select') return;
+      // Don't trigger if user is in a dialog
+      if ((e.target as HTMLElement)?.closest('[role="dialog"]')) return;
+
+      const page = pageMap[e.key];
+      if (page && page !== portal) {
+        setPortal(page);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [portal, setPortal]);
+
   const pageContent = (() => {
     switch (portal) {
       case 'dashboard':
@@ -3862,6 +4138,18 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
       <div ref={portalRef} className="flex min-h-full flex-col">
         {/* Scroll Progress Indicator */}
         <div className="scroll-progress" style={{ width: `${scrollPercent}%` }} />
+        {/* Keyboard Shortcut Hints Banner */}
+        <div className="hidden lg:block px-4 pb-2">
+          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+            <span className="font-semibold uppercase tracking-wider mr-1 opacity-50">Shortcuts:</span>
+            {Object.entries(pageMap).map(([key, page]) => (
+              <span key={key} className="flex items-center gap-1">
+                <kbd className="inline-flex items-center justify-center size-4 rounded border bg-muted/50 font-mono text-[9px] font-bold text-foreground/70 dark:text-foreground/50">{key}</kbd>
+                <span className="capitalize">{page}</span>
+              </span>
+            ))}
+          </div>
+        </div>
         <div className="flex-1">
           <QuickStatsRibbon />
           {pageContent}

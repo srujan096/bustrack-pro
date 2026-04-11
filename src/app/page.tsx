@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { UserProfile } from '@/types';
-import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History } from 'lucide-react';
+import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History, Cloud, CloudRain, CloudSun, Download, MapPin, MessageSquare, LayoutDashboard, Settings2, BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from '@/hooks/use-toast';
 
@@ -27,18 +27,59 @@ function relativeTime(dateStr: string): string {
 // Error Boundary (catches rendering crashes) — ENHANCED
 // ============================================================
 interface ErrorBoundaryProps { children: React.ReactNode; fallback?: React.ReactNode; }
-interface ErrorBoundaryState { hasError: boolean; error: Error | null; errorId: string; }
+interface ErrorBoundaryState { hasError: boolean; error: Error | null; errorId: string; countdown: number; }
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  private countdownTimer: ReturnType<typeof setInterval> | null = null;
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null, errorId: '' };
+    this.state = { hasError: false, error: null, errorId: '', countdown: 5 };
   }
   static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error, errorId: `ERR-${Math.random().toString(36).substring(2, 8).toUpperCase()}` };
+    return { hasError: true, error, errorId: `ERR-${Math.random().toString(36).substring(2, 8).toUpperCase()}`, countdown: 5 };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary] Caught:', error, info);
+    // Start auto-retry countdown
+    this.startCountdown();
   }
+  componentWillUnmount() {
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
+  }
+  startCountdown = () => {
+    this.setState({ countdown: 5 });
+    this.countdownTimer = setInterval(() => {
+      this.setState(prev => {
+        if (prev.countdown <= 1) {
+          if (this.countdownTimer) clearInterval(this.countdownTimer);
+          this.handleRetry();
+          return { countdown: 0 };
+        }
+        return { countdown: prev.countdown - 1 };
+      });
+    }, 1000);
+  };
+  handleRetry = () => {
+    if (this.countdownTimer) clearInterval(this.countdownTimer);
+    this.setState({ hasError: false, error: null, errorId: '', countdown: 5 });
+  };
+  handleExportLog = () => {
+    const logData = {
+      errorId: this.state.errorId,
+      message: this.state.error?.message || 'Unknown error',
+      stack: this.state.error?.stack || '',
+      timestamp: new Date().toISOString(),
+      url: typeof window !== 'undefined' ? window.location.href : '',
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
+    };
+    const blob = new Blob([JSON.stringify(logData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `error-${this.state.errorId}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Error Log Exported', description: `${a.download} saved successfully.` });
+  };
   render() {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
@@ -50,13 +91,24 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">Something went wrong</h2>
             <p className="text-sm text-muted-foreground mb-1">An unexpected error occurred. Please try refreshing the page.</p>
-            <p className="text-xs text-muted-foreground/60 mb-5 font-mono">Error ID: {this.state.errorId}</p>
-            <div className="flex items-center justify-center gap-3">
+            <p className="text-xs text-muted-foreground/60 mb-3 font-mono">Error ID: {this.state.errorId}</p>
+            {/* Auto-retry countdown */}
+            <p className="text-xs text-amber-600 dark:text-amber-400 mb-5 font-medium animate-pulse">
+              Retrying in {this.state.countdown}s...
+            </p>
+            <div className="flex items-center justify-center gap-3 flex-wrap">
               <button
-                onClick={() => { this.setState({ hasError: false, error: null, errorId: '' }); }}
+                onClick={this.handleRetry}
                 className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
               >
                 Try Again
+              </button>
+              <button
+                onClick={this.handleExportLog}
+                className="px-4 py-2 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition-colors inline-flex items-center gap-1.5"
+              >
+                <Download className="w-3.5 h-3.5" />
+                Export Error Log
               </button>
               <button
                 onClick={() => { window.location.href = '/'; }}
@@ -286,15 +338,17 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
-      {/* Background decorations */}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden animate-gradient-mesh-bg">
+      {/* Animated gradient mesh background */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-mesh-blob-1" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-mesh-blob-2" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-mesh-blob-1" />
+        <div className="absolute top-10 left-1/4 w-60 h-60 bg-violet-500/8 rounded-full blur-3xl animate-mesh-blob-2" />
+        <div className="absolute bottom-10 right-1/4 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-mesh-blob-1" />
       </div>
 
-      {/* Floating particles (CSS only) */}
+      {/* Floating particles (CSS only) — enhanced with more particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-float-particle" style={{ top: '15%', left: '10%', animationDelay: '0s', animationDuration: '6s' }} />
         <div className="absolute w-1.5 h-1.5 bg-emerald-400/30 rounded-full animate-float-particle" style={{ top: '25%', right: '15%', animationDelay: '1s', animationDuration: '8s' }} />
@@ -302,6 +356,10 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
         <div className="absolute w-1 h-1 bg-blue-300/40 rounded-full animate-float-particle" style={{ top: '60%', right: '25%', animationDelay: '0.5s', animationDuration: '9s' }} />
         <div className="absolute w-2 h-2 bg-emerald-300/25 rounded-full animate-float-particle" style={{ bottom: '15%', right: '10%', animationDelay: '1.5s', animationDuration: '6.5s' }} />
         <div className="absolute w-1.5 h-1.5 bg-sky-400/30 rounded-full animate-float-particle" style={{ top: '40%', left: '80%', animationDelay: '3s', animationDuration: '7.5s' }} />
+        <div className="absolute w-1 h-1 bg-violet-400/25 rounded-full animate-float-particle" style={{ top: '80%', left: '30%', animationDelay: '4s', animationDuration: '10s' }} />
+        <div className="absolute w-2 h-2 bg-teal-400/20 rounded-full animate-float-particle" style={{ top: '5%', left: '60%', animationDelay: '2.5s', animationDuration: '8.5s' }} />
+        <div className="absolute w-1.5 h-1.5 bg-amber-400/15 rounded-full animate-float-particle" style={{ top: '70%', left: '5%', animationDelay: '3.5s', animationDuration: '7.2s' }} />
+        <div className="absolute w-2.5 h-2.5 bg-blue-400/15 rounded-full animate-float-particle" style={{ top: '50%', right: '5%', animationDelay: '5s', animationDuration: '11s' }} />
       </div>
 
       {/* Bus Route Background Animation */}
@@ -389,6 +447,27 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
           0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
           50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
         }
+        @keyframes meshBlobFloat1 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        @keyframes meshBlobFloat2 {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(-30px, 20px) scale(0.9); }
+          66% { transform: translate(20px, -50px) scale(1.1); }
+        }
+        @keyframes gradientMeshBg {
+          0% { background-position: 0% 50%; }
+          25% { background-position: 50% 100%; }
+          50% { background-position: 100% 50%; }
+          75% { background-position: 50% 0%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes glowPulse {
+          0%, 100% { box-shadow: 0 0 6px 1px currentColor; opacity: 1; }
+          50% { box-shadow: 0 0 12px 3px currentColor; opacity: 0.7; }
+        }
         .animate-route-dash-1 { animation: routeDash1 8s linear infinite; }
         .animate-route-dash-2 { animation: routeDash2 10s linear infinite; }
         .animate-route-dash-3 { animation: routeDash3 12s linear infinite; }
@@ -397,6 +476,14 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
         .animate-float-particle { animation: floatParticle 7s ease-in-out infinite; }
         .animate-error-icon { animation: errorIcon 0.5s ease-out forwards; }
         .animate-version-pulse { animation: versionPulse 3s ease-in-out infinite; }
+        .animate-mesh-blob-1 { animation: meshBlobFloat1 15s ease-in-out infinite; }
+        .animate-mesh-blob-2 { animation: meshBlobFloat2 18s ease-in-out infinite; }
+        .animate-gradient-mesh-bg {
+          background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 25%, #0c4a6e 50%, #134e4a 75%, #1e293b 100%);
+          background-size: 400% 400%;
+          animation: gradientMeshBg 20s ease infinite;
+        }
+        .animate-glow-pulse { animation: glowPulse 2s ease-in-out infinite; }
       `}</style>
 
       <div className="relative w-full max-w-md">
@@ -414,8 +501,11 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
           <p className="text-slate-400 mt-2">Route &amp; Crew Management System</p>
         </div>
 
-        {/* Login Card */}
-        <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-2xl p-8 shadow-2xl">
+        {/* Login Card — glass-morphism */}
+        <div className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-8 shadow-2xl shadow-black/20 relative overflow-hidden">
+          {/* Glass highlight on top edge */}
+          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+          <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
@@ -538,13 +628,14 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
 }
 
 // ============================================================
-// Notification Bell — ENHANCED
+// Notification Bell — ENHANCED (grouped by type, confirm mark-all, empty SVG)
 // ============================================================
 function NotificationBell({ userId, token }: { userId: string; token: string }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
+  const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -584,6 +675,8 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
       body: JSON.stringify({ action: 'markAllRead', userId }),
     });
     fetchNotifications();
+    setShowMarkAllConfirm(false);
+    toast({ title: 'All caught up!', description: 'All notifications marked as read.' });
   };
 
   const typeIcons: Record<string, React.ReactNode> = {
@@ -599,6 +692,47 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
     success: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
     error: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   };
+
+  const typeBorderColors: Record<string, string> = {
+    info: 'border-blue-200 dark:border-blue-800/40',
+    warning: 'border-amber-200 dark:border-amber-800/40',
+    success: 'border-emerald-200 dark:border-emerald-800/40',
+    error: 'border-red-200 dark:border-red-800/40',
+  };
+
+  const typeBadgeColors: Record<string, string> = {
+    info: 'bg-blue-500 text-white',
+    warning: 'bg-amber-500 text-white',
+    success: 'bg-emerald-500 text-white',
+    error: 'bg-red-500 text-white',
+  };
+
+  // Group notifications by type
+  const groupNotifications = (notifs: any[]) => {
+    const groups: Record<string, any[]> = { info: [], warning: [], success: [], error: [] };
+    notifs.forEach(n => {
+      const t = n.type || 'info';
+      if (groups[t]) groups[t].push(n);
+      else groups.info.push(n);
+    });
+    return groups;
+  };
+
+  const grouped = groupNotifications(notifications);
+
+  // Empty state SVG illustration (rendered inline to avoid component-during-render)
+  const emptyNotificationsEl = (
+    <div className="p-6 text-center">
+      <svg className="w-16 h-16 mx-auto mb-3 text-gray-300 dark:text-gray-600" viewBox="0 0 64 64" fill="none">
+        <path d="M32 8C20.954 8 12 16.954 12 28v10l-4 8h40l-4-8V28c0-11.046-8.954-20-20-20z" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <path d="M24 50a8 8 0 0016 0" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" fill="none" />
+        <circle cx="32" cy="28" r="3" fill="currentColor" opacity="0.3" />
+        <path d="M32 18v-2M42 24l1.5-1.5M22 24l-1.5-1.5M44 32h2M18 32h-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity="0.4" />
+      </svg>
+      <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No notifications</p>
+      <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">You&apos;re all caught up!</p>
+    </div>
+  );
 
   return (
     <div className="relative">
@@ -617,43 +751,76 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notifications</h3>
-            {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+            {unreadCount > 0 && !showMarkAllConfirm && (
+              <button onClick={() => setShowMarkAllConfirm(true)} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
                 Mark all read
               </button>
+            )}
+            {showMarkAllConfirm && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-amber-600 dark:text-amber-400">Confirm?</span>
+                <button onClick={markAllRead} className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold">
+                  Yes
+                </button>
+                <button onClick={() => setShowMarkAllConfirm(false)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium">
+                  No
+                </button>
+              </div>
             )}
           </div>
           <div className="max-h-96 overflow-y-auto scroll-area-fade">
             {notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No notifications</div>
+              emptyNotificationsEl
             ) : (
-              notifications.slice(0, 20).map((n: any) => (
-                <div
-                  key={n.id}
-                  onClick={() => markRead(n.id)}
-                  className={`p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${fadingIds.has(n.id) ? 'opacity-50 scale-[0.98]' : ''}`}
-                >
-                  <div className="flex items-start gap-2.5">
-                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${typeColors[n.type] || typeColors.info}`}>
-                      {typeIcons[n.type] || typeIcons.info}
-                    </span>
-                    <div className="flex-1 min-w-0 relative">
-                      {/* Unread dot */}
-                      {!n.isRead && (
-                        <span className="absolute -left-4 top-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
-                      )}
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
-                      {n.createdAt && (
-                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{relativeTime(n.createdAt)}</p>
+              (['error', 'warning', 'info', 'success'] as const).map(type => {
+                const group = grouped[type];
+                if (!group || group.length === 0) return null;
+                const unreadInGroup = group.filter(n => !n.isRead).length;
+                return (
+                  <div key={type}>
+                    {/* Section header */}
+                    <div className={`px-3 py-1.5 flex items-center justify-between border-b ${typeBorderColors[type]} bg-gray-50/50 dark:bg-gray-800/30`}>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-5 h-5 rounded flex items-center justify-center ${typeColors[type]}`}>
+                          {typeIcons[type]}
+                        </span>
+                        <span className="text-[10px] font-bold tracking-widest uppercase text-gray-500 dark:text-gray-400">
+                          {type}
+                        </span>
+                      </div>
+                      {unreadInGroup > 0 && (
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${typeBadgeColors[type]}`}>
+                          {unreadInGroup}
+                        </span>
                       )}
                     </div>
+                    {/* Notification items */}
+                    {group.map((n: any) => (
+                      <div
+                        key={n.id}
+                        onClick={() => markRead(n.id)}
+                        className={`px-3 py-2.5 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${fadingIds.has(n.id) ? 'opacity-50 scale-[0.98]' : ''}`}
+                      >
+                        <div className="flex items-start gap-2.5">
+                          <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${typeColors[n.type] || typeColors.info}`}>
+                            {typeIcons[n.type] || typeIcons.info}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                            {n.createdAt && (
+                              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{relativeTime(n.createdAt)}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </div>
-              ))
+                );
+              })
             )}
           </div>
         </div>
@@ -769,7 +936,7 @@ function LiveClock() {
 }
 
 // ============================================================
-// Command Palette (Ctrl+K) — ENHANCED
+// Command Palette (Ctrl+K) — ENHANCED (category headers)
 // ============================================================
 function CommandPalette({
   isOpen,
@@ -778,6 +945,7 @@ function CommandPalette({
   currentPortal,
   onNavigate,
   recentPages,
+  sections,
 }: {
   isOpen: boolean;
   onClose: () => void;
@@ -785,10 +953,35 @@ function CommandPalette({
   currentPortal: string;
   onNavigate: (pageId: string) => void;
   recentPages: { id: string; label: string; icon: string }[];
+  sections: { title: string; pages: { id: string; label: string; icon: string }[] }[];
 }) {
   const [query, setQuery] = useState('');
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Section header icon map
+  const sectionIconMap: Record<string, React.ReactNode> = {
+    MAIN: <LayoutDashboard className="w-3 h-3" />,
+    MANAGEMENT: <Users className="w-3 h-3" />,
+    WORK: <Clock className="w-3 h-3" />,
+    SETTINGS: <Settings2 className="w-3 h-3" />,
+    LOGS: <BarChart3 className="w-3 h-3" />,
+    'MY TRAVEL': <Route className="w-3 h-3" />,
+    SUPPORT: <MessageSquare className="w-3 h-3" />,
+  };
+
+  // Filter sections and their pages based on query
+  const filteredSections = query
+    ? sections.map(s => ({
+        ...s,
+        pages: s.pages.filter(p => p.label.toLowerCase().includes(query.toLowerCase())),
+      })).filter(s => s.pages.length > 0)
+    : sections;
+
+  // Build flat list for keyboard navigation
+  const flatPages = filteredSections.flatMap(s => s.pages);
+  // Account for recently viewed items
+  const recentOffset = !query && recentPages.length > 0 ? recentPages.length + 1 : 0;
 
   const filtered = query
     ? pages.filter(p => p.label.toLowerCase().includes(query.toLowerCase()))
@@ -812,7 +1005,8 @@ function CommandPalette({
       // Keyboard navigation
       if (e.key === 'ArrowDown') {
         e.preventDefault();
-        setSelectedIndex(i => Math.min(i + 1, filtered.length - 1));
+        const totalItems = query ? flatPages.length : flatPages.length + recentOffset;
+        setSelectedIndex(i => Math.min(i + 1, totalItems - 1));
       }
       if (e.key === 'ArrowUp') {
         e.preventDefault();
@@ -820,9 +1014,19 @@ function CommandPalette({
       }
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (filtered[selectedIndex]) {
-          onNavigate(filtered[selectedIndex].id);
-          onClose();
+        // Determine which item to navigate to based on selectedIndex
+        if (!query && selectedIndex < recentOffset) {
+          // In recent section
+          if (selectedIndex > 0 && recentPages[selectedIndex - 1]) {
+            onNavigate(recentPages[selectedIndex - 1].id);
+            onClose();
+          }
+        } else {
+          const adjustedIndex = query ? selectedIndex : selectedIndex - recentOffset;
+          if (flatPages[adjustedIndex]) {
+            onNavigate(flatPages[adjustedIndex].id);
+            onClose();
+          }
         }
       }
     };
@@ -830,7 +1034,7 @@ function CommandPalette({
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, onClose, filtered, selectedIndex, onNavigate]);
+  }, [isOpen, onClose, filtered, selectedIndex, onNavigate, flatPages, recentPages, query, recentOffset]);
 
   if (!isOpen) return null;
 
@@ -889,11 +1093,16 @@ function CommandPalette({
                     <History className="w-3 h-3" />
                     Recently Viewed
                   </div>
-                  {recentPages.map(page => (
+                  {recentPages.map((page, idx) => (
                     <button
                       key={`recent-${page.id}`}
                       onClick={() => { onNavigate(page.id); onClose(); }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5"
+                      onMouseEnter={() => setSelectedIndex(idx + 1)}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                        selectedIndex === idx + 1
+                          ? 'bg-gray-900/8 dark:bg-gray-100/8 text-gray-900 dark:text-white'
+                          : 'text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5'
+                      }`}
                     >
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100 dark:bg-gray-800">
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -904,39 +1113,60 @@ function CommandPalette({
                       <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
                     </button>
                   ))}
-                  <div className="px-3 py-1.5 text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
-                    All Pages
-                  </div>
                 </>
               )}
-              {filtered.map((page, index) => (
-                <button
-                  key={page.id}
-                  onClick={() => { onNavigate(page.id); onClose(); }}
-                  onMouseEnter={() => setSelectedIndex(index)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                    selectedIndex === index
-                      ? 'bg-gray-900/8 dark:bg-gray-100/8 text-gray-900 dark:text-white'
-                      : currentPortal === page.id
-                        ? 'bg-gray-900/5 dark:bg-gray-100/5 text-gray-900 dark:text-white'
-                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5'
-                  }`}
-                >
-                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    selectedIndex === index || currentPortal === page.id
-                      ? 'bg-gray-900/10 dark:bg-gray-100/10'
-                      : 'bg-gray-100 dark:bg-gray-800'
-                  }`}>
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
-                    </svg>
+              {/* Grouped by section with category headers */}
+              {filteredSections.map(section => (
+                <div key={section.title}>
+                  <div className="px-3 py-1.5 flex items-center gap-2 border-b border-gray-100 dark:border-gray-800">
+                    <span className="text-gray-400 dark:text-gray-500">
+                      {sectionIconMap[section.title.toUpperCase()] || sectionIconMap[section.title] || <LayoutDashboard className="w-3 h-3" />}
+                    </span>
+                    <span className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase flex-1">
+                      {section.title}
+                    </span>
+                    <span className="h-px flex-1 bg-gray-200 dark:bg-gray-700" />
+                    <span className="text-[9px] text-gray-400 dark:text-gray-600">{section.pages.length}</span>
                   </div>
-                  <span className="font-medium flex-1 text-left">{page.label}</span>
-                  {currentPortal === page.id && (
-                    <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Current</span>
-                  )}
-                  <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
-                </button>
+                  {section.pages.map(page => {
+                    // Calculate global index for selection highlighting
+                    const sectionStartIndex = filteredSections
+                      .slice(0, filteredSections.indexOf(section))
+                      .reduce((acc, s) => acc + s.pages.length, 0);
+                    const globalIndex = query
+                      ? sectionStartIndex + section.pages.indexOf(page)
+                      : recentOffset + sectionStartIndex + section.pages.indexOf(page);
+                    return (
+                      <button
+                        key={page.id}
+                        onClick={() => { onNavigate(page.id); onClose(); }}
+                        onMouseEnter={() => setSelectedIndex(globalIndex)}
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
+                          selectedIndex === globalIndex
+                            ? 'bg-gray-900/8 dark:bg-gray-100/8 text-gray-900 dark:text-white'
+                            : currentPortal === page.id
+                              ? 'bg-gray-900/5 dark:bg-gray-100/5 text-gray-900 dark:text-white'
+                              : 'text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5'
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                          selectedIndex === globalIndex || currentPortal === page.id
+                            ? 'bg-gray-900/10 dark:bg-gray-100/10'
+                            : 'bg-gray-100 dark:bg-gray-800'
+                        }`}>
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
+                          </svg>
+                        </div>
+                        <span className="font-medium flex-1 text-left">{page.label}</span>
+                        {currentPortal === page.id && (
+                          <span className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Current</span>
+                        )}
+                        <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
+                      </button>
+                    );
+                  })}
+                </div>
               ))}
             </div>
           )}
@@ -963,17 +1193,29 @@ function CommandPalette({
 }
 
 // ============================================================
-// Sidebar Section with Divider — ENHANCED (tooltips, collapsed)
+// Role-based gradient dot color map
 // ============================================================
-function SidebarSection({ title, pages, portal, setPortal, configColor, collapsed }: {
+const roleDotColors: Record<string, string> = {
+  admin: 'bg-gradient-to-r from-red-500 to-orange-500 text-red-500',
+  driver: 'bg-gradient-to-r from-amber-500 to-orange-500 text-amber-500',
+  conductor: 'bg-gradient-to-r from-teal-500 to-cyan-500 text-teal-500',
+  customer: 'bg-gradient-to-r from-emerald-500 to-teal-500 text-emerald-500',
+};
+
+// ============================================================
+// Sidebar Section with Divider — ENHANCED (tooltips, collapsed, glow dot)
+// ============================================================
+function SidebarSection({ title, pages, portal, setPortal, configColor, collapsed, userRole }: {
   title: string;
   pages: { id: string; label: string; icon: string }[];
   portal: string;
   setPortal: (p: string) => void;
   configColor: string;
   collapsed?: boolean;
+  userRole?: string;
 }) {
   const [tooltipTarget, setTooltipTarget] = useState<string | null>(null);
+  const dotColorClass = roleDotColors[userRole || 'customer'] || roleDotColors.customer;
 
   return (
     <div>
@@ -1001,7 +1243,17 @@ function SidebarSection({ title, pages, portal, setPortal, configColor, collapse
               <svg className={`w-4 h-4 flex-shrink-0 ${portal === page.id ? 'text-gray-900 dark:text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
               </svg>
-              {!collapsed && page.label}
+              {!collapsed && (
+                <>
+                  {page.label}
+                  {portal === page.id && (
+                    <span className="ml-auto w-2 h-2 rounded-full animate-glow-pulse flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--tw-gradient-stops))', color: userRole === 'admin' ? '#ef4444' : userRole === 'driver' ? '#f59e0b' : userRole === 'conductor' ? '#14b8a6' : '#10b981' }} />
+                  )}
+                </>
+              )}
+              {collapsed && portal === page.id && (
+                <span className="absolute -left-0.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full animate-glow-pulse flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--tw-gradient-stops))', color: userRole === 'admin' ? '#ef4444' : userRole === 'driver' ? '#f59e0b' : userRole === 'conductor' ? '#14b8a6' : '#10b981' }} />
+              )}
             </button>
             {/* Tooltip on hover (desktop only) */}
             {collapsed && tooltipTarget === page.id && (
@@ -1087,10 +1339,44 @@ export default function Home() {
         <NotificationTicker />
       </ErrorBoundary>
       {/* Enhanced Footer */}
-      <footer className="bg-card border-t border-border px-4 py-1.5 sm:py-2.5 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative">
-        <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5 flex-wrap justify-center">
-            <span>&copy; 2025 BusTrack Pro</span>
+      <footer className="bg-card border-t border-border flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative">
+        {/* Quick Links Row */}
+        <div className="border-b border-border/50 px-4 py-2">
+          <div className="portal-container flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
+            <button
+              onClick={() => toast({ title: 'Route Map', description: 'Opening Route Map...' })}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors animated-underline"
+            >
+              <MapPin className="w-3 h-3" />
+              Route Map
+            </button>
+            <button
+              onClick={() => toast({ title: 'Schedule', description: 'Opening Schedule...' })}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors animated-underline"
+            >
+              <CalendarDays className="w-3 h-3" />
+              Schedule
+            </button>
+            <button
+              onClick={() => toast({ title: 'Support', description: 'Opening Support Center...' })}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors animated-underline"
+            >
+              <HelpCircle className="w-3 h-3" />
+              Support
+            </button>
+            <button
+              onClick={() => toast({ title: 'Feedback', description: 'Opening Feedback form...' })}
+              className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors animated-underline"
+            >
+              <MessageSquare className="w-3 h-3" />
+              Feedback
+            </button>
+          </div>
+        </div>
+        <div className="px-4 py-1.5 sm:py-2">
+          <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1 text-xs text-muted-foreground">
+            <div className="flex items-center gap-1.5 flex-wrap justify-center">
+              <span>&copy; 2025 BusTrack Pro</span>
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
             <span>v6.0.0</span>
             <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">&bull;</span>
@@ -1113,6 +1399,7 @@ export default function Home() {
             </span>
           </div>
         </div>
+        </div>
         {/* Back to top button */}
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
@@ -1127,29 +1414,34 @@ export default function Home() {
 }
 
 // ============================================================
-// Enhanced Loading Screen with typewriter & bus animation
+// Enhanced Loading Screen with segmented progress bar
 // ============================================================
 function LoadingScreen() {
-  const [stepIndex, setStepIndex] = useState(0);
+  const [activeStep, setActiveStep] = useState(0);
   const [displayText, setDisplayText] = useState('');
-  const steps = ['Connecting...', 'Loading routes...', 'Fetching schedules...', 'Almost ready...'];
+  const steps = [
+    { label: 'Connecting...', icon: '🔌' },
+    { label: 'Loading routes...', icon: '🗺️' },
+    { label: 'Fetching data...', icon: '📊' },
+    { label: 'Ready!', icon: '✅' },
+  ];
 
   useEffect(() => {
-    const currentStep = steps[stepIndex];
+    const currentStep = steps[activeStep];
     let charIndex = 0;
     setDisplayText('');
     const typeInterval = setInterval(() => {
       charIndex++;
-      setDisplayText(currentStep.substring(0, charIndex));
-      if (charIndex >= currentStep.length) {
+      setDisplayText(currentStep.label.substring(0, charIndex));
+      if (charIndex >= currentStep.label.length) {
         clearInterval(typeInterval);
         setTimeout(() => {
-          setStepIndex(i => (i + 1) % steps.length);
-        }, 800);
+          setActiveStep(i => (i + 1) % steps.length);
+        }, 600);
       }
-    }, 50);
+    }, 40);
     return () => clearInterval(typeInterval);
-  }, [stepIndex]);
+  }, [activeStep]);
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background mesh-gradient relative overflow-hidden">
@@ -1157,18 +1449,50 @@ function LoadingScreen() {
       <div className="absolute top-[15%] left-0 right-0 animate-bus-drive pointer-events-none">
         <BusIcon className="w-10 h-10 text-emerald-500/60" />
       </div>
-      <div className="flex flex-col items-center gap-4 relative z-10">
+      <div className="flex flex-col items-center gap-6 relative z-10">
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
             <BusIcon className="w-10 h-10 text-white" animate={true} />
           </div>
           <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 animate-pulse-glow" />
         </div>
+
         <div className="text-center">
           <p className="text-sm font-medium text-foreground mb-1">Loading BusTrack Pro</p>
-          <p className="text-xs text-muted-foreground typing-cursor h-4">{displayText}</p>
-          <div className="w-32 h-1 bg-muted rounded-full mt-3 overflow-hidden">
-            <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ width: '60%' }} />
+          <p className="text-xs text-muted-foreground typing-cursor h-4 flex items-center justify-center gap-1.5">
+            <span>{steps[activeStep].icon}</span>
+            <span>{displayText}</span>
+          </p>
+        </div>
+
+        {/* Segmented Progress Bar */}
+        <div className="w-64">
+          <div className="flex items-center gap-1">
+            {steps.map((step, index) => (
+              <div key={step.label} className="flex-1 flex flex-col items-center gap-2">
+                <div className="w-full flex gap-1">
+                  {/* Segment */}
+                  <div
+                    className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                      index < activeStep
+                        ? 'bg-gradient-to-r from-blue-500 to-emerald-500'
+                        : index === activeStep
+                          ? 'bg-gradient-to-r from-blue-500 to-emerald-500 animate-pulse'
+                          : 'bg-muted'
+                    }`}
+                  />
+                </div>
+                <span className={`text-[9px] font-medium transition-colors duration-300 ${
+                  index < activeStep
+                    ? 'text-emerald-600 dark:text-emerald-400'
+                    : index === activeStep
+                      ? 'text-foreground'
+                      : 'text-muted-foreground/40'
+                }`}>
+                  {index < activeStep ? '✓' : step.label.replace('...', '')}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -1182,6 +1506,67 @@ function LoadingScreen() {
         .animate-bus-drive { animation: busDrive 8s linear infinite; }
       `}</style>
     </div>
+  );
+}
+
+// ============================================================
+// Weather Widget (deterministic, lg+ only)
+// ============================================================
+function WeatherWidget() {
+  const [weatherData, setWeatherData] = useState<{ temp: number; condition: string; city: string; humidity: number } | null>(null);
+
+  useEffect(() => {
+    // Deterministic weather based on city seed
+    const cities = ['Bangalore', 'Mumbai', 'Delhi', 'Chennai'];
+    const now = new Date();
+    const dayOfYear = Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86400000);
+    const cityIndex = dayOfYear % cities.length;
+    const city = cities[cityIndex];
+    // Deterministic temp: 25-38 range based on day
+    const baseTemp = 25 + ((dayOfYear * 7 + cityIndex * 3) % 14);
+    const conditions = [
+      { name: 'Sunny', icon: Sun },
+      { name: 'Partly Cloudy', icon: CloudSun },
+      { name: 'Cloudy', icon: Cloud },
+      { name: 'Rainy', icon: CloudRain },
+    ];
+    const conditionIndex = (dayOfYear + cityIndex * 2) % conditions.length;
+    const condition = conditions[conditionIndex];
+    const humidity = 40 + ((dayOfYear * 5 + cityIndex * 7) % 45);
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setWeatherData({
+      temp: baseTemp,
+      condition: condition.name,
+      city,
+      humidity,
+    });
+  }, []);
+
+  if (!weatherData) return null;
+
+  const WeatherIcon = weatherData.condition === 'Sunny' ? Sun
+    : weatherData.condition === 'Rainy' ? CloudRain
+    : weatherData.condition === 'Partly Cloudy' ? CloudSun
+    : Cloud;
+
+  const handleClick = () => {
+    toast({
+      title: `Weather in ${weatherData.city}`,
+      description: `${weatherData.condition}, ${weatherData.temp}°C | Humidity: ${weatherData.humidity}%`,
+    });
+  };
+
+  return (
+    <button
+      onClick={handleClick}
+      className="hidden lg:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-gray-600 dark:text-gray-400"
+      title={`Weather: ${weatherData.city} - ${weatherData.condition} ${weatherData.temp}°C`}
+    >
+      <WeatherIcon className="w-4 h-4 text-amber-500 dark:text-amber-400" />
+      <span className="text-xs font-medium">{weatherData.temp}°C</span>
+      <span className="text-[10px] text-gray-400 dark:text-gray-500 hidden xl:inline">{weatherData.city}</span>
+    </button>
   );
 }
 
@@ -1465,6 +1850,7 @@ function AppShell({
             setPortal={handleSetPortal}
             configColor={config.color}
             collapsed={sidebarCollapsed}
+            userRole={user.role}
           />
         ))}
 
@@ -1599,6 +1985,7 @@ function AppShell({
             <LiveClock />
           </div>
           <div className="flex items-center gap-2">
+            <WeatherWidget />
             <ThemeToggle />
             <NotificationBell userId={user.id} token={token} />
             {/* User avatar with online status */}
@@ -1629,6 +2016,7 @@ function AppShell({
           currentPortal={portal}
           onNavigate={handleNavigate}
           recentPages={recentPages}
+          sections={config.sections}
         />
 
         {/* Content */}
