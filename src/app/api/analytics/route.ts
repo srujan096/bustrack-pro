@@ -68,11 +68,21 @@ export async function GET(request: NextRequest) {
       routeCount: data.routes.size,
     }));
 
+    // Dashboard overview stats
+    const todayStr = new Date().toISOString().split('T')[0];
+    const [totalRoutes, totalCrew, activeSchedules, activeAlerts] = await Promise.all([
+      db.route.count(),
+      db.profile.count({ where: { role: { in: ['driver', 'conductor'] } } }),
+      db.schedule.count({ where: { date: todayStr } }),
+      db.trafficAlert.count({ where: { resolvedAt: null } }),
+    ]);
+
     return NextResponse.json({
       analytics,
       summary: { totalRevenue, avgCompletionRate, avgDelay, totalJourneys },
       dailyTrend,
       cityStats,
+      dashboard: { totalRoutes, totalCrew, activeSchedules, activeAlerts },
     });
   } catch (error) {
     console.error('Route analytics GET error:', error);

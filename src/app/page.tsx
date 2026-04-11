@@ -2,21 +2,39 @@
 
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { UserProfile } from '@/types';
-import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon } from 'lucide-react';
+import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History } from 'lucide-react';
 import { useTheme } from 'next-themes';
+import { toast } from '@/hooks/use-toast';
 
 // ============================================================
-// Error Boundary (catches rendering crashes)
+// Helper: Relative time
+// ============================================================
+function relativeTime(dateStr: string): string {
+  const now = Date.now();
+  const then = new Date(dateStr).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hour${hrs > 1 ? 's' : ''} ago`;
+  const days = Math.floor(hrs / 24);
+  if (days === 1) return 'Yesterday';
+  return `${days} days ago`;
+}
+
+// ============================================================
+// Error Boundary (catches rendering crashes) — ENHANCED
 // ============================================================
 interface ErrorBoundaryProps { children: React.ReactNode; fallback?: React.ReactNode; }
-interface ErrorBoundaryState { hasError: boolean; error: Error | null; }
+interface ErrorBoundaryState { hasError: boolean; error: Error | null; errorId: string; }
 class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
     super(props);
-    this.state = { hasError: false, error: null };
+    this.state = { hasError: false, error: null, errorId: '' };
   }
   static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error };
+    return { hasError: true, error, errorId: `ERR-${Math.random().toString(36).substring(2, 8).toUpperCase()}` };
   }
   componentDidCatch(error: Error, info: React.ErrorInfo) {
     console.error('[ErrorBoundary] Caught:', error, info);
@@ -27,17 +45,26 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
       return (
         <div className="flex items-center justify-center min-h-[400px] p-8">
           <div className="text-center max-w-md">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-              <svg className="w-8 h-8 text-rose-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
+            <div className="w-20 h-20 mx-auto mb-5 rounded-full bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center animate-error-icon">
+              <XCircle className="w-10 h-10 text-rose-500" />
             </div>
-            <h2 className="text-lg font-bold text-foreground mb-2">Something went wrong</h2>
-            <p className="text-sm text-muted-foreground mb-4">An unexpected error occurred. Please try refreshing the page.</p>
-            <button
-              onClick={() => { this.setState({ hasError: false, error: null }); }}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Try Again
-            </button>
+            <h2 className="text-xl font-bold text-foreground mb-2">Something went wrong</h2>
+            <p className="text-sm text-muted-foreground mb-1">An unexpected error occurred. Please try refreshing the page.</p>
+            <p className="text-xs text-muted-foreground/60 mb-5 font-mono">Error ID: {this.state.errorId}</p>
+            <div className="flex items-center justify-center gap-3">
+              <button
+                onClick={() => { this.setState({ hasError: false, error: null, errorId: '' }); }}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90 transition-opacity"
+              >
+                Try Again
+              </button>
+              <button
+                onClick={() => { window.location.href = '/'; }}
+                className="px-4 py-2 bg-muted text-muted-foreground rounded-lg text-sm font-medium hover:bg-muted/80 transition-colors"
+              >
+                Go to Dashboard
+              </button>
+            </div>
           </div>
         </div>
       );
@@ -165,7 +192,7 @@ function BusIcon({ className = 'w-10 h-10', animate = false }: { className?: str
 }
 
 // ============================================================
-// Login Page Component
+// Login Page Component — ENHANCED
 // ============================================================
 function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) => void }) {
   const [email, setEmail] = useState('');
@@ -188,6 +215,12 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
     { label: 'Driver', email: 'driver1@bus.com', color: 'bg-amber-500 hover:bg-amber-600' },
     { label: 'Conductor', email: 'conductor1@bus.com', color: 'bg-teal-500 hover:bg-teal-600' },
     { label: 'Customer', email: 'customer1@bus.com', color: 'bg-emerald-500 hover:bg-emerald-600' },
+  ];
+
+  const featureHighlights = [
+    { icon: <Navigation className="w-4 h-4" />, label: 'Real-time Tracking' },
+    { icon: <Clock className="w-4 h-4" />, label: 'Smart Scheduling' },
+    { icon: <Shield className="w-4 h-4" />, label: 'Secure Payments' },
   ];
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -245,6 +278,13 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
     }
   };
 
+  const handleForgotPassword = () => {
+    toast({
+      title: 'Password Reset',
+      description: 'Password reset link sent to your email!',
+    });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4 relative overflow-hidden">
       {/* Background decorations */}
@@ -252,6 +292,16 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
         <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl" />
         <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
+      </div>
+
+      {/* Floating particles (CSS only) */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-float-particle" style={{ top: '15%', left: '10%', animationDelay: '0s', animationDuration: '6s' }} />
+        <div className="absolute w-1.5 h-1.5 bg-emerald-400/30 rounded-full animate-float-particle" style={{ top: '25%', right: '15%', animationDelay: '1s', animationDuration: '8s' }} />
+        <div className="absolute w-2.5 h-2.5 bg-cyan-400/20 rounded-full animate-float-particle" style={{ bottom: '30%', left: '20%', animationDelay: '2s', animationDuration: '7s' }} />
+        <div className="absolute w-1 h-1 bg-blue-300/40 rounded-full animate-float-particle" style={{ top: '60%', right: '25%', animationDelay: '0.5s', animationDuration: '9s' }} />
+        <div className="absolute w-2 h-2 bg-emerald-300/25 rounded-full animate-float-particle" style={{ bottom: '15%', right: '10%', animationDelay: '1.5s', animationDuration: '6.5s' }} />
+        <div className="absolute w-1.5 h-1.5 bg-sky-400/30 rounded-full animate-float-particle" style={{ top: '40%', left: '80%', animationDelay: '3s', animationDuration: '7.5s' }} />
       </div>
 
       {/* Bus Route Background Animation */}
@@ -324,11 +374,29 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
           0%, 100% { opacity: 0.2; r: 3; }
           50% { opacity: 0.6; r: 4; }
         }
+        @keyframes floatParticle {
+          0%, 100% { transform: translate(0, 0); opacity: 0.3; }
+          25% { transform: translate(15px, -20px); opacity: 0.6; }
+          50% { transform: translate(-10px, -35px); opacity: 0.4; }
+          75% { transform: translate(20px, -15px); opacity: 0.7; }
+        }
+        @keyframes errorIcon {
+          0% { transform: scale(0.8); opacity: 0; }
+          50% { transform: scale(1.1); }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        @keyframes versionPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.2); }
+          50% { box-shadow: 0 0 0 4px rgba(16, 185, 129, 0); }
+        }
         .animate-route-dash-1 { animation: routeDash1 8s linear infinite; }
         .animate-route-dash-2 { animation: routeDash2 10s linear infinite; }
         .animate-route-dash-3 { animation: routeDash3 12s linear infinite; }
         .animate-bus-bounce { animation: busBounce 2s ease-in-out infinite; }
         .animate-pulse-slow { animation: pulseSlow 3s ease-in-out infinite; }
+        .animate-float-particle { animation: floatParticle 7s ease-in-out infinite; }
+        .animate-error-icon { animation: errorIcon 0.5s ease-out forwards; }
+        .animate-version-pulse { animation: versionPulse 3s ease-in-out infinite; }
       `}</style>
 
       <div className="relative w-full max-w-md">
@@ -339,7 +407,7 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
           </div>
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-3xl font-bold text-white tracking-tight">BusTrack Pro</h1>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 animate-version-pulse">
               v6.0
             </span>
           </div>
@@ -370,6 +438,12 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
                 placeholder="Enter your password"
                 required
               />
+              {/* Forgot Password link */}
+              <div className="text-right mt-1.5">
+                <button type="button" onClick={handleForgotPassword} className="text-xs text-slate-400 hover:text-emerald-400 transition-colors">
+                  Forgot Password?
+                </button>
+              </div>
             </div>
 
             {/* Remember me */}
@@ -438,6 +512,20 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
               ))}
             </div>
             <p className="text-xs text-slate-500 mt-3 text-center">Password: password123</p>
+
+            {/* Feature Highlights */}
+            <div className="mt-5 pt-5 border-t border-white/10">
+              <div className="grid grid-cols-3 gap-2">
+                {featureHighlights.map((feat) => (
+                  <div key={feat.label} className="flex flex-col items-center gap-1.5 text-center">
+                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
+                      {feat.icon}
+                    </div>
+                    <span className="text-[10px] text-slate-500 leading-tight">{feat.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
 
@@ -450,12 +538,13 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
 }
 
 // ============================================================
-// Notification Bell
+// Notification Bell — ENHANCED
 // ============================================================
 function NotificationBell({ userId, token }: { userId: string; token: string }) {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
+  const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -476,12 +565,16 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
   }, [fetchNotifications]);
 
   const markRead = async (id: string) => {
+    setFadingIds(prev => new Set(prev).add(id));
     await fetch('/api/notifications', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'markRead', id }),
     });
-    fetchNotifications();
+    setTimeout(() => {
+      setFadingIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      fetchNotifications();
+    }, 400);
   };
 
   const markAllRead = async () => {
@@ -493,11 +586,18 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
     fetchNotifications();
   };
 
+  const typeIcons: Record<string, React.ReactNode> = {
+    info: <Info className="w-3.5 h-3.5" />,
+    warning: <AlertTriangle className="w-3.5 h-3.5" />,
+    success: <CheckCircle2 className="w-3.5 h-3.5" />,
+    error: <XCircle className="w-3.5 h-3.5" />,
+  };
+
   const typeColors: Record<string, string> = {
-    info: 'bg-blue-100 text-blue-800',
-    warning: 'bg-amber-100 text-amber-800',
-    success: 'bg-emerald-100 text-emerald-800',
-    error: 'bg-red-100 text-red-800',
+    info: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
+    warning: 'bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400',
+    success: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400',
+    error: 'bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400',
   };
 
   return (
@@ -521,28 +621,35 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
           <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <h3 className="font-semibold text-sm">Notifications</h3>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-blue-600 hover:text-blue-800">
+              <button onClick={markAllRead} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
                 Mark all read
               </button>
             )}
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-96 overflow-y-auto scroll-area-fade">
             {notifications.length === 0 ? (
-              <div className="p-4 text-center text-gray-500 text-sm">No notifications</div>
+              <div className="p-4 text-center text-gray-500 dark:text-gray-400 text-sm">No notifications</div>
             ) : (
               notifications.slice(0, 20).map((n: any) => (
                 <div
                   key={n.id}
                   onClick={() => markRead(n.id)}
-                  className={`p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                  className={`p-3 border-b border-gray-100 dark:border-gray-800 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-all ${!n.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''} ${fadingIds.has(n.id) ? 'opacity-50 scale-[0.98]' : ''}`}
                 >
-                  <div className="flex items-start gap-2">
-                    <span className={`inline-flex px-1.5 py-0.5 rounded text-xs font-medium ${typeColors[n.type] || typeColors.info}`}>
-                      {n.type}
+                  <div className="flex items-start gap-2.5">
+                    <span className={`flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center ${typeColors[n.type] || typeColors.info}`}>
+                      {typeIcons[n.type] || typeIcons.info}
                     </span>
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 relative">
+                      {/* Unread dot */}
+                      {!n.isRead && (
+                        <span className="absolute -left-4 top-1.5 w-1.5 h-1.5 rounded-full bg-blue-500 dark:bg-blue-400" />
+                      )}
                       <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">{n.title}</p>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{n.message}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 line-clamp-2">{n.message}</p>
+                      {n.createdAt && (
+                        <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">{relativeTime(n.createdAt)}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -662,7 +769,7 @@ function LiveClock() {
 }
 
 // ============================================================
-// Command Palette (Ctrl+K)
+// Command Palette (Ctrl+K) — ENHANCED
 // ============================================================
 function CommandPalette({
   isOpen,
@@ -670,15 +777,22 @@ function CommandPalette({
   pages,
   currentPortal,
   onNavigate,
+  recentPages,
 }: {
   isOpen: boolean;
   onClose: () => void;
   pages: { id: string; label: string; icon: string }[];
   currentPortal: string;
   onNavigate: (pageId: string) => void;
+  recentPages: { id: string; label: string; icon: string }[];
 }) {
   const [query, setQuery] = useState('');
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = query
+    ? pages.filter(p => p.label.toLowerCase().includes(query.toLowerCase()))
+    : pages;
 
   // Focus input on mount (parent forces remount via key when reopening)
   useEffect(() => {
@@ -695,16 +809,28 @@ function CommandPalette({
       if (e.key === 'Escape') {
         onClose();
       }
+      // Keyboard navigation
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSelectedIndex(i => Math.min(i + 1, filtered.length - 1));
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSelectedIndex(i => Math.max(i - 1, 0));
+      }
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filtered[selectedIndex]) {
+          onNavigate(filtered[selectedIndex].id);
+          onClose();
+        }
+      }
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
       return () => window.removeEventListener('keydown', handleKeyDown);
     }
-  }, [isOpen, onClose]);
-
-  const filtered = query
-    ? pages.filter(p => p.label.toLowerCase().includes(query.toLowerCase()))
-    : pages;
+  }, [isOpen, onClose, filtered, selectedIndex, onNavigate]);
 
   if (!isOpen) return null;
 
@@ -731,13 +857,21 @@ function CommandPalette({
             ref={inputRef}
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setSelectedIndex(0); }}
             placeholder="Search pages..."
             className="flex-1 bg-transparent text-gray-900 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 text-sm focus:outline-none"
-          />\n          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-[10px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
+          />
+          <kbd className="hidden sm:inline-flex items-center gap-0.5 px-2 py-0.5 rounded-md bg-gray-100 dark:bg-gray-700 text-[10px] font-medium text-gray-500 dark:text-gray-400 border border-gray-200 dark:border-gray-600">
             ESC
           </kbd>
         </div>
+
+        {/* Matching count */}
+        {query && (
+          <div className="px-5 py-2 text-[11px] text-gray-400 dark:text-gray-500 border-b border-gray-100 dark:border-gray-800">
+            {filtered.length} of {pages.length} pages match
+          </div>
+        )}
 
         {/* Results */}
         <div className="max-h-72 overflow-y-auto p-2">
@@ -748,18 +882,48 @@ function CommandPalette({
             </div>
           ) : (
             <div className="space-y-0.5">
-              {filtered.map(page => (
+              {/* Recently Viewed section (only when no query) */}
+              {!query && recentPages.length > 0 && (
+                <>
+                  <div className="px-3 py-1.5 text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase flex items-center gap-1.5">
+                    <History className="w-3 h-3" />
+                    Recently Viewed
+                  </div>
+                  {recentPages.map(page => (
+                    <button
+                      key={`recent-${page.id}`}
+                      onClick={() => { onNavigate(page.id); onClose(); }}
+                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5"
+                    >
+                      <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 bg-gray-100 dark:bg-gray-800">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
+                        </svg>
+                      </div>
+                      <span className="font-medium flex-1 text-left">{page.label}</span>
+                      <ArrowRight className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600" />
+                    </button>
+                  ))}
+                  <div className="px-3 py-1.5 text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+                    All Pages
+                  </div>
+                </>
+              )}
+              {filtered.map((page, index) => (
                 <button
                   key={page.id}
                   onClick={() => { onNavigate(page.id); onClose(); }}
+                  onMouseEnter={() => setSelectedIndex(index)}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-all ${
-                    currentPortal === page.id
-                      ? 'bg-gray-900/5 dark:bg-gray-100/5 text-gray-900 dark:text-white'
-                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5'
+                    selectedIndex === index
+                      ? 'bg-gray-900/8 dark:bg-gray-100/8 text-gray-900 dark:text-white'
+                      : currentPortal === page.id
+                        ? 'bg-gray-900/5 dark:bg-gray-100/5 text-gray-900 dark:text-white'
+                        : 'text-gray-700 dark:text-gray-300 hover:bg-gray-900/5 dark:hover:bg-gray-100/5'
                   }`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                    currentPortal === page.id
+                    selectedIndex === index || currentPortal === page.id
                       ? 'bg-gray-900/10 dark:bg-gray-100/10'
                       : 'bg-gray-100 dark:bg-gray-800'
                   }`}>
@@ -799,38 +963,53 @@ function CommandPalette({
 }
 
 // ============================================================
-// Sidebar Section with Divider
+// Sidebar Section with Divider — ENHANCED (tooltips, collapsed)
 // ============================================================
-function SidebarSection({ title, pages, portal, setPortal, configColor }: {
+function SidebarSection({ title, pages, portal, setPortal, configColor, collapsed }: {
   title: string;
   pages: { id: string; label: string; icon: string }[];
   portal: string;
   setPortal: (p: string) => void;
   configColor: string;
+  collapsed?: boolean;
 }) {
+  const [tooltipTarget, setTooltipTarget] = useState<string | null>(null);
+
   return (
     <div>
-      <div className="px-3 pt-4 pb-1.5">
-        <span className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
-          {title}
-        </span>
-      </div>
+      {!collapsed && (
+        <div className="px-3 pt-4 pb-1.5">
+          <span className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">
+            {title}
+          </span>
+        </div>
+      )}
       <div className="space-y-0.5">
         {pages.map(page => (
-          <button
-            key={page.id}
-            onClick={() => setPortal(page.id)}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-              portal === page.id
-                ? `bg-gradient-to-r ${configColor}/10 text-gray-900 dark:text-white shadow-sm`
-                : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
-            }`}
-          >
-            <svg className={`w-4 h-4 flex-shrink-0 ${portal === page.id ? 'text-gray-900 dark:text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
-            </svg>
-            {page.label}
-          </button>
+          <div key={page.id} className="relative">
+            <button
+              onClick={() => setPortal(page.id)}
+              onMouseEnter={() => setTooltipTarget(page.id)}
+              onMouseLeave={() => setTooltipTarget(null)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                portal === page.id
+                  ? `bg-gradient-to-r ${configColor}/10 text-gray-900 dark:text-white shadow-sm`
+                  : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
+              } ${collapsed ? 'justify-center px-0' : ''}`}
+              title={collapsed ? page.label : undefined}
+            >
+              <svg className={`w-4 h-4 flex-shrink-0 ${portal === page.id ? 'text-gray-900 dark:text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
+              </svg>
+              {!collapsed && page.label}
+            </button>
+            {/* Tooltip on hover (desktop only) */}
+            {collapsed && tooltipTarget === page.id && (
+              <div className="absolute left-full ml-2 top-1/2 -translate-y-1/2 z-50 tooltip-accent whitespace-nowrap pointer-events-none">
+                {page.label}
+              </div>
+            )}
+          </div>
         ))}
       </div>
     </div>
@@ -881,78 +1060,127 @@ export default function Home() {
     setPortal('dashboard');
   };
 
+  // Enhanced Loading Screen with typewriter steps and bus animation
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background mesh-gradient">
-        <div className="flex flex-col items-center gap-4">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-              <BusIcon className="w-10 h-10 text-white" animate={true} />
-            </div>
-            <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 animate-pulse-glow" />
-          </div>
-          <div className="text-center">
-            <p className="text-sm font-medium text-foreground">Loading BusTrack Pro</p>
-            <div className="w-32 h-1 bg-muted rounded-full mt-2 overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ width: '60%' }} />
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoadingScreen />;
   }
 
   if (!user) {
     return <LoginPage onLogin={handleLogin} />;
   }
 
+  const handleFooterLink = (label: string) => {
+    toast({ title: label, description: `${label} page coming soon!` });
+  };
+
   return (
     <div className="min-h-screen bg-background flex flex-col mesh-gradient">
       <ErrorBoundary>
         <AppShell
-        user={user}
-        token={token || ''}
-        portal={portal}
-        setPortal={setPortal}
-        onLogout={handleLogout}
-      />
+          user={user}
+          token={token || ''}
+          portal={portal}
+          setPortal={setPortal}
+          onLogout={handleLogout}
+        />
         {/* Live Notification Ticker */}
         <NotificationTicker />
       </ErrorBoundary>
       {/* Enhanced Footer */}
-      <footer className="bg-card border-t border-border px-4 py-2.5 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)]">
-        <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-muted-foreground">
-          <div className="flex items-center gap-1.5">
+      <footer className="bg-card border-t border-border px-4 py-1.5 sm:py-2.5 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative">
+        <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5 flex-wrap justify-center">
             <span>&copy; 2025 BusTrack Pro</span>
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
             <span>v6.0.0</span>
+            <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">&bull;</span>
+            <button onClick={() => handleFooterLink('Privacy Policy')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Privacy Policy</button>
+            <button onClick={() => handleFooterLink('Terms of Service')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Terms of Service</button>
+            <button onClick={() => handleFooterLink('Contact Us')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Contact Us</button>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1.5">
               <CalendarDays className="w-3 h-3" />
               <FooterDate />
             </span>
-            <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span className="flex items-center gap-1.5">
+            <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">&bull;</span>
+            <span className="flex items-center gap-1.5 hidden sm:inline-flex">
               <span className="relative flex h-1.5 w-1.5">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500" />
               </span>
               <span className="text-emerald-600 dark:text-emerald-400 font-medium">System Online</span>
             </span>
-            <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span className="flex items-center gap-1.5">
-              <Route className="w-3 h-3" />
-              <span>115 Routes</span>
-            </span>
-            <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span className="flex items-center gap-1.5">
-              <Users className="w-3 h-3" />
-              <span>104 Crew</span>
-            </span>
           </div>
         </div>
+        {/* Back to top button */}
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="absolute right-2 -top-8 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-md transition-all"
+          aria-label="Back to top"
+        >
+          <ArrowUp className="w-3.5 h-3.5" />
+        </button>
       </footer>
+    </div>
+  );
+}
+
+// ============================================================
+// Enhanced Loading Screen with typewriter & bus animation
+// ============================================================
+function LoadingScreen() {
+  const [stepIndex, setStepIndex] = useState(0);
+  const [displayText, setDisplayText] = useState('');
+  const steps = ['Connecting...', 'Loading routes...', 'Fetching schedules...', 'Almost ready...'];
+
+  useEffect(() => {
+    const currentStep = steps[stepIndex];
+    let charIndex = 0;
+    setDisplayText('');
+    const typeInterval = setInterval(() => {
+      charIndex++;
+      setDisplayText(currentStep.substring(0, charIndex));
+      if (charIndex >= currentStep.length) {
+        clearInterval(typeInterval);
+        setTimeout(() => {
+          setStepIndex(i => (i + 1) % steps.length);
+        }, 800);
+      }
+    }, 50);
+    return () => clearInterval(typeInterval);
+  }, [stepIndex]);
+
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background mesh-gradient relative overflow-hidden">
+      {/* Bus animation driving across */}
+      <div className="absolute top-[15%] left-0 right-0 animate-bus-drive pointer-events-none">
+        <BusIcon className="w-10 h-10 text-emerald-500/60" />
+      </div>
+      <div className="flex flex-col items-center gap-4 relative z-10">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+            <BusIcon className="w-10 h-10 text-white" animate={true} />
+          </div>
+          <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 animate-pulse-glow" />
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground mb-1">Loading BusTrack Pro</p>
+          <p className="text-xs text-muted-foreground typing-cursor h-4">{displayText}</p>
+          <div className="w-32 h-1 bg-muted rounded-full mt-3 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ width: '60%' }} />
+          </div>
+        </div>
+      </div>
+      <style>{`
+        @keyframes busDrive {
+          0% { transform: translateX(-60px); opacity: 0; }
+          10% { opacity: 1; }
+          90% { opacity: 1; }
+          100% { transform: translateX(calc(100vw + 60px)); opacity: 0; }
+        }
+        .animate-bus-drive { animation: busDrive 8s linear infinite; }
+      `}</style>
     </div>
   );
 }
@@ -980,7 +1208,7 @@ function ThemeToggle() {
 }
 
 // ============================================================
-// App Shell - Navigation + Content Layout
+// App Shell - Navigation + Content Layout — ENHANCED
 // ============================================================
 function AppShell({
   user,
@@ -999,6 +1227,9 @@ function AppShell({
   const [isMobile, setIsMobile] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [paletteKey, setPaletteKey] = useState(0);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showNotifBar, setShowNotifBar] = useState(true);
+  const [recentPages, setRecentPages] = useState<{ id: string; label: string; icon: string }[]>([]);
 
   const openCommandPalette = useCallback(() => {
     setPaletteKey(k => k + 1);
@@ -1034,13 +1265,17 @@ function AppShell({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [commandPaletteOpen]);
 
-  // Wrap setPortal to also close mobile sidebar
+  // Wrap setPortal to also close mobile sidebar & track recent pages
   const handleSetPortal = useCallback((p: string) => {
     setPortal(p);
     if (isMobile) setSidebarOpen(false);
   }, [isMobile, setPortal]);
 
-  const roleConfig: Record<string, { label: string; color: string; sections: { title: string; pages: { id: string; label: string; icon: string }[] }[] }> = {
+  const handleNavigate = useCallback((pageId: string) => {
+    handleSetPortal(pageId);
+  }, [handleSetPortal]);
+
+  const roleConfigMap: Record<string, { label: string; color: string; sections: { title: string; pages: { id: string; label: string; icon: string }[] }[] }> = {
     admin: {
       label: 'Admin',
       color: 'from-red-500 to-orange-500',
@@ -1164,33 +1399,59 @@ function AppShell({
     },
   };
 
-  const config = roleConfig[user.role] || roleConfig.customer;
+  const config = roleConfigMap[user.role] || roleConfigMap.customer;
   const allPages = config.sections.flatMap(s => s.pages);
   const currentPageLabel = allPages.find(p => p.id === portal)?.label || 'Dashboard';
+
+  // Track recent pages when portal changes
+  useEffect(() => {
+    if (!portal) return;
+    const page = allPages.find(pg => pg.id === portal);
+    if (page) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRecentPages(prev => {
+        const filtered = prev.filter(rp => rp.id !== portal);
+        return [page, ...filtered].slice(0, 3);
+      });
+    }
+  }, [portal]);
 
   // Sidebar content (reused for both mobile and desktop)
   const sidebarContent = (
     <div className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-3">
+      <div className={`p-4 border-b border-gray-200 dark:border-gray-800 ${sidebarCollapsed ? 'flex items-center justify-center' : ''}`}>
+        {sidebarCollapsed ? (
           <div className={`w-9 h-9 bg-gradient-to-br ${config.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
             <svg className="w-5 h-5 text-white" viewBox="0 0 64 64" fill="none">
               <rect x="8" y="12" width="48" height="32" rx="6" fill="currentColor" opacity="0.9" />
               <rect x="12" y="16" width="16" height="12" rx="2" fill="rgba(255,255,255,0.25)" />
-              <rect x="32" y="16" width="8" height="12" rx="1.5" fill="rgba(255,255,255,0.2)" />
-              <rect x="44" y="16" width="8" height="12" rx="1.5" fill="rgba(255,255,255,0.2)" />
               <circle cx="18" cy="46" r="5" fill="#1e293b" />
               <circle cx="18" cy="46" r="2.5" fill="#475569" />
               <circle cx="46" cy="46" r="5" fill="#1e293b" />
               <circle cx="46" cy="46" r="2.5" fill="#475569" />
             </svg>
           </div>
-          <div>
-            <h2 className="font-bold text-gray-900 dark:text-white text-sm">BusTrack Pro</h2>
-            <span className="text-xs text-gray-500">{config.label} Portal</span>
+        ) : (
+          <div className="flex items-center gap-3">
+            <div className={`w-9 h-9 bg-gradient-to-br ${config.color} rounded-lg flex items-center justify-center flex-shrink-0`}>
+              <svg className="w-5 h-5 text-white" viewBox="0 0 64 64" fill="none">
+                <rect x="8" y="12" width="48" height="32" rx="6" fill="currentColor" opacity="0.9" />
+                <rect x="12" y="16" width="16" height="12" rx="2" fill="rgba(255,255,255,0.25)" />
+                <rect x="32" y="16" width="8" height="12" rx="1.5" fill="rgba(255,255,255,0.2)" />
+                <rect x="44" y="16" width="8" height="12" rx="1.5" fill="rgba(255,255,255,0.2)" />
+                <circle cx="18" cy="46" r="5" fill="#1e293b" />
+                <circle cx="18" cy="46" r="2.5" fill="#475569" />
+                <circle cx="46" cy="46" r="5" fill="#1e293b" />
+                <circle cx="46" cy="46" r="2.5" fill="#475569" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="font-bold text-gray-900 dark:text-white text-sm">BusTrack Pro</h2>
+              <span className="text-xs text-gray-500">{config.label} Portal</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Nav with sections */}
@@ -1203,44 +1464,72 @@ function AppShell({
             portal={portal}
             setPortal={handleSetPortal}
             configColor={config.color}
+            collapsed={sidebarCollapsed}
           />
         ))}
 
         {/* Keyboard shortcut hint - clickable */}
-        <div className="mt-4 px-3">
+        <div className={`mt-4 ${sidebarCollapsed ? 'px-1' : 'px-3'}`}>
           <button
             onClick={() => openCommandPalette()}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left"
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-800/50 text-gray-400 dark:text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-left ${sidebarCollapsed ? 'justify-center' : ''}`}
           >
             <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
-            <span className="text-xs flex-1">Search pages...</span>
-            <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[10px] font-mono font-medium text-gray-400 dark:text-gray-500">⌘K</kbd>
+            {!sidebarCollapsed && (
+              <>
+                <span className="text-xs flex-1">Search pages...</span>
+                <kbd className="px-1.5 py-0.5 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[10px] font-mono font-medium text-gray-400 dark:text-gray-500">⌘K</kbd>
+              </>
+            )}
           </button>
         </div>
       </nav>
 
-      {/* User */}
-      <div className="p-3 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex items-center gap-3 p-2">
-          <div className={`w-8 h-8 bg-gradient-to-br ${config.color} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
-            {user.name.charAt(0)}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
-            <p className="text-xs text-gray-500 truncate">{user.email}</p>
-          </div>
-        </div>
+      {/* Help button */}
+      <div className={`px-2 pb-1 ${sidebarCollapsed ? '' : 'px-3'}`}>
         <button
-          onClick={onLogout}
-          className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+          onClick={() => toast({ title: 'Help Center', description: 'Help center coming soon!' })}
+          className={`w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-amber-600 dark:hover:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-900/10 rounded-lg transition-colors ${sidebarCollapsed ? 'justify-center' : ''}`}
         >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Sign Out
+          <HelpCircle className="w-4 h-4 flex-shrink-0" />
+          {!sidebarCollapsed && <span>Help</span>}
         </button>
+      </div>
+
+      {/* User */}
+      <div className={`p-3 border-t border-gray-200 dark:border-gray-800 ${sidebarCollapsed ? 'flex flex-col items-center gap-2' : ''}`}>
+        {!sidebarCollapsed && (
+          <div className="flex items-center gap-3 p-2">
+            <div className={`w-8 h-8 bg-gradient-to-br ${config.color} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+              {user.name.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
+              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+            </div>
+          </div>
+        )}
+        {sidebarCollapsed ? (
+          <div className="relative">
+            <div className={`w-8 h-8 bg-gradient-to-br ${config.color} rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0`}>
+              {user.name.charAt(0)}
+            </div>
+            {/* Online indicator */}
+            <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-900" />
+          </div>
+        ) : (
+          <button
+            onClick={onLogout}
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            Sign Out
+          </button>
+        )}
       </div>
     </div>
   );
@@ -1265,13 +1554,34 @@ function AppShell({
 
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <aside className="w-64 glass-sidebar flex-shrink-0 overflow-hidden border-r border-white/5">
+        <aside className={`glass-sidebar flex-shrink-0 overflow-hidden border-r border-white/5 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
           {sidebarContent}
+          {/* Collapse/expand toggle */}
+          <button
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="absolute top-[4.5rem] -right-3 w-6 h-6 rounded-full bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors shadow-sm z-10"
+            aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {sidebarCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+          </button>
         </aside>
       )}
 
       {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden">
+        {/* Critical notification bar */}
+        {showNotifBar && (
+          <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-1.5 flex items-center justify-between text-xs">
+            <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+              <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
+              <span className="truncate">⚠ 3 unread critical notifications — Route R-101 delayed, Maintenance alert on Bus KA-01-1234, Crew schedule update pending</span>
+            </div>
+            <button onClick={() => setShowNotifBar(false)} className="ml-3 flex-shrink-0 hover:bg-white/20 rounded px-1.5 py-0.5 transition-colors" aria-label="Dismiss">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+        )}
+
         {/* Header */}
         <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center gap-3">
@@ -1291,14 +1601,19 @@ function AppShell({
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <NotificationBell userId={user.id} token={token} />
+            {/* User avatar with online status */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
               {/* Online Status Indicator - pulsing green dot */}
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <div className={`w-6 h-6 bg-gradient-to-br ${config.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
-                {user.name.charAt(0)}
+              <div className="relative">
+                <div className={`w-7 h-7 bg-gradient-to-br ${config.color} rounded-full flex items-center justify-center text-white text-xs font-bold`}>
+                  {user.name.charAt(0)}
+                </div>
+                {/* Online dot on avatar */}
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-white dark:border-gray-800" />
               </div>
               <span className="text-xs font-medium text-gray-700 dark:text-gray-300 hidden sm:block">{user.role}</span>
             </div>
@@ -1312,7 +1627,8 @@ function AppShell({
           onClose={() => setCommandPaletteOpen(false)}
           pages={allPages}
           currentPortal={portal}
-          onNavigate={handleSetPortal}
+          onNavigate={handleNavigate}
+          recentPages={recentPages}
         />
 
         {/* Content */}

@@ -93,6 +93,8 @@ import {
   Smartphone,
   Monitor,
   MessageSquare,
+  Cloud,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
@@ -405,11 +407,25 @@ function WeeklyBarChart() {
 /*  Quick Stats Ribbon                                                 */
 /* ------------------------------------------------------------------ */
 function QuickStatsRibbon() {
+  const [stats, setStats] = useState<Record<string, string>>({});
+  useEffect(() => {
+    apiFetch('/api/analytics').then((d: Record<string, unknown>) => {
+      const dash = d?.dashboard as Record<string, number> | undefined;
+      const summary = d?.summary as Record<string, number> | undefined;
+      const avgCompletion = summary?.avgCompletionRate;
+      setStats({
+        totalRoutes: String(dash?.totalRoutes ?? '—'),
+        activeSchedules: String(dash?.activeSchedules ?? '—'),
+        crewAvailable: String(dash?.totalCrew ?? '—'),
+        onTimeRate: avgCompletion ? `${(avgCompletion * 100).toFixed(1)}%` : '—',
+      });
+    }).catch(() => {});
+  }, []);
   const pills = [
-    { label: 'Total Routes', value: '115', icon: Route, color: 'text-emerald-600' },
-    { label: 'Active Schedules', value: '64', icon: Calendar, color: 'text-amber-600' },
-    { label: 'Crew Available', value: '89', icon: Users, color: 'text-violet-600' },
-    { label: 'On-Time Rate', value: '94.2%', icon: TrendingUp, color: 'text-sky-600' },
+    { label: 'Total Routes', value: stats.totalRoutes ?? '…', icon: Route, color: 'text-emerald-600' },
+    { label: 'Active Schedules', value: stats.activeSchedules ?? '…', icon: Calendar, color: 'text-amber-600' },
+    { label: 'Crew Available', value: stats.crewAvailable ?? '…', icon: Users, color: 'text-violet-600' },
+    { label: 'On-Time Rate', value: stats.onTimeRate ?? '…', icon: TrendingUp, color: 'text-sky-600' },
   ];
   return (
     <div className="flex flex-wrap gap-2 mb-4">
@@ -1212,7 +1228,19 @@ function DashboardPage({
           apiFetch('/api/analytics'),
           apiFetch('/api/traffic?unresolved=true'),
         ]);
-        setAnalytics(analyticsData);
+        // Extract dashboard stats from the new nested structure
+        const dash = (analyticsData as Record<string, unknown>)?.dashboard as Record<string, number> | undefined;
+        setAnalytics({
+          totalRoutes: dash?.totalRoutes ?? 0,
+          totalCrew: dash?.totalCrew ?? 0,
+          activeSchedules: dash?.activeSchedules ?? 0,
+          activeAlerts: dash?.activeAlerts ?? 0,
+          // Keep full analytics for charts
+          summary: (analyticsData as Record<string, unknown>)?.summary,
+          dailyTrend: (analyticsData as Record<string, unknown>)?.dailyTrend,
+          cityStats: (analyticsData as Record<string, unknown>)?.cityStats,
+          analyticsList: (analyticsData as Record<string, unknown>)?.analytics,
+        });
         // FIX #2: Traffic alerts come wrapped in { alerts: [...] }
         const alertArr: any[] = Array.isArray(alertsData) ? alertsData : ((alertsData as Record<string, unknown>)?.alerts ?? (alertsData as Record<string, unknown>)?.data ?? []) as any[];
         setAlerts(alertArr);
@@ -1220,8 +1248,8 @@ function DashboardPage({
       } catch {
         // Fallback demo data — FIX #1: use activeSchedules
         setAnalytics({
-          totalRoutes: 128,
-          totalCrew: 256,
+          totalRoutes: 115,
+          totalCrew: 104,
           activeSchedules: 64,
           activeAlerts: 12,
         });
@@ -1761,11 +1789,23 @@ function RoutesPage({ token }: { token: string }) {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [toggling, setToggling] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  const filteredRoutes = useMemo(() => {
+    if (!searchQuery.trim()) return routes;
+    const q = searchQuery.toLowerCase();
+    return routes.filter((r: any) =>
+      (r.routeNumber ?? '').toLowerCase().includes(q) ||
+      (r.startLocation ?? '').toLowerCase().includes(q) ||
+      (r.endLocation ?? '').toLowerCase().includes(q) ||
+      (r.city ?? '').toLowerCase().includes(q)
+    );
+  }, [routes, searchQuery]);
 
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
@@ -1808,7 +1848,7 @@ function RoutesPage({ token }: { token: string }) {
     }
   };
 
-  const cities = ['BLR', 'DEL', 'MUM', 'HYD', 'CHN', 'KOL', 'PUN', 'JAI'];
+  const cities = ['BLR', 'MUM', 'DEL', 'CHN', 'intercity'];
 
   return (
     <div className="space-y-6">
@@ -1822,43 +1862,52 @@ function RoutesPage({ token }: { token: string }) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {/* Filters */}
-          <div className="flex flex-wrap gap-3">
-            <div className="flex-1 min-w-[200px]">
-              <Label className="mb-1.5">Search</Label>
-              <Input
-                placeholder="Search by route number or name..."
-                value={city === '' ? '' : city}
-                onChange={(e) => {
-                  setCity(e.target.value);
-                  setPage(1);
-                }}
-              />
+          {/* Search & Filter Bar — pill style */}
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by route number, location, or city..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 rounded-full"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {['all', ...cities].map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setCity(c === 'all' ? '' : c); setPage(1); }}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                      (c === 'all' && city === '') || city === c
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                        : 'border-muted bg-muted/30 text-muted-foreground hover:border-emerald-300 hover:text-foreground'
+                    }`}
+                  >
+                    {c === 'all' ? 'All' : c}
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="w-full sm:w-48">
-              <Label className="mb-1.5">City</Label>
-              <Select value={city} onValueChange={(v) => { setCity(v === 'all' ? '' : v); setPage(1); }}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="All Cities" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Cities</SelectItem>
-                  {cities.map((c) => (
-                    <SelectItem key={c} value={c}>{c}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Route className="size-3" />
+              Showing <span className="font-semibold text-foreground">{filteredRoutes.length}</span> of <span className="font-semibold text-foreground">{routes.length}</span> routes
             </div>
           </div>
 
           {/* Table */}
           {loading ? (
-            <TableSkeleton rows={10} cols={7} />
-          ) : routes.length === 0 ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton-shimmer h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : filteredRoutes.length === 0 ? (
             <EmptyState
               icon={Search}
               title="No Routes Found"
-              description="Try adjusting your search or city filter to find bus routes."
+              description={searchQuery ? `No routes match "${searchQuery}". Try a different search term.` : 'Try adjusting your search or city filter to find bus routes.'}
             />
           ) : (
             <>
@@ -1876,7 +1925,7 @@ function RoutesPage({ token }: { token: string }) {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {routes.map((r: any, idx: number) => {
+                    {filteredRoutes.map((r: any, idx: number) => {
                       const id = r.id ?? r._id;
                       return (
                         /* STYLE: alternating row colors + hover */
@@ -2143,7 +2192,26 @@ function CrewPage({ token }: { token: string }) {
   const [assignResult, setAssignResult] = useState<any>(null);
   const [selectedCrew, setSelectedCrew] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
   const today = todayStr();
+
+  const filteredCrew = useMemo(() => {
+    let result = crew;
+    if (roleFilter !== 'all') {
+      result = result.filter((c: any) =>
+        (c.specialization ?? '').toLowerCase() === roleFilter.toLowerCase()
+      );
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter((c: any) =>
+        (c.profile?.name ?? c.name ?? '').toLowerCase().includes(q) ||
+        (c.profile?.email ?? c.email ?? '').toLowerCase().includes(q)
+      );
+    }
+    return result;
+  }, [crew, searchQuery, roleFilter]);
 
   const fetchCrew = useCallback(async () => {
     setLoading(true);
@@ -2201,6 +2269,40 @@ function CrewPage({ token }: { token: string }) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Search & Role Filter Bar — pill style */}
+          <div className="mb-4 flex flex-col gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name or email..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 rounded-full"
+                />
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {[{ key: 'all', label: 'All', color: 'text-emerald-600' }, { key: 'driver', label: 'Driver', color: 'text-sky-600' }, { key: 'conductor', label: 'Conductor', color: 'text-violet-600' }].map((role) => (
+                  <button
+                    key={role.key}
+                    onClick={() => setRoleFilter(role.key)}
+                    className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                      roleFilter === role.key
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                        : 'border-muted bg-muted/30 text-muted-foreground hover:border-emerald-300 hover:text-foreground'
+                    }`}
+                  >
+                    <span className={`size-2 rounded-full ${roleFilter === role.key ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                    {role.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="size-3" />
+              Showing <span className="font-semibold text-foreground">{filteredCrew.length}</span> of <span className="font-semibold text-foreground">{crew.length}</span> crew members
+            </div>
+          </div>
           {/* Assignment results */}
           {assignResult && (
             <div className="mb-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
@@ -2242,12 +2344,18 @@ function CrewPage({ token }: { token: string }) {
           )}
 
           {loading ? (
-            <TableSkeleton rows={8} cols={5} />
-          ) : crew.length === 0 ? (
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton-shimmer h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : filteredCrew.length === 0 ? (
             <EmptyState
               icon={Users}
-              title="No Crew Members"
-              description="No crew members have been registered yet. Add drivers and conductors to get started."
+              title={searchQuery || roleFilter !== 'all' ? 'No Matching Crew' : 'No Crew Members'}
+              description={searchQuery || roleFilter !== 'all'
+                ? 'No crew members match your filters. Try adjusting your search or role selection.'
+                : 'No crew members have been registered yet. Add drivers and conductors to get started.'}
             />
           ) : (
             <div className="max-h-[500px] overflow-y-auto rounded-md border">
@@ -2262,7 +2370,7 @@ function CrewPage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {crew.map((c: any, idx: number) => (
+                  {filteredCrew.map((c: any, idx: number) => (
                     /* STYLE: alternating row colors + hover + clickable */
                     <TableRow
                       key={c.id ?? c._id}
@@ -2404,6 +2512,32 @@ function TrafficPage({ token }: { token: string }) {
     }
   };
 
+  const typeIcons: Record<string, React.ElementType> = {
+    accident: AlertTriangle,
+    congestion: Users,
+    road_work: Wrench,
+    weather: Cloud,
+    other: MessageSquare,
+  };
+  const severityBorder: Record<string, string> = {
+    critical: 'border-l-rose-500',
+    high: 'border-l-amber-500',
+    medium: 'border-l-sky-500',
+    low: 'border-l-gray-400',
+  };
+  const severityBg: Record<string, string> = {
+    critical: 'bg-rose-50 dark:bg-rose-950/20',
+    high: 'bg-amber-50 dark:bg-amber-950/20',
+    medium: 'bg-sky-50 dark:bg-sky-950/20',
+    low: 'bg-gray-50 dark:bg-gray-950/20',
+  };
+  const formSteps = [
+    { label: '1. Route', done: !!formData.routeId },
+    { label: '2. Type', done: !!formData.type },
+    { label: '3. Severity', done: !!formData.severity },
+    { label: '4. Delay', done: !!formData.delayMinutes },
+  ];
+
   return (
     <div className="space-y-6">
       <Card>
@@ -2422,16 +2556,37 @@ function TrafficPage({ token }: { token: string }) {
                   Create Alert
                 </Button>
               </DialogTrigger>
-              <DialogContent>
+              <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                  <DialogTitle>Create Traffic Alert</DialogTitle>
+                  <DialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="size-5 text-amber-500" /> Create Traffic Alert
+                  </DialogTitle>
                   <DialogDescription>
                     Report a new traffic incident on a route
                   </DialogDescription>
                 </DialogHeader>
+                {/* Step Progress Indicator */}
+                <div className="flex items-center gap-1 pt-2">
+                  {formSteps.map((step, i) => (
+                    <React.Fragment key={step.label}>
+                      <div className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-all ${
+                        step.done
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'bg-muted text-muted-foreground'
+                      }`}>
+                        {step.done ? <CheckCircle2 className="size-3" /> : <span className="size-3 rounded-full border-2 border-current opacity-30" />}
+                        {step.label}
+                      </div>
+                      {i < formSteps.length - 1 && <div className="flex-1 h-px bg-muted mx-1" />}
+                    </React.Fragment>
+                  ))}
+                </div>
                 <div className="space-y-4 py-2">
-                  <div className="space-y-2">
-                    <Label>Route</Label>
+                  {/* Step 1: Route — Card Style */}
+                  <div className={`rounded-xl border-2 p-4 transition-all ${formData.routeId ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20' : 'border-muted'}`}>
+                    <Label className="flex items-center gap-1.5 mb-2">
+                      <Route className="size-3.5 text-emerald-500" /> Route
+                    </Label>
                     <Select
                       value={formData.routeId}
                       onValueChange={(v) =>
@@ -2439,14 +2594,13 @@ function TrafficPage({ token }: { token: string }) {
                       }
                     >
                       <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select route" />
+                        <SelectValue placeholder="Select route..." />
                       </SelectTrigger>
                       <SelectContent>
                         {routes.map((r: any) => {
                           const id = r.id ?? r._id;
                           return (
                             <SelectItem key={id} value={String(id)}>
-                              {/* FIX #7: routeNumber, startLocation, endLocation */}
                               {r.routeNumber ?? id} — {r.startLocation ?? ''} → {r.endLocation ?? ''}
                             </SelectItem>
                           );
@@ -2454,55 +2608,75 @@ function TrafficPage({ token }: { token: string }) {
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Select
-                      value={formData.type}
-                      onValueChange={(v) =>
-                        setFormData((f) => ({ ...f, type: v }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="accident">Accident</SelectItem>
-                        <SelectItem value="congestion">Congestion</SelectItem>
-                        <SelectItem value="road_work">Road Work</SelectItem>
-                        <SelectItem value="weather">Weather</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Step 2: Type — Card Style */}
+                  <div className={`rounded-xl border-2 p-4 transition-all ${formData.type ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20' : 'border-muted'}`}>
+                    <Label className="flex items-center gap-1.5 mb-2">
+                      <AlertTriangle className="size-3.5 text-amber-500" /> Incident Type
+                    </Label>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {[
+                        { value: 'accident', icon: AlertTriangle, label: 'Accident', color: 'text-rose-500' },
+                        { value: 'congestion', icon: Users, label: 'Congestion', color: 'text-amber-500' },
+                        { value: 'road_work', icon: Wrench, label: 'Road Work', color: 'text-orange-500' },
+                        { value: 'weather', icon: Cloud, label: 'Weather', color: 'text-sky-500' },
+                        { value: 'other', icon: MessageSquare, label: 'Other', color: 'text-gray-500' },
+                      ].map((t) => (
+                        <button
+                          key={t.value}
+                          type="button"
+                          onClick={() => setFormData((f) => ({ ...f, type: t.value }))}
+                          className={`flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 text-xs font-medium transition-all ${
+                            formData.type === t.value
+                              ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                              : 'border-muted hover:border-muted-foreground/30 text-muted-foreground hover:text-foreground'
+                          }`}
+                        >
+                          <t.icon className={`size-5 ${formData.type === t.value ? 'text-emerald-600 dark:text-emerald-400' : t.color}`} />
+                          {t.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Severity</Label>
-                    <Select
-                      value={formData.severity}
-                      onValueChange={(v) =>
-                        setFormData((f) => ({ ...f, severity: v }))
-                      }
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue placeholder="Select severity" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="low">Low</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="high">High</SelectItem>
-                        <SelectItem value="critical">Critical</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {/* Step 3: Severity — Pill Buttons */}
+                  <div className={`rounded-xl border-2 p-4 transition-all ${formData.severity ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20' : 'border-muted'}`}>
+                    <Label className="flex items-center gap-1.5 mb-2">
+                      <Zap className="size-3.5 text-violet-500" /> Severity Level
+                    </Label>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        { value: 'low', label: 'Low', dot: 'bg-gray-400', active: 'border-gray-400 bg-gray-50 text-gray-700 dark:bg-gray-900/50 dark:text-gray-300' },
+                        { value: 'medium', label: 'Medium', dot: 'bg-sky-400', active: 'border-sky-400 bg-sky-50 text-sky-700 dark:bg-sky-950/40 dark:text-sky-300' },
+                        { value: 'high', label: 'High', dot: 'bg-amber-400', active: 'border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300' },
+                        { value: 'critical', label: 'Critical', dot: 'bg-rose-500', active: 'border-rose-500 bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300' },
+                      ].map((s) => (
+                        <button
+                          key={s.value}
+                          type="button"
+                          onClick={() => setFormData((f) => ({ ...f, severity: s.value }))}
+                          className={`flex items-center gap-1.5 rounded-full border-2 px-4 py-2 text-xs font-semibold transition-all ${
+                            formData.severity === s.value ? s.active : 'border-muted text-muted-foreground hover:border-muted-foreground/30'
+                          }`}
+                        >
+                          <span className={`size-2.5 rounded-full ${formData.severity === s.value ? s.dot : 'bg-muted-foreground/30'}`} />
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Delay (minutes)</Label>
+                  {/* Step 4: Delay */}
+                  <div className={`rounded-xl border-2 p-4 transition-all ${formData.delayMinutes ? 'border-emerald-300 bg-emerald-50/50 dark:border-emerald-700 dark:bg-emerald-950/20' : 'border-muted'}`}>
+                    <Label className="flex items-center gap-1.5 mb-2">
+                      <Timer className="size-3.5 text-amber-500" /> Estimated Delay (minutes)
+                    </Label>
                     <Input
                       type="number"
                       min="0"
-                      placeholder="0"
+                      placeholder="e.g. 15"
                       value={formData.delayMinutes}
                       onChange={(e) =>
                         setFormData((f) => ({ ...f, delayMinutes: e.target.value }))
                       }
+                      className="text-lg font-semibold"
                     />
                   </div>
                 </div>
@@ -2510,7 +2684,10 @@ function TrafficPage({ token }: { token: string }) {
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreate}>Create Alert</Button>
+                  <Button onClick={handleCreate} className="gap-1.5">
+                    <Send className="size-4" />
+                    Create Alert
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -2518,7 +2695,11 @@ function TrafficPage({ token }: { token: string }) {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <TableSkeleton rows={8} cols={6} />
+            <div className="space-y-3">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton-shimmer h-28 rounded-lg" />
+              ))}
+            </div>
           ) : alerts.length === 0 ? (
             <EmptyState
               icon={CheckCircle2}
@@ -2526,86 +2707,80 @@ function TrafficPage({ token }: { token: string }) {
               description="All traffic incidents have been resolved. Create a new alert if needed."
             />
           ) : (
-            <div className="max-h-[500px] overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Route</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Delay</TableHead>
-                    <TableHead>Reporter</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alerts.map((a: any, idx: number) => {
-                    const id = a.id ?? a._id;
-                    const isResolved =
-                      (a.status ?? '').toLowerCase() === 'resolved';
-                    return (
-                      /* STYLE: alternating row colors + hover */
-                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all ${isResolved ? 'opacity-50' : ''}`}>
-                        <TableCell className="font-medium">
-                          {/* FIX #8: a.route?.routeNumber */}
-                          {a.route?.routeNumber ?? a.routeNumber ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {a.type ?? '—'}
+            <div className="grid gap-3 max-h-[600px] overflow-y-auto">
+              {alerts.map((a: any) => {
+                const id = a.id ?? a._id;
+                const isResolved = (a.status ?? '').toLowerCase() === 'resolved';
+                const severity = (a.severity ?? 'low').toLowerCase();
+                const alertType = (a.type ?? 'other').toLowerCase();
+                const TypeIcon = typeIcons[alertType] ?? MessageSquare;
+                return (
+                  <div
+                    key={id}
+                    className={`card-lift rounded-xl border-l-4 ${severityBorder[severity] ?? 'border-l-gray-400'} ${severityBg[severity] ?? ''} border border-muted p-4 transition-all ${isResolved ? 'opacity-50' : ''}`}
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                      {/* Left: Icon + Route Badge */}
+                      <div className="flex items-center gap-3 sm:w-48 shrink-0">
+                        <div className={`rounded-lg p-2 ${
+                          severity === 'critical' ? 'bg-rose-100 text-rose-600 dark:bg-rose-950/60 dark:text-rose-400' :
+                          severity === 'high' ? 'bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-400' :
+                          severity === 'medium' ? 'bg-sky-100 text-sky-600 dark:bg-sky-950/60 dark:text-sky-400' :
+                          'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
+                        }`}>
+                          <TypeIcon className="size-5" />
+                        </div>
+                        <div>
+                          <Badge variant="outline" className="font-mono text-xs">
+                            {a.route?.routeNumber ?? a.routeNumber ?? '—'}
                           </Badge>
-                        </TableCell>
-                        <TableCell>
+                          <p className="text-[10px] text-muted-foreground mt-0.5 capitalize">{alertType.replace('_', ' ')}</p>
+                        </div>
+                      </div>
+                      {/* Center: Severity Badge + Reporter + Date */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2 mb-1">
                           <SeverityBadge severity={a.severity} />
-                        </TableCell>
-                        <TableCell>
-                          {a.delayMinutes != null
-                            ? `${a.delayMinutes} min`
-                            : '—'}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground text-sm">
-                          {/* FIX #8: a.reporter?.name */}
-                          {a.reporter?.name ?? '—'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant="outline"
-                            className={
-                              isResolved
-                                ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300'
-                                : 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300'
-                            }
-                          >
+                          <Badge variant="outline" className={
+                            isResolved ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300' :
+                            'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300'
+                          }>
                             {isResolved ? 'Resolved' : 'Pending'}
                           </Badge>
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {a.createdAt ? formatDateTime(a.createdAt) : '—'}
-                        </TableCell>
-                        <TableCell>
-                          {!isResolved && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              disabled={resolving === id}
-                              onClick={() => handleResolve(id)}
-                            >
-                              {resolving === id ? (
-                                <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              ) : (
-                                <CheckCircle2 className="size-3.5" />
-                              )}
-                              Resolve
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Reported by <span className="text-foreground font-medium">{a.reporter?.name ?? '—'}</span> · {a.createdAt ? formatDateTime(a.createdAt) : '—'}
+                        </p>
+                      </div>
+                      {/* Right: Delay Minutes + Resolve Button */}
+                      <div className="flex items-center gap-4 sm:justify-end shrink-0">
+                        <div className="text-center sm:text-right">
+                          <p className="text-2xl font-bold tabular-nums">
+                            {a.delayMinutes != null ? a.delayMinutes : '—'}
+                          </p>
+                          <p className="text-[10px] text-muted-foreground -mt-0.5">min delay</p>
+                        </div>
+                        {!isResolved && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={resolving === id}
+                            onClick={() => handleResolve(id)}
+                            className="shrink-0"
+                          >
+                            {resolving === id ? (
+                              <span className="size-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                            ) : (
+                              <CheckCircle2 className="size-3.5" />
+                            )}
+                            Resolve
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </CardContent>
@@ -2781,11 +2956,21 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
 function AnalyticsPage({ token }: { token: string }) {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState('7');
+
+  const dateRangeLabel: Record<string, string> = {
+    '7': 'Last 7 Days',
+    '30': 'Last 30 Days',
+    '90': 'Last 90 Days',
+    '0': 'All Time',
+  };
 
   useEffect(() => {
     (async () => {
+      setLoading(true);
       try {
-        const result = await apiFetch<any>('/api/analytics?days=7');
+        const days = dateRange === '0' ? '365' : dateRange;
+        const result = await apiFetch<any>(`/api/analytics?days=${days}`);
         setData(result);
       } catch {
         setData(null);
@@ -2793,7 +2978,7 @@ function AnalyticsPage({ token }: { token: string }) {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [dateRange]);
 
   // FIX #10: map from data.summary for summary fields
   const summary = data?.summary ?? data ?? {};
@@ -2866,6 +3051,30 @@ function AnalyticsPage({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Date Range Filter Pills */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
+          {[{ key: '7', label: 'Last 7 days' }, { key: '30', label: 'Last 30 days' }, { key: '90', label: 'Last 90 days' }, { key: '0', label: 'All Time' }].map((range) => (
+            <button
+              key={range.key}
+              onClick={() => setDateRange(range.key)}
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                dateRange === range.key
+                  ? 'border-emerald-500 bg-emerald-50 text-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                  : 'border-muted bg-muted/30 text-muted-foreground hover:border-emerald-300 hover:text-foreground'
+              }`}
+            >
+              <Calendar className="size-3" />
+              {range.label}
+            </button>
+          ))}
+        </div>
+        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <BarChart3 className="size-3" />
+          Showing data for <span className="font-semibold text-foreground">{dateRangeLabel[dateRange]}</span>
+        </div>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
@@ -2934,7 +3143,7 @@ function AnalyticsPage({ token }: { token: string }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <BarChart3 className="size-5" /> Daily Revenue Trend (7 days)
+            <BarChart3 className="size-5" /> Daily Revenue Trend ({dateRangeLabel[dateRange]})
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -3287,6 +3496,26 @@ function SettingsPage() {
     showToast('Settings exported successfully.', 'success');
   };
 
+  const [lastExport, setLastExport] = useState<Record<string, string>>({});
+
+  const handleExportData = async (type: string, label: string) => {
+    try {
+      const res = await fetch(`/api/export?type=${type}`);
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bustrack-${type}-${todayStr()}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      setLastExport((prev) => ({ ...prev, [type]: new Date().toLocaleString() }));
+      showToast(`${label} exported successfully!`, 'success');
+    } catch {
+      showToast(`Failed to export ${label}.`, 'error');
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* General Settings */}
@@ -3507,6 +3736,43 @@ function SettingsPage() {
             <Download className="size-4 mr-1.5" />
             Export Settings
           </Button>
+        </div>
+      </div>
+
+      {/* Data Management */}
+      <div className="neon-card rounded-xl p-6 page-section">
+        <h3 className="text-lg font-semibold flex items-center gap-2 mb-4">
+          <FileSpreadsheet className="size-5 text-emerald-500" /> Data Management
+        </h3>
+        <p className="text-sm text-muted-foreground mb-4">
+          Export data as CSV files for external analysis, reporting, or backup purposes.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          {[
+            { type: 'routes', label: 'Export All Routes', icon: Route, color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50' },
+            { type: 'crew', label: 'Export All Crew', icon: Users, color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/50' },
+            { type: 'analytics', label: 'Export Analytics', icon: BarChart3, color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50' },
+            { type: 'journeys', label: 'Export Journeys', icon: Navigation, color: 'text-violet-600 bg-violet-50 dark:bg-violet-950/50' },
+          ].map((exp) => {
+            const IconComp = exp.icon;
+            return (
+              <button
+                key={exp.type}
+                onClick={() => handleExportData(exp.type, exp.label)}
+                className="card-lift flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:border-emerald-300 dark:hover:border-emerald-700"
+              >
+                <div className={`rounded-lg p-2.5 ${exp.color}`}>
+                  <IconComp className="size-5" />
+                </div>
+                <span className="text-xs font-medium">{exp.label}</span>
+                {lastExport[exp.type] && (
+                  <span className="text-[10px] text-muted-foreground">
+                    Last: {lastExport[exp.type]}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

@@ -104,6 +104,16 @@ import {
   ArrowUpRight,
   Megaphone,
   HelpCircle,
+  Share2,
+  Phone,
+  Mail,
+  Instagram,
+  Twitter,
+  Sun,
+  Moon,
+  Coffee,
+  ThumbsUp,
+  Copy,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -298,22 +308,29 @@ function seatFromId(id: string): string {
 
 // ─── QR Code SVG Pattern ────────────────────────────────────────────────────
 
-function QRPattern({ seed }: { seed: string }) {
+function QRPattern({ seed, size }: { seed: string; size?: number }) {
   // Generate a deterministic QR-like pattern from seed string
+  const gridSize = 15;
   const cells: boolean[][] = [];
-  for (let r = 0; r < 9; r++) {
+  for (let r = 0; r < gridSize; r++) {
     const row: boolean[] = [];
-    for (let c = 0; c < 9; c++) {
-      // Corner finder patterns (3x3 squares)
-      const isCorner = (r < 3 && c < 3) || (r < 3 && c > 5) || (r > 5 && c < 3);
+    for (let c = 0; c < gridSize; c++) {
+      // Corner finder patterns (4x4 squares with inner border)
+      const isTopLeft = r < 4 && c < 4;
+      const isTopRight = r < 4 && c >= gridSize - 4;
+      const isBottomLeft = r >= gridSize - 4 && c < 4;
+      const isCorner = isTopLeft || isTopRight || isBottomLeft;
       if (isCorner) {
         // Finder pattern: outer border + inner dot
-        const isBorder = r === 0 || r === 2 || c === 0 || c === 2 || r === 6 || r === 8 || c === 6 || c === 8;
-        const isInner = (r === 1 && c === 1) || (r === 1 && c === 7) || (r === 7 && c === 1);
-        row.push(isBorder || isInner);
+        const lr = isTopLeft ? r : isTopRight ? r : r - (gridSize - 4);
+        const lc = isTopLeft ? c : isTopRight ? c - (gridSize - 4) : c;
+        const isBorder = lr === 0 || lr === 3 || lc === 0 || lc === 3;
+        const isInner = lr === 1 && lc === 1;
+        const isInner2 = lr === 2 && lc === 2;
+        row.push(isBorder || isInner || isInner2);
       } else {
         // Data cells - deterministic from seed
-        const idx = r * 9 + c;
+        const idx = r * gridSize + c;
         const ch = seed.charCodeAt(idx % seed.length);
         row.push((ch * (idx + 1)) % 3 !== 0);
       }
@@ -322,7 +339,7 @@ function QRPattern({ seed }: { seed: string }) {
   }
 
   return (
-    <svg width="64" height="64" viewBox="0 0 9 9" className="rounded">
+    <svg width={size ?? 88} height={size ?? 88} viewBox={`0 0 ${gridSize} ${gridSize}`} className="rounded">
       {cells.map((row, r) =>
         row.map((filled, c) =>
           filled ? (
@@ -420,6 +437,7 @@ function WeatherBadge({ city }: { city: string | undefined }) {
 // ─── Spending Donut Chart ────────────────────────────────────────────────────
 
 function SpendingDonut({ totalSpent }: { totalSpent: number }) {
+  const [hoveredSeg, setHoveredSeg] = useState<number | null>(null);
   const segments = useMemo(() => {
     if (totalSpent <= 0) return [];
     const busFares = Math.round(totalSpent * 0.58);
@@ -467,25 +485,43 @@ function SpendingDonut({ totalSpent }: { totalSpent: number }) {
                 r={radius}
                 fill="none"
                 stroke={seg.color}
-                strokeWidth={strokeWidth}
+                strokeWidth={hoveredSeg === i ? strokeWidth + 6 : strokeWidth}
                 strokeDasharray={`${segLen} ${circumference - segLen}`}
                 strokeDashoffset={-offset}
                 strokeLinecap="butt"
-                className="transition-all duration-500"
+                className="transition-all duration-300 cursor-pointer"
+                style={{ filter: hoveredSeg === i ? 'drop-shadow(0 0 6px rgba(0,0,0,0.2))' : 'none' }}
+                onMouseEnter={() => setHoveredSeg(i)}
+                onMouseLeave={() => setHoveredSeg(null)}
               />
             );
           })}
         </svg>
         {/* Center text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <p className="text-xs text-muted-foreground">Total Spent</p>
-          <p className="text-xl font-bold">{formatCurrency(totalSpent)}</p>
+        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+          {hoveredSeg !== null ? (
+            <>
+              <p className="text-xs text-muted-foreground">{segments[hoveredSeg].label}</p>
+              <p className="text-xl font-bold" style={{ color: segments[hoveredSeg].color }}>{formatCurrency(segments[hoveredSeg].value)}</p>
+              <p className="text-xs text-muted-foreground">{segments[hoveredSeg].pct}%</p>
+            </>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">Total Spent</p>
+              <p className="text-xl font-bold">{formatCurrency(totalSpent)}</p>
+            </>
+          )}
         </div>
       </div>
       {/* Legend */}
       <div className="flex items-center gap-4 text-sm">
         {segments.map((seg, i) => (
-          <div key={i} className="flex items-center gap-1.5">
+          <div
+            key={i}
+            className={`flex items-center gap-1.5 cursor-pointer rounded-md px-2 py-1 transition-all ${hoveredSeg === i ? 'bg-muted/50 dark:bg-muted/20' : ''}`}
+            onMouseEnter={() => setHoveredSeg(i)}
+            onMouseLeave={() => setHoveredSeg(null)}
+          >
             <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: seg.color }} />
             <span className="text-muted-foreground">{seg.label}</span>
             <span className="font-medium">{seg.pct}%</span>
@@ -889,17 +925,48 @@ function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
 // ─── Live Bus Tracker ────────────────────────────────────────────────────────
 
 function LiveBusTracker() {
-  const buses = useMemo(() => [
-    { number: 'KA-01-4521', route: 'Route 500', eta: 5, status: 'on-time', progress: 72, color: 'bg-emerald-500' },
-    { number: 'KA-01-7832', route: 'Route 215', eta: 8, status: 'delayed', progress: 45, color: 'bg-amber-500' },
-    { number: 'KA-03-1190', route: 'Route 335', eta: 2, status: 'boarding', progress: 90, color: 'bg-sky-500' },
+  const initialBuses = useMemo(() => [
+    { number: 'KA-01-4521', route: 'Route 500', etaStart: 300, status: 'on-time' as const, progress: 72, color: 'bg-emerald-500' },
+    { number: 'KA-01-7832', route: 'Route 215', etaStart: 480, status: 'delayed' as const, progress: 45, color: 'bg-amber-500' },
+    { number: 'KA-03-1190', route: 'Route 335', etaStart: 120, status: 'boarding' as const, progress: 90, color: 'bg-sky-500' },
   ], []);
 
-  const statusLabel: Record<string, { text: string; cls: string; dotCls: string }> = {
-    'on-time': { text: 'On Time', cls: 'text-emerald-700 bg-emerald-100 border-emerald-200', dotCls: 'bg-emerald-500' },
-    'delayed': { text: 'Delayed', cls: 'text-amber-700 bg-amber-100 border-amber-200', dotCls: 'bg-amber-500' },
-    'boarding': { text: 'Boarding', cls: 'text-sky-700 bg-sky-100 border-sky-200', dotCls: 'bg-sky-500' },
+  const [etas, setEtas] = useState<Record<number, number>>(() => {
+    const initial: Record<number, number> = {};
+    for (const b of initialBuses) initial[b.etaStart] = b.etaStart;
+    return initial;
+  });
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setEtas(prev => {
+        const next = { ...prev };
+        let changed = false;
+        for (const b of initialBuses) {
+          if ((next[b.etaStart] ?? 0) > 0) {
+            next[b.etaStart] = next[b.etaStart] - 1;
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [initialBuses]);
+
+  const statusLabel: Record<string, { text: string; cls: string; dotCls: string; darkCls: string }> = {
+    'on-time': { text: 'On Time', cls: 'text-emerald-700 bg-emerald-100 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-900/50 dark:border-emerald-700', dotCls: 'bg-emerald-500', darkCls: '' },
+    'delayed': { text: 'Delayed', cls: 'text-amber-700 bg-amber-100 border-amber-200 dark:text-amber-300 dark:bg-amber-900/50 dark:border-amber-700', dotCls: 'bg-amber-500', darkCls: '' },
+    'boarding': { text: 'Boarding', cls: 'text-sky-700 bg-sky-100 border-sky-200 dark:text-sky-300 dark:bg-sky-900/50 dark:border-sky-700', dotCls: 'bg-sky-500', darkCls: '' },
   };
+
+  const formatEta = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+  };
+
+  const isPulsing = (status: string) => status === 'on-time' || status === 'boarding';
 
   return (
     <Card>
@@ -918,32 +985,48 @@ function LiveBusTracker() {
         <CardDescription>Nearby buses on your frequent routes</CardDescription>
       </CardHeader>
       <CardContent className="space-y-3">
-        {buses.map((bus, i) => {
+        {initialBuses.map((bus, i) => {
           const s = statusLabel[bus.status] ?? statusLabel['on-time'];
+          const etaSec = etas[bus.etaStart] ?? bus.etaStart;
           return (
-            <div key={i} className="rounded-lg border p-3 transition-colors hover:bg-muted/30">
+            <div key={i} className="rounded-lg border p-3 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
-                  <Bus className="size-4 text-muted-foreground" />
+                  <div className="relative">
+                    <Bus className="size-4 text-muted-foreground" />
+                    {isPulsing(bus.status) && (
+                      <span className={`absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5`}
+                        >
+                        <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${s.dotCls} opacity-75`} />
+                        <span className={`relative inline-flex h-2 w-2 rounded-full ${s.dotCls}`} />
+                      </span>
+                    )}
+                  </div>
                   <span className="text-sm font-mono font-semibold">{bus.number}</span>
                 </div>
-                <Badge variant="outline" className={`text-[10px] ${s.cls}`}>{s.text}</Badge>
+                <Badge variant="outline" className={`text-[10px] font-semibold ${s.cls}`}>{s.text}</Badge>
               </div>
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>{bus.route}</span>
-                <span className="flex items-center gap-1">
-                  <Hourglass className="size-3" /> ETA {bus.eta} min
+                <span className={`flex items-center gap-1 font-mono tabular-nums ${etaSec < 60 ? 'text-rose-600 dark:text-rose-400 font-semibold' : ''}`}>
+                  <Hourglass className="size-3" /> ETA {etaSec > 0 ? formatEta(etaSec) : 'Arriving!'}
                 </span>
               </div>
-              <div className="relative h-2 w-full rounded-full bg-muted">
+              <div className="relative h-2 w-full rounded-full bg-muted dark:bg-muted/50">
                 <div
                   className={`absolute left-0 top-0 h-2 rounded-full transition-all duration-1000 ${bus.color}`}
                   style={{ width: `${bus.progress}%` }}
                 />
                 <div
-                  className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white shadow-sm transition-all duration-1000 ${bus.color}`}
+                  className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-all duration-1000 ${bus.color}`}
                   style={{ left: `calc(${bus.progress}% - 6px)` }}
                 />
+                {isPulsing(bus.status) && (
+                  <div
+                    className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full ${s.dotCls} opacity-20 animate-ping`}
+                    style={{ left: `calc(${bus.progress}% - 10px)` }}
+                  />
+                )}
               </div>
             </div>
           );
@@ -1521,8 +1604,19 @@ const SEED_POINTS_HISTORY = [
   { id: 'ph5', type: 'earned' as const, description: 'Referral bonus', points: 200, date: '2025-07-05' },
 ];
 
+function AnimatedSparkle({ className }: { className?: string }) {
+  return (
+    <span className={`inline-block animate-pulse ${className ?? ''}`}>
+      <Sparkles className="size-4 fill-amber-400 text-amber-400" />
+    </span>
+  );
+}
+
 function LoyaltyRewardsPanel() {
-  const currentPoints = 2450;
+  const [currentPoints, setCurrentPoints] = useState(2450);
+  const [progressAnimated, setProgressAnimated] = useState(0);
+  const [checkedIn, setCheckedIn] = useState(false);
+
   const currentTierIndex = LOYALTY_TIERS.findIndex((t, i) => {
     const next = LOYALTY_TIERS[i + 1];
     return !next || currentPoints < next.threshold;
@@ -1534,6 +1628,22 @@ function LoyaltyRewardsPanel() {
     : 100;
   const pointsToNext = nextTier ? nextTier.threshold - currentPoints : 0;
 
+  // Animate progress bar on mount
+  useEffect(() => {
+    const timer = setTimeout(() => setProgressAnimated(progressToNext), 100);
+    return () => clearTimeout(timer);
+  }, [progressToNext]);
+
+  const handleCheckIn = () => {
+    if (checkedIn) return;
+    setCheckedIn(true);
+    setCurrentPoints(prev => prev + 10);
+    toast({
+      title: 'Check-in successful!',
+      description: '+10 points earned. Come back tomorrow for more!',
+    });
+  };
+
   return (
     <div className="space-y-6">
       {/* Points Display + Tier */}
@@ -1544,33 +1654,53 @@ function LoyaltyRewardsPanel() {
           </div>
           <div>
             <p className="text-sm text-muted-foreground">Current Points</p>
-            <p className="text-4xl font-extrabold gradient-text-warm tabular-nums">{currentPoints.toLocaleString()} pts</p>
+            <p className="text-4xl font-extrabold gradient-text-warm tabular-nums flex items-center gap-2">
+              <AnimatedSparkle />
+              {currentPoints.toLocaleString()} pts
+            </p>
             <Badge variant="outline" className={`mt-1 ${currentTier.textColor} ${currentTier.bg}`}>
               {currentTier.name} Tier
             </Badge>
           </div>
         </div>
 
-        {/* Tier Progress */}
-        <div className="flex-1 max-w-xs space-y-2">
-          <div className="flex items-center justify-between text-sm">
-            <span className="font-medium text-muted-foreground">{currentTier.name}</span>
-            <span className="font-medium text-muted-foreground">{nextTier ? nextTier.name : 'Max'}</span>
+        <div className="flex flex-col gap-3 items-stretch">
+          {/* Daily Check-in Button */}
+          <Button
+            variant={checkedIn ? 'secondary' : 'default'}
+            size="sm"
+            className={checkedIn ? 'opacity-70 cursor-not-allowed' : 'bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white'}
+            onClick={handleCheckIn}
+            disabled={checkedIn}
+          >
+            {checkedIn ? (
+              <><CheckCircle2 className="size-4 mr-1" /> Checked In Today</>
+            ) : (
+              <><Sparkles className="size-4 mr-1" /> Daily Check-in (+10 pts)</>
+            )}
+          </Button>
+
+          {/* Tier Progress */}
+          <div className="max-w-xs space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-medium text-muted-foreground">{currentTier.name}</span>
+              <span className="font-medium text-muted-foreground">{nextTier ? nextTier.name : 'Max'}</span>
+            </div>
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full transition-all duration-1500 ease-out"
+                style={{
+                  width: `${Math.min(progressAnimated, 100)}%`,
+                  background: `linear-gradient(90deg, ${currentTier.gradientFrom}, ${currentTier.gradientTo})`,
+                }}
+              />
+            </div>
+            {nextTier && (
+              <p className="text-xs text-muted-foreground text-right">
+                {pointsToNext.toLocaleString()} pts to {nextTier.name}
+              </p>
+            )}
           </div>
-          <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
-            <div
-              className="absolute inset-y-0 left-0 rounded-full transition-all duration-1000"
-              style={{
-                width: `${Math.min(progressToNext, 100)}%`,
-                background: `linear-gradient(90deg, ${currentTier.gradientFrom}, ${currentTier.gradientTo})`,
-              }}
-            />
-          </div>
-          {nextTier && (
-            <p className="text-xs text-muted-foreground text-right">
-              {pointsToNext.toLocaleString()} pts to {nextTier.name}
-            </p>
-          )}
         </div>
       </div>
 
@@ -1724,10 +1854,17 @@ function Dashboard({
 
   const hourGreeting = useMemo(() => {
     const h = new Date().getHours();
-    if (h < 12) return 'Good Morning';
-    if (h < 17) return 'Good Afternoon';
-    return 'Good Evening';
+    if (h < 12) return { text: 'Good Morning', icon: Sun, emoji: '🌅' };
+    if (h < 17) return { text: 'Good Afternoon', icon: Coffee, emoji: '☀️' };
+    return { text: 'Good Evening', icon: Moon, emoji: '🌙' };
   }, []);
+
+  const plannedCount = stats ? recentJourneys.length : 0;
+  const completedCount = stats?.totalTrips ? Math.max(0, stats.totalTrips - plannedCount) : 0;
+
+  const animatedSpent = useAnimatedCounter(stats?.totalSpent ? Math.round(stats.totalSpent) : 0, 1400);
+  const animatedTrips = useAnimatedCounter(stats?.totalTrips ?? 0, 1200);
+  const animatedPlanned = useAnimatedCounter(plannedCount, 1000);
 
   if (loading) return <DashboardSkeleton />;
   if (error) {
@@ -1741,27 +1878,24 @@ function Dashboard({
     );
   }
 
-  const plannedCount = stats ? recentJourneys.length : 0;
-  const completedCount = stats?.totalTrips ? Math.max(0, stats.totalTrips - plannedCount) : 0;
-
   const statCards = [
     {
       title: 'Total Spent',
-      value: formatCurrency(stats?.totalSpent),
+      value: `₹${animatedSpent.toLocaleString('en-IN')}`,
       icon: Wallet,
       color: 'text-emerald-600',
       bg: 'bg-emerald-50',
     },
     {
       title: 'Total Trips',
-      value: String(stats?.totalTrips ?? 0),
+      value: String(animatedTrips),
       icon: Bus,
       color: 'text-sky-600',
       bg: 'bg-sky-50',
     },
     {
       title: 'Planned Journeys',
-      value: String(plannedCount),
+      value: String(animatedPlanned),
       icon: CalendarClock,
       color: 'text-amber-600',
       bg: 'bg-amber-50',
@@ -1782,8 +1916,8 @@ function Dashboard({
         <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="flex items-center gap-2">
-              <Sparkles className="size-5" />
-              <p className="text-sm font-medium opacity-90">{hourGreeting}!</p>
+              <hourGreeting.icon className="size-5" />
+              <p className="text-sm font-medium opacity-90">{hourGreeting.emoji} {hourGreeting.text}!</p>
             </div>
             <h2 className="mt-1 text-2xl font-bold">Welcome to Your Dashboard</h2>
             <p className="mt-1 text-sm opacity-80">
@@ -2325,6 +2459,22 @@ function SearchRoutes({
                     value={startLocation}
                     onChange={setStartLocation}
                   />
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {['Majestic Bus Stand', 'Whitefield', 'Electronic City', 'Koramangala'].map(loc => (
+                      <button
+                        key={loc}
+                        type="button"
+                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-all ${
+                          startLocation === loc
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-muted-foreground/25 text-muted-foreground hover:border-primary/50 hover:text-primary dark:border-muted-foreground/40'
+                        }`}
+                        onClick={() => setStartLocation(loc)}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -2336,6 +2486,22 @@ function SearchRoutes({
                     value={endLocation}
                     onChange={setEndLocation}
                   />
+                  <div className="flex flex-wrap gap-1.5 mt-1">
+                    {['MG Road', 'Indiranagar', 'HSR Layout', 'Marathahalli'].map(loc => (
+                      <button
+                        key={loc}
+                        type="button"
+                        className={`rounded-full border px-2.5 py-0.5 text-[11px] transition-all ${
+                          endLocation === loc
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-muted-foreground/25 text-muted-foreground hover:border-primary/50 hover:text-primary dark:border-muted-foreground/40'
+                        }`}
+                        onClick={() => setEndLocation(loc)}
+                      >
+                        {loc}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div className="space-y-1.5">
@@ -3294,17 +3460,21 @@ function MyBookings({ userId }: { userId: string }) {
                     <div className="flex items-stretch px-5 py-4">
                       <div className="flex-1 grid grid-cols-2 gap-x-6 gap-y-3">
                         <div>
-                          <p className="text-xs text-muted-foreground">Departure Time</p>
-                          <p className="text-sm font-medium flex items-center gap-1">
-                            <Clock className="size-3 text-muted-foreground" />
-                            {jTime(j)}
-                          </p>
+                          <p className="text-xs text-muted-foreground">Bus Registration</p>
+                          <p className="text-sm font-bold font-mono text-primary">KA-01-{String(Math.abs(j.id.charCodeAt(0) * 1234 + 1000)).slice(0, 4)}</p>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Travel Date</p>
                           <p className="text-sm font-medium flex items-center gap-1">
                             <CalendarClock className="size-3 text-muted-foreground" />
                             {jDate(j)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Departure Time</p>
+                          <p className="text-sm font-medium flex items-center gap-1">
+                            <Clock className="size-3 text-muted-foreground" />
+                            {jTime(j)}
                           </p>
                         </div>
                         <div>
@@ -3318,7 +3488,7 @@ function MyBookings({ userId }: { userId: string }) {
                       </div>
                       <Separator orientation="vertical" className="mx-4" />
                       <div className="flex flex-col items-center justify-center text-muted-foreground">
-                        <QRPattern seed={j.id} />
+                        <QRPattern seed={j.id} size={96} />
                         <p className="mt-1 text-[10px]">Boarding Pass</p>
                       </div>
                     </div>
@@ -3342,6 +3512,19 @@ function MyBookings({ userId }: { userId: string }) {
                         >
                           <Download className="size-3" />
                           Download Receipt
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            toast({
+                              title: 'Link copied to clipboard!',
+                              description: `Booking link for ${jRouteNumber(j)} has been copied.`,
+                            });
+                          }}
+                        >
+                          <Share2 className="size-3" />
+                          Share
                         </Button>
                         <Button
                           size="sm"
@@ -3850,17 +4033,50 @@ function JourneyHistory({ userId }: { userId: string }) {
                               </div>
 
                               {/* Review text */}
-                              <Textarea
-                                placeholder="Share your detailed experience (optional)..."
-                                className="min-h-20 text-sm"
-                                value={feedbacks[j.id] ?? ''}
-                                onChange={e =>
-                                  setFeedbacks(prev => ({
-                                    ...prev,
-                                    [j.id]: e.target.value,
-                                  }))
-                                }
-                              />
+                              <div className="space-y-2">
+                                <Textarea
+                                  placeholder="Share your detailed experience (optional)..."
+                                  className="min-h-20 text-sm"
+                                  maxLength={500}
+                                  value={feedbacks[j.id] ?? ''}
+                                  onChange={e =>
+                                    setFeedbacks(prev => ({
+                                      ...prev,
+                                      [j.id]: e.target.value,
+                                    }))
+                                  }
+                                />
+                                <p className="text-[11px] text-right text-muted-foreground">
+                                  {(feedbacks[j.id] ?? '').length} / 500
+                                </p>
+                              </div>
+
+                              {/* Emoji reactions */}
+                              <div className="space-y-1.5">
+                                <label className="text-xs font-medium text-muted-foreground">Quick Reaction</label>
+                                <div className="flex items-center gap-2">
+                                  {[
+                                    { emoji: '👍', label: 'Great' },
+                                    { emoji: '😐', label: 'Okay' },
+                                    { emoji: '👎', label: 'Poor' },
+                                  ].map(r => (
+                                    <button
+                                      key={r.label}
+                                      type="button"
+                                      className="flex items-center gap-1 rounded-lg border px-3 py-1.5 text-sm transition-all hover:bg-muted/50 hover:border-primary/40 hover:scale-105 active:scale-95 dark:hover:bg-muted/30"
+                                      onClick={() => {
+                                        setFeedbacks(prev => ({
+                                          ...prev,
+                                          [j.id]: `${r.label}: ` + (prev[j.id] ?? '').replace(/^(Great|Okay|Poor):\\s*/, ''),
+                                        }));
+                                      }}
+                                    >
+                                      <span className="text-base">{r.emoji}</span>
+                                      <span className="text-xs text-muted-foreground">{r.label}</span>
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
 
                               {/* Submit */}
                               <Button
@@ -3919,28 +4135,24 @@ const STATUS_COLORS: Record<string, string> = {
 
 const FAQ_ITEMS = [
   {
-    q: 'How do I cancel a booking?',
-    a: 'Go to "My Bookings" page, find the booking you want to cancel, and click the "Cancel" button. Cancellations are free if made at least 2 hours before departure. After that, a 10% fee may apply.',
+    q: 'How do I book a ticket?',
+    a: 'Search for your route using the Search Routes page, select a schedule that works for you, pick your preferred seat, and click "Book Now". You can pay using UPI, Credit/Debit cards, or Net Banking. Your ticket will be confirmed instantly.',
   },
   {
-    q: 'What happens if my bus is late?',
-    a: 'If your bus is delayed by more than 15 minutes, you will receive a notification. Delays over 30 minutes qualify for a free reschedule. You can also track your bus in real-time on the Route Map page.',
+    q: 'Can I cancel my booking?',
+    a: 'Yes, you can cancel up to 30 minutes before departure for a full refund. Go to "My Bookings" page, find your booking, and click "Cancel". Cancellations within 30 minutes of departure may incur a 10% fee.',
   },
   {
-    q: 'How do I get a refund?',
-    a: 'Refunds can be requested through the Support page by submitting a complaint. Processing takes 3-5 business days. The refund will be credited to your original payment method or added to your wallet balance.',
+    q: 'How do the loyalty points work?',
+    a: 'Earn 10 points per trip, 50 points for maintaining a weekly streak, and 200 points for referrals. Points can be redeemed for free ride coupons, priority boarding passes, and discount vouchers in the Rewards section on your Dashboard.',
   },
   {
-    q: 'How does the loyalty points system work?',
-    a: 'You earn 10 points for every ₹100 spent on bus fares. Points can be redeemed for rewards like free ride coupons, priority boarding passes, and discount vouchers in the Rewards section on your Dashboard.',
+    q: 'What payment methods are accepted?',
+    a: 'We accept UPI (GPay, PhonePe, Paytm), Credit/Debit cards (Visa, Mastercard, Rupay), and Net Banking from all major Indian banks. Wallet balance can also be used for payments.',
   },
   {
-    q: 'Can I change my seat after booking?',
-    a: 'Yes, seat changes are allowed up to 1 hour before departure. Go to "My Bookings", select your booking, and click "Change Seat" to see available options. A seat change fee of ₹10 may apply.',
-  },
-  {
-    q: 'How do I report lost items?',
-    a: 'Submit a complaint through the Support page with category "Other" and include details about the lost item, the route number, and your journey date. Our team will coordinate with the crew to locate your item.',
+    q: 'How do I contact support?',
+    a: 'Email us at support@bustrack.in or call our 24/7 helpline at 1800-BUS-HELP (1800-287-4357). You can also submit a complaint through this Support page for a response within 24 hours.',
   },
 ];
 
@@ -3954,6 +4166,15 @@ function SupportPage() {
   });
   const [submittingComplaint, setSubmittingComplaint] = useState(false);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [faqSearch, setFaqSearch] = useState('');
+
+  const filteredFaqs = useMemo(() => {
+    if (!faqSearch.trim()) return FAQ_ITEMS;
+    const q = faqSearch.toLowerCase();
+    return FAQ_ITEMS.filter(faq =>
+      faq.q.toLowerCase().includes(q) || faq.a.toLowerCase().includes(q)
+    );
+  }, [faqSearch]);
 
   const handleSubmitComplaint = useCallback(() => {
     if (!complaintForm.category || !complaintForm.severity || !complaintForm.description.trim()) {
@@ -4152,28 +4373,100 @@ function SupportPage() {
           </CardTitle>
           <CardDescription>Quick answers to common questions</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-1">
-          {FAQ_ITEMS.map((faq, i) => (
-            <div key={i} className="rounded-lg border">
-              <button
-                type="button"
-                className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 transition-colors"
-                onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-              >
-                <span className="pr-4">{faq.q}</span>
-                <ChevronRight
-                  className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
-                    expandedFaq === i ? 'rotate-90' : ''
-                  }`}
-                />
-              </button>
-              {expandedFaq === i && (
-                <div className="border-t bg-muted/30 px-4 py-3">
-                  <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+        <CardContent className="space-y-4">
+          {/* Search FAQ */}
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
+            <Input
+              placeholder="Search FAQ..."
+              value={faqSearch}
+              onChange={e => setFaqSearch(e.target.value)}
+              className="pl-10 h-9"
+            />
+          </div>
+
+          <div className="space-y-1">
+            {filteredFaqs.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <HelpCircle className="mx-auto mb-2 size-8 opacity-30" />
+                <p className="text-sm">No matching questions found</p>
+              </div>
+            ) : (
+              filteredFaqs.map((faq, i) => (
+                <div key={i} className="rounded-lg border dark:border-muted-foreground/20">
+                  <button
+                    type="button"
+                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium hover:bg-muted/50 dark:hover:bg-muted/20 transition-colors"
+                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                  >
+                    <span className="pr-4">{faq.q}</span>
+                    <ChevronRight
+                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-200 ${
+                        expandedFaq === i ? 'rotate-90' : ''
+                      }`}
+                    />
+                  </button>
+                  {expandedFaq === i && (
+                    <div className="border-t bg-muted/30 dark:bg-muted/10 px-4 py-3">
+                      <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                    </div>
+                  )}
                 </div>
-              )}
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Contact Us Card */}
+      <Card className="neon-card overflow-hidden">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Phone className="size-5 text-sky-500" />
+            Contact Us
+          </CardTitle>
+          <CardDescription>We&apos;re here to help 24/7</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/50">
+                <Mail className="size-5 text-sky-600 dark:text-sky-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Email</p>
+                <p className="text-sm font-medium">support@bustrack.in</p>
+              </div>
             </div>
-          ))}
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+                <Phone className="size-5 text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">24/7 Helpline</p>
+                <p className="text-sm font-medium">1800-BUS-HELP</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4 sm:col-span-2 lg:col-span-1">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50">
+                <MessageCircle className="size-5 text-violet-600 dark:text-violet-400" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Social Media</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Twitter">
+                    <Twitter className="size-4 text-muted-foreground" />
+                  </button>
+                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Instagram">
+                    <Instagram className="size-4 text-muted-foreground" />
+                  </button>
+                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Email">
+                    <Mail className="size-4 text-muted-foreground" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>

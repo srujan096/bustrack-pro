@@ -69,9 +69,12 @@ import {
   Plus,
   Cloud,
   CloudRain,
+  CloudLightning,
   Droplets,
   Wind,
   Trophy,
+  Sun as SunIcon,
+  Gauge,
   ArrowUp,
   ArrowDown,
   Coffee,
@@ -80,6 +83,9 @@ import {
   Trash2,
   IndianRupee,
   ArrowUpDown,
+  Hourglass,
+  Thermometer,
+  TreePalm,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -359,6 +365,11 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
   const todayAsgn = assignments.filter((a) => a.schedule.date === todayStr);
   const trip = todayAsgn.length > 0 ? todayAsgn[0] : null;
 
+  const [tripStatus, setTripStatus] = useState<'idle' | 'started' | 'completed'>('idle');
+  const [tripElapsed, setTripElapsed] = useState(0);
+  const tripIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [animatedStops, setAnimatedStops] = useState(0);
+
   const routeNumber = trip?.schedule.route?.routeNumber || `R${100 + getSeededValue(crewName, 1, 400)}`;
   const departureTime = trip?.schedule.departureTime || `${8 + (getSeededValue(crewName + 'dep', 0, 2))}:${String(getSeededValue(crewName + 'dep2', 0, 59)).padStart(2, '0')}`;
   const busReg = trip?.schedule.route?.busRegistration || `KA-${String(getSeededValue(crewName + 'bus', 1, 99)).padStart(2, '0')}-F-${String(getSeededValue(crewName + 'bus2', 1000, 9999))}`;
@@ -368,7 +379,53 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
   const stops = getStopsForRoute(crewName + routeNumber);
   const currentStop = stops.find((s) => s.isCurrent);
   const nextStop = stops.find((s) => !s.passed && !s.isCurrent);
-  const progressPct = stops.length > 1 ? Math.round((stops.filter((s) => s.passed).length / (stops.length - 1)) * 100) : 0;
+  const progressPct = tripStatus === 'completed' ? 100 : stops.length > 1 ? Math.round((stops.filter((s) => s.passed).length / (stops.length - 1)) * 100) : 0;
+
+  // Sequential fill animation on mount
+  useEffect(() => {
+    if (stops.length === 0) return;
+    const timer = setTimeout(() => setAnimatedStops(1), 200);
+    return () => clearTimeout(timer);
+  }, [stops.length]);
+
+  useEffect(() => {
+    if (animatedStops > 0 && animatedStops < stops.length) {
+      const timer = setTimeout(() => setAnimatedStops((p) => p + 1), 150);
+      return () => clearTimeout(timer);
+    }
+  }, [animatedStops, stops.length]);
+
+  // Trip elapsed timer
+  useEffect(() => {
+    if (tripStatus === 'started') {
+      tripIntervalRef.current = setInterval(() => setTripElapsed((p) => p + 1), 1000);
+    }
+    return () => { if (tripIntervalRef.current) clearInterval(tripIntervalRef.current); };
+  }, [tripStatus]);
+
+  const formatElapsed = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  };
+
+  const handleStartTrip = () => {
+    setTripStatus('started');
+    setTripElapsed(0);
+    toast({ title: 'Trip started!', description: 'Safe travels! 🚌' });
+  };
+
+  const handleCompleteTrip = () => {
+    setTripStatus('completed');
+    if (tripIntervalRef.current) clearInterval(tripIntervalRef.current);
+    toast({ title: 'Trip completed!', description: 'Great job! 🎉' });
+  };
+
+  const isDotFilled = (i: number) => {
+    if (tripStatus === 'completed') return true;
+    if (tripStatus === 'started' && i === 0) return true;
+    return stops[i]?.passed && i < animatedStops;
+  };
 
   return (
     <Card className="rounded-xl shadow-sm bg-white overflow-hidden">
@@ -378,7 +435,12 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
             <Bus className="h-4 w-4 text-white/80" />
             <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Digital Trip Manifest</span>
           </div>
-          <span className="text-xs text-white/70">{formatDate(todayStr)}</span>
+          <div className="flex items-center gap-2">
+            {tripStatus !== 'idle' && (
+              <span className="text-[10px] text-white/70 bg-white/15 rounded-full px-2 py-0.5 font-mono">{formatElapsed(tripElapsed)}</span>
+            )}
+            <span className="text-xs text-white/70">{formatDate(todayStr)}</span>
+          </div>
         </div>
       </div>
       <CardContent className="p-0">
@@ -415,27 +477,26 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
           </div>
         </div>
 
-        {/* Route Progress */}
+        {/* Route Progress - Animated Dots */}
         <div className="px-5 py-3 border-b border-dashed border-gray-200">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Route Progress</p>
           <div className="flex items-center gap-1 w-full overflow-hidden">
             {stops.map((stop, i) => (
               <React.Fragment key={stop.name}>
                 <div className="flex flex-col items-center shrink-0" style={{ width: '14px' }}>
-                  <div className={`h-3 w-3 rounded-full border-2 transition-all ${
-                    stop.isCurrent
-                      ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200'
-                      : stop.passed
-                        ? 'bg-emerald-400 border-emerald-300'
-                        : 'bg-gray-100 border-gray-200'
-                  }`} />
+                  <div className={`h-3 w-3 rounded-full border-2 transition-all duration-500 ${
+                    isDotFilled(i)
+                      ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200 scale-110'
+                      : 'bg-gray-100 border-gray-200'
+                  }`} style={{ animationDelay: `${i * 150}ms` }} />
                   <span className="mt-1 text-[8px] text-gray-400 leading-tight truncate max-w-[32px]">{stop.name.split(' ')[0]}</span>
                 </div>
                 {i < stops.length - 1 && (
                   <div className="flex-1 min-w-[8px]">
                     <div className="h-0.5 w-full bg-gray-100 relative">
                       <div
-                        className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-700 ${stop.passed ? 'w-full' : 'w-0'}`}
+                        className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-500 ${isDotFilled(i) ? 'w-full' : 'w-0'}`}
+                        style={{ transitionDelay: `${i * 150}ms` }}
                       />
                     </div>
                   </div>
@@ -446,13 +507,13 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
           <div className="mt-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <Navigation className="h-3 w-3 text-emerald-500" />
-              <span className="text-xs font-semibold text-emerald-700">Current: {currentStop?.name || '—'}</span>
+              <span className="text-xs font-semibold text-emerald-700">Current: {tripStatus === 'completed' ? 'All stops done' : (currentStop?.name || '—')}</span>
             </div>
             <span className="text-xs text-gray-400">{progressPct}% complete</span>
           </div>
         </div>
 
-        {/* Next Stop */}
+        {/* Next Stop + Trip Control */}
         <div className="px-5 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
@@ -461,10 +522,25 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Next Stop</p>
-                <p className="text-sm font-semibold text-gray-900">{nextStop?.name || '—'}</p>
+                <p className="text-sm font-semibold text-gray-900">{tripStatus === 'completed' ? 'Trip finished' : (nextStop?.name || '—')}</p>
               </div>
             </div>
-            <span className="text-xs text-gray-400">~{2 + (simpleHash(crewName + 'eta') % 6)} min</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{tripStatus !== 'completed' ? `~${2 + (simpleHash(crewName + 'eta') % 6)} min` : ''}</span>
+              {tripStatus === 'idle' && (
+                <Button size="sm" className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700 h-8 px-3 text-xs" onClick={handleStartTrip}>
+                  <Play className="h-3 w-3" /> Start Trip
+                </Button>
+              )}
+              {tripStatus === 'started' && (
+                <Button size="sm" className="gap-1 bg-teal-600 text-white hover:bg-teal-700 h-8 px-3 text-xs" onClick={handleCompleteTrip}>
+                  <CheckCircle2 className="h-3 w-3" /> Complete Trip
+                </Button>
+              )}
+              {tripStatus === 'completed' && (
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />Completed</Badge>
+              )}
+            </div>
           </div>
         </div>
       </CardContent>
@@ -576,6 +652,14 @@ function ShiftTimer() {
               <Button size="sm" variant="outline" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 h-9 px-4" onClick={handlePause}>
                 <Pause className="h-3.5 w-3.5" />
                 Pause
+              </Button>
+            )}
+            {shiftState === 'running' && (
+              <Button size="sm" variant="outline" className="gap-1 border-amber-400 text-amber-600 bg-amber-50 hover:bg-amber-100 h-9 px-4" onClick={() => {
+                toast({ title: 'Break started', description: 'Break started. 15-minute timer active.' });
+              }}>
+                <Coffee className="h-3.5 w-3.5" />
+                Break
               </Button>
             )}
             {shiftState !== 'idle' && (
@@ -991,6 +1075,7 @@ function EarningsTracker({ crewName }: { crewName: string }) {
   const lastMonth = earnings[earnings.length - 2];
   const ytdTotal = earnings.reduce((s, e) => s + e.amount, 0);
   const avgMonthly = Math.round(ytdTotal / earnings.length);
+  const comparisonPct = lastMonth.amount > 0 ? Math.round(((thisMonth.amount - lastMonth.amount) / lastMonth.amount) * 100) : 0;
 
   // SVG Line Chart
   const chartW = 500;
@@ -1038,14 +1123,27 @@ function EarningsTracker({ crewName }: { crewName: string }) {
       </div>
 
       {/* SVG Line Chart */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg flex items-center gap-2">
-            <DollarSign className="h-5 w-5 text-emerald-600" />
-            Monthly Earnings (Last 6 Months)
-          </CardTitle>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <DollarSign className="h-5 w-5 text-emerald-600" />
+              Monthly Earnings (Last 6 Months)
+            </CardTitle>
+            <Button variant="outline" className="gap-1.5 text-xs border-gray-200 dark:border-gray-700 dark:text-gray-300" onClick={() => toast({ title: 'Coming Soon', description: 'Detailed earnings report coming soon!' })}>
+              <Download className="h-3.5 w-3.5" />
+              View Detailed Report
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
+          {/* Monthly comparison badge */}
+          <div className="mb-3 flex items-center gap-2">
+            <Badge className={`${comparisonPct >= 0 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300'} text-xs`}>
+              {comparisonPct >= 0 ? <ArrowUp className="mr-0.5 h-3 w-3" /> : <ArrowDown className="mr-0.5 h-3 w-3" />}
+              {comparisonPct >= 0 ? '+' : ''}{comparisonPct}% vs last month
+            </Badge>
+          </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full">
             <defs>
               <linearGradient id="earnGrad" x1="0" y1="0" x2="0" y2="1">
@@ -1053,10 +1151,15 @@ function EarningsTracker({ crewName }: { crewName: string }) {
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
               </linearGradient>
             </defs>
+            {/* Y-axis labels */}
+            <text x={padL - 5} y={padT + 8} textAnchor="end" className="fill-gray-400 text-[9px]">₹30k</text>
+            <text x={padL - 5} y={padT + plotH / 3 + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹20k</text>
+            <text x={padL - 5} y={padT + 2 * plotH / 3 + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹10k</text>
+            <text x={padL - 5} y={padT + plotH + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹0k</text>
             {/* Grid lines */}
             {gridValues.map((v) => (
               <g key={v}>
-                <line x1={padL} y1={getY(v)} x2={chartW - padR} y2={getY(v)} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="4 4" />
+                <line x1={padL} y1={getY(v)} x2={chartW - padR} y2={getY(v)} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="4 4" className="dark:stroke-gray-700" />
                 <text x={padL - 5} y={getY(v) + 3} textAnchor="end" className="fill-gray-400 text-[9px]">{fmt(v)}</text>
               </g>
             ))}
@@ -1064,11 +1167,17 @@ function EarningsTracker({ crewName }: { crewName: string }) {
             <path d={areaPath} fill="url(#earnGrad)" />
             {/* Line */}
             <path d={linePath} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-            {/* Dots and labels */}
+            {/* Dots, labels, and hover tooltips */}
             {earnings.map((e, i) => (
-              <g key={e.month}>
-                <circle cx={getX(i)} cy={getY(e.amount)} r="4" fill="white" stroke="#10b981" strokeWidth="2" />
-                <text x={getX(i)} y={getY(e.amount) - 10} textAnchor="middle" className="fill-gray-600 text-[9px] font-semibold">{e.amount.toLocaleString('en-IN')}</text>
+              <g key={e.month} className="group">
+                {/* Invisible larger hit area for hover */}
+                <circle cx={getX(i)} cy={getY(e.amount)} r="12" fill="transparent" />
+                {/* Hover tooltip background */}
+                <circle cx={getX(i)} cy={getY(e.amount) - 16} r="24" fill="white" stroke="#e5e7eb" strokeWidth="1" className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                <text x={getX(i)} y={getY(e.amount) - 16} textAnchor="middle" className="fill-gray-500 text-[9px] font-semibold opacity-0 group-hover:opacity-100 transition-opacity">{e.amount.toLocaleString('en-IN')}</text>
+                {/* Data point dot */}
+                <circle cx={getX(i)} cy={getY(e.amount)} r="5" fill="white" stroke="#10b981" strokeWidth="2" className="group-hover:r-7 transition-all" />
+                <circle cx={getX(i)} cy={getY(e.amount)} r="12" fill="#10b981" fillOpacity="0" className="group-hover:fill-opacity-10 transition-all" />
                 <text x={getX(i)} y={chartH - 8} textAnchor="middle" className="fill-gray-500 text-[10px] font-medium">{e.month}</text>
               </g>
             ))}
@@ -1542,8 +1651,9 @@ function DailyWeatherWidget({ crewName }: { crewName: string }) {
       { type: 'Sunny', iconName: 'sun', tempRange: [30, 38] as const, humidityRange: [25, 45] as const, windRange: [8, 20] as const, roadLabel: 'Good' as const, advisory: 'Clear conditions - normal operations' },
       { type: 'Cloudy', iconName: 'cloud', tempRange: [24, 32] as const, humidityRange: [50, 70] as const, windRange: [12, 25] as const, roadLabel: 'Fair' as const, advisory: 'Overcast skies - maintain normal speed' },
       { type: 'Rainy', iconName: 'rain', tempRange: [22, 28] as const, humidityRange: [75, 95] as const, windRange: [15, 35] as const, roadLabel: 'Poor' as const, advisory: 'Heavy rain - drive carefully, reduce speed' },
+      { type: 'Thunderstorm', iconName: 'storm', tempRange: [20, 26] as const, humidityRange: [80, 98] as const, windRange: [25, 50] as const, roadLabel: 'Poor' as const, advisory: 'Thunderstorm warning - exercise extreme caution' },
     ];
-    const condIdx = getSeededValue(crewName + 'weather', 0, 2);
+    const condIdx = getSeededValue(crewName + 'weather', 0, 3);
     const cond = conditions[condIdx];
 
     const temp = cond.tempRange[0] + getSeededValue(crewName + 'temp', 0, cond.tempRange[1] - cond.tempRange[0]);
@@ -1561,13 +1671,15 @@ function DailyWeatherWidget({ crewName }: { crewName: string }) {
   const roadColor = weatherData.roadLabel === 'Good' ? 'bg-emerald-500' : weatherData.roadLabel === 'Fair' ? 'bg-amber-500' : 'bg-red-500';
 
   const weatherIconEl = weatherData.iconName === 'sun'
-    ? <Sun className="h-10 w-10 text-amber-500" />
+    ? <SunIcon className="h-10 w-10 text-amber-500" />
     : weatherData.iconName === 'rain'
       ? <CloudRain className="h-10 w-10 text-sky-500" />
-      : <Cloud className="h-10 w-10 text-gray-400" />;
+      : weatherData.iconName === 'storm'
+        ? <CloudLightning className="h-10 w-10 text-violet-500" />
+        : <Cloud className="h-10 w-10 text-gray-400" />;
 
   return (
-    <Card className="transit-card rounded-xl shadow-sm bg-white">
+    <Card className="glass transit-card rounded-xl shadow-sm bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Cloud className="h-5 w-5 text-sky-500" />
@@ -1580,48 +1692,52 @@ function DailyWeatherWidget({ crewName }: { crewName: string }) {
           <div className="flex items-center gap-3">
             {weatherIconEl}
             <div>
-              <p className="text-3xl font-bold text-gray-900">{weatherData.temp}°C</p>
-              <p className="text-sm text-gray-500">{weatherData.type}</p>
+              <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{weatherData.temp}°C</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400">{weatherData.type}</p>
             </div>
           </div>
           <div className="text-right space-y-1.5">
-            <div className="flex items-center gap-1.5 text-sm text-gray-600 justify-end">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 justify-end">
               <Droplets className="h-3.5 w-3.5 text-sky-400" />
               <span>{weatherData.humidity}% humidity</span>
             </div>
-            <div className="flex items-center gap-1.5 text-sm text-gray-600 justify-end">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300 justify-end">
               <Wind className="h-3.5 w-3.5 text-gray-400" />
               <span>{weatherData.wind} km/h wind</span>
             </div>
           </div>
         </div>
-        <div className="mt-4 pt-3 border-t border-gray-100">
+        <div className="mt-4 pt-3 border-t border-gray-100 dark:border-gray-700">
           <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs font-medium text-gray-500">Road Condition</span>
+            <span className="text-xs font-medium text-gray-500 dark:text-gray-400">Road Condition</span>
             <Badge className={
               weatherData.roadLabel === 'Good'
-                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800'
                 : weatherData.roadLabel === 'Fair'
-                  ? 'bg-amber-100 text-amber-700 border-amber-200'
-                  : 'bg-red-100 text-red-700 border-red-200'
+                  ? 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800'
+                  : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800'
             }>
               {weatherData.roadLabel}
             </Badge>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div className={`h-full rounded-full transition-all ${roadColor}`} style={{ width: `${weatherData.roadPct}%` }} />
           </div>
         </div>
         <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
           weatherData.roadLabel === 'Good'
-            ? 'bg-emerald-50 text-emerald-700'
+            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300'
             : weatherData.roadLabel === 'Fair'
-              ? 'bg-amber-50 text-amber-700'
-              : 'bg-red-50 text-red-700'
+              ? 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+              : 'bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-300'
         }`}>
           <Navigation className="h-3.5 w-3.5 mt-0.5 shrink-0" />
           <span className="font-medium">{weatherData.advisory}</span>
         </div>
+        <Button variant="outline" className="mt-3 w-full gap-1.5 text-xs border-gray-200 dark:border-gray-700 dark:text-gray-300" onClick={() => toast({ title: 'Coming Soon', description: 'Weather forecast coming soon!' })}>
+          <Navigation className="h-3.5 w-3.5" />
+          View Full Forecast
+        </Button>
       </CardContent>
     </Card>
   );
@@ -2437,6 +2553,21 @@ function AssignmentsPage({
   loading: boolean;
 }) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [delayDialogOpen, setDelayDialogOpen] = useState(false);
+  const [delayReason, setDelayReason] = useState('');
+  const [delayAssignmentId, setDelayAssignmentId] = useState('');
+
+  const handleReportDelay = (assignmentId: string) => {
+    setDelayAssignmentId(assignmentId);
+    setDelayReason('');
+    setDelayDialogOpen(true);
+  };
+
+  const handleSubmitDelay = () => {
+    if (!delayReason) return;
+    toast({ title: 'Delay Reported', description: `Delay reason: ${delayReason}. Dispatch has been notified.` });
+    setDelayDialogOpen(false);
+  };
 
   // Time-based grouping for upcoming assignments
   const upcomingAll = assignments.filter((a) => {
@@ -2461,34 +2592,65 @@ function AssignmentsPage({
     (a) => a.status === 'completed' || a.status === 'declined'
   );
 
-  const AssignmentCard = ({ assignment }: { assignment: AssignmentData }) => (
-    <div className="rounded-xl border border-gray-100 bg-white p-4 transition-colors hover:border-gray-200 hover:shadow-sm">
+  const AssignmentCard = ({ assignment }: { assignment: AssignmentData }) => {
+    const statusBadgeClass = (status: string) => {
+      if (status === 'accepted') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
+      if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200';
+      if (status === 'declined') return 'bg-red-100 text-red-700 border-red-200';
+      if (status === 'completed') return 'bg-sky-100 text-sky-700 border-sky-200';
+      return 'bg-gray-100 text-gray-700 border-gray-200';
+    };
+    const dist = assignment.schedule.route?.distanceKm || (10 + getSeededValue(assignment.id, 5, 45));
+    const travelTime = Math.round(dist / 30 * 60); // approximate minutes
+    const travelHrs = Math.floor(travelTime / 60);
+    const travelMins = travelTime % 60;
+    const travelStr = travelHrs > 0 ? `${travelHrs}h ${travelMins}m` : `${travelMins}m`;
+
+    return (
+    <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600">
       <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <Badge className={`${statusBadgeClass(assignment.status)} text-[10px] border`}>
+            {capitalize(assignment.status)}
+          </Badge>
+          {assignment.status !== 'declined' && assignment.status !== 'completed' && (
+            <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] gap-1 border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400" onClick={() => handleReportDelay(assignment.id)}>
+              <AlertTriangle className="h-3 w-3" /> Report Delay
+            </Button>
+          )}
+        </div>
         <RouteMiniVisualization
           start={assignment.schedule.route?.startLocation || 'Unknown'}
           end={assignment.schedule.route?.endLocation || 'Unknown'}
           routeNumber={assignment.schedule.route?.routeNumber || '—'}
         />
-        <div className="flex items-center gap-3 text-xs text-gray-500">
+        <div className="flex items-center gap-3 text-xs text-gray-500 dark:text-gray-400">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />
             {assignment.schedule.departureTime}
           </span>
-          {assignment.schedule.route?.busRegistration && (
-            <span className="flex items-center gap-1">
-              <Bus className="h-3 w-3" />
-              {assignment.schedule.route.busRegistration}
-            </span>
-          )}
+          <span className="flex items-center gap-1">
+            <Navigation className="h-3 w-3" />
+            {travelStr}
+          </span>
+          <span className="flex items-center gap-1">
+            <Gauge className="h-3 w-3" />
+            {dist} km
+          </span>
+        </div>
+        {assignment.schedule.route?.busRegistration && (
+          <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
+            <Bus className="h-3 w-3" />
+            {assignment.schedule.route.busRegistration}
+          </div>
+        )}
+        <div className="flex items-center gap-3 text-xs text-gray-400">
           <span className="flex items-center gap-1">
             <CalendarIcon className="h-3 w-3" />
             {formatDateShort(assignment.schedule.date)}
           </span>
         </div>
-        <div className="flex items-center justify-between border-t border-gray-50 pt-2">
-          <Badge className={getStatusColor(assignment.status)}>
-            {capitalize(assignment.status)}
-          </Badge>
+        <div className="flex items-center justify-between border-t border-gray-50 dark:border-gray-700 pt-2">
           {assignment.status === 'pending' && (
             <div className="flex gap-2">
               <Button
@@ -2502,7 +2664,7 @@ function AssignmentsPage({
               <Button
                 size="sm"
                 variant="outline"
-                className="h-7 text-red-600 border-red-300 hover:bg-red-50 px-3 text-xs"
+                className="h-7 text-red-600 border-red-300 hover:bg-red-50 dark:text-red-400 dark:border-red-800 px-3 text-xs"
                 onClick={() => onRespond(assignment.id, 'declined')}
               >
                 <XCircle className="mr-1 h-3 w-3" />
@@ -2510,10 +2672,12 @@ function AssignmentsPage({
               </Button>
             </div>
           )}
+          {assignment.status !== 'pending' && <span />}
         </div>
       </div>
     </div>
   );
+  };
 
   if (loading) return <TableSkeleton rows={6} />;
 
@@ -2699,6 +2863,39 @@ function AssignmentsPage({
 
       {/* Shift Logbook */}
       <ShiftLogbook crewName={crewProfile?.profile?.name || ''} />
+
+      {/* Report Delay Dialog */}
+      <Dialog open={delayDialogOpen} onOpenChange={setDelayDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-amber-600" />
+              Report Delay
+            </DialogTitle>
+            <DialogDescription>Select the reason for the delay</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Delay Reason</Label>
+              <Select value={delayReason} onValueChange={setDelayReason}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select reason..." /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Traffic">Traffic</SelectItem>
+                  <SelectItem value="Mechanical">Mechanical</SelectItem>
+                  <SelectItem value="Weather">Weather</SelectItem>
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDelayDialogOpen(false)}>Cancel</Button>
+            <Button className="bg-amber-600 text-white hover:bg-amber-700" onClick={handleSubmitDelay} disabled={!delayReason}>
+              Submit
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -2780,10 +2977,13 @@ function CalendarPage({
         <CardContent className="p-4 sm:p-6">
           {/* Month Navigation */}
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               {monthNames[currentMonth]} {currentYear}
             </h2>
             <div className="flex gap-2">
+              <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => { setCurrentMonth(new Date().getMonth()); setCurrentYear(new Date().getFullYear()); setSelectedDate(null); }}>
+                Today
+              </Button>
               <Button variant="outline" size="icon" onClick={prevMonth} className="h-9 w-9">
                 <ChevronLeft className="h-4 w-4" />
               </Button>
@@ -2840,7 +3040,7 @@ function CalendarPage({
                     <span className={`mt-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold leading-none px-1 ${
                       isSelected || isTodayCell
                         ? 'bg-emerald-600 text-white'
-                        : 'bg-gray-300 text-gray-700'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
                     }`}>
                       {count}
                     </span>
@@ -2857,12 +3057,24 @@ function CalendarPage({
               Today
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded bg-gray-100 ring-1 ring-gray-300" />
-              Has Assignments
+              <span className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-200 dark:bg-emerald-900/50 dark:ring-emerald-800" />
+              Accepted
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-amber-100 ring-1 ring-amber-200 dark:bg-amber-900/50 dark:ring-amber-800" />
+              Pending
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-red-100 ring-1 ring-red-200 dark:bg-red-900/50 dark:ring-red-800" />
+              Declined
             </div>
             <div className="flex items-center gap-1.5">
               <span className="h-3 w-3 rounded ring-2 ring-emerald-500" />
               Selected
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-3 w-3 rounded bg-sky-100 ring-1 ring-sky-200 dark:bg-sky-900/50 dark:ring-sky-800" />
+              Leave
             </div>
           </div>
         </CardContent>
@@ -2957,6 +3169,7 @@ function LeaveRequestsPage({
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
+  const [leaveType, setLeaveType] = useState('sick');
 
   // Leave balance calculations
   const usedDays = holidayRequests
@@ -2978,15 +3191,20 @@ function LeaveRequestsPage({
   const totalAllowance = 20;
   const availableDays = Math.max(0, totalAllowance - usedDays - pendingDays);
 
-  // Build leave date map for calendar dots
-  const leaveDateMap = new Map<string, string>();
+  // Build leave date map for calendar dots - now with type info
+  const leaveDateMap = new Map<string, { status: string; type: string }>();
   holidayRequests.forEach((r) => {
     const start = new Date(r.startDate + 'T00:00:00');
     const end = new Date(r.endDate + 'T00:00:00');
     const current = new Date(start);
+    const leaveType = r.reason?.toLowerCase().includes('sick') ? 'sick'
+      : r.reason?.toLowerCase().includes('vacation') || r.reason?.toLowerCase().includes('holiday') ? 'vacation'
+      : r.reason?.toLowerCase().includes('personal') ? 'personal'
+      : r.reason?.toLowerCase().includes('emergency') || r.reason?.toLowerCase().includes('urgent') ? 'emergency'
+      : 'sick';
     while (current <= end) {
       const dateStr = `${current.getFullYear()}-${String(current.getMonth() + 1).padStart(2, '0')}-${String(current.getDate()).padStart(2, '0')}`;
-      leaveDateMap.set(dateStr, r.status);
+      leaveDateMap.set(dateStr, { status: r.status, type: leaveType });
       current.setDate(current.getDate() + 1);
     }
   });
@@ -3003,7 +3221,11 @@ function LeaveRequestsPage({
     return `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   };
 
-  const getLeaveDotColor = (status: string): string => {
+  const getLeaveDotColor = (status: string, type?: string): string => {
+    if (type === 'sick') return 'bg-rose-400';
+    if (type === 'vacation') return 'bg-sky-400';
+    if (type === 'personal') return 'bg-amber-400';
+    if (type === 'emergency') return 'bg-red-500';
     switch (status) {
       case 'approved': return 'bg-emerald-500';
       case 'pending': return 'bg-amber-400';
@@ -3035,7 +3257,7 @@ function LeaveRequestsPage({
           crewId: userId,
           startDate,
           endDate,
-          reason,
+          reason: `[${capitalize(leaveType)}] ${reason}`,
         }),
       });
 
@@ -3118,6 +3340,78 @@ function LeaveRequestsPage({
         </Card>
       </div>
 
+      {/* Leave Balance Breakdown by Type */}
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Briefcase className="h-5 w-5 text-gray-500" />
+            Leave Balance by Type
+          </CardTitle>
+          <CardDescription>Breakdown across leave categories (20 days total allowance)</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[
+              { type: 'sick', label: 'Sick Leave', icon: Thermometer, color: 'rose', maxDays: 5, desc: 'For illness or medical appointments' },
+              { type: 'vacation', label: 'Vacation', icon: TreePalm, color: 'sky', maxDays: 8, desc: 'Planned holidays and travel' },
+              { type: 'personal', label: 'Personal', icon: User, color: 'amber', maxDays: 4, desc: 'Personal errands and matters' },
+              { type: 'emergency', label: 'Emergency', icon: AlertTriangle, color: 'red', maxDays: 3, desc: 'Urgent family or personal situations' },
+            ].map((lt) => {
+              const Icon = lt.icon;
+              const typeUsed = holidayRequests
+                .filter((r) => r.status === 'approved')
+                .reduce((sum, r) => {
+                  const rType = r.reason?.toLowerCase().includes('sick') ? 'sick'
+                    : r.reason?.toLowerCase().includes('vacation') || r.reason?.toLowerCase().includes('holiday') ? 'vacation'
+                    : r.reason?.toLowerCase().includes('personal') ? 'personal'
+                    : r.reason?.toLowerCase().includes('emergency') || r.reason?.toLowerCase().includes('urgent') ? 'emergency'
+                    : 'sick';
+                  if (rType !== lt.type) return sum;
+                  const start = new Date(r.startDate + 'T00:00:00');
+                  const end = new Date(r.endDate + 'T00:00:00');
+                  return sum + Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                }, 0);
+              const typePending = holidayRequests
+                .filter((r) => r.status === 'pending')
+                .reduce((sum, r) => {
+                  const rType = r.reason?.toLowerCase().includes('sick') ? 'sick'
+                    : r.reason?.toLowerCase().includes('vacation') || r.reason?.toLowerCase().includes('holiday') ? 'vacation'
+                    : r.reason?.toLowerCase().includes('personal') ? 'personal'
+                    : r.reason?.toLowerCase().includes('emergency') || r.reason?.toLowerCase().includes('urgent') ? 'emergency'
+                    : 'sick';
+                  if (rType !== lt.type) return sum;
+                  const start = new Date(r.startDate + 'T00:00:00');
+                  const end = new Date(r.endDate + 'T00:00:00');
+                  return sum + Math.max(1, Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1);
+                }, 0);
+              const available = Math.max(0, lt.maxDays - typeUsed - typePending);
+              const pct = Math.round((typeUsed / lt.maxDays) * 100);
+              return (
+                <div key={lt.type} className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 transition-all hover:shadow-sm">
+                  <div className="flex items-center gap-2.5 mb-2">
+                    <div className={`flex h-8 w-8 items-center justify-center rounded-lg bg-${lt.color}-100 dark:bg-${lt.color}-900/50`}>
+                      <Icon className={`h-4 w-4 text-${lt.color}-600 dark:text-${lt.color}-400`} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{lt.label}</p>
+                      <p className="text-[10px] text-gray-400">{lt.desc}</p>
+                    </div>
+                    <span className="text-lg font-bold text-gray-900 dark:text-gray-100">{available}<span className="text-xs font-normal text-gray-400">/{lt.maxDays}</span></span>
+                  </div>
+                  <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all bg-${lt.color}-500`} style={{ width: `${Math.min(pct, 100)}%` }} />
+                  </div>
+                  <div className="mt-1.5 flex items-center justify-between text-[10px] text-gray-400">
+                    <span>{typeUsed} used</span>
+                    {typePending > 0 && <span className="text-amber-500">{typePending} pending</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Calendar Mini View with Leave Dots */}
       <Card className="rounded-xl shadow-sm bg-white">
         <CardHeader className="pb-3">
@@ -3141,25 +3435,26 @@ function LeaveRequestsPage({
               const dateStr = getCalDateStr(day);
               const leaveStatus = leaveDateMap.get(dateStr);
               const isTodayCell = dateStr === getTodayStr();
+              const leaveType = leaveStatus?.type;
               return (
                 <div
                   key={`cal-day-${day}`}
                   className={`aspect-square relative flex flex-col items-center justify-center rounded-lg text-xs transition-all ${
                     isTodayCell
                       ? 'bg-emerald-100 ring-1 ring-emerald-300 font-bold text-emerald-800'
-                      : 'text-gray-600 hover:bg-gray-50'
+                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400'
                   }`}
                 >
                   <span className="leading-none">{day}</span>
                   {leaveStatus && (
-                    <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${getLeaveDotColor(leaveStatus)}`} />
+                    <span className={`mt-0.5 h-1.5 w-1.5 rounded-full ${getLeaveDotColor(leaveStatus.status, leaveType)}`} />
                   )}
                 </div>
               );
             })}
           </div>
           {/* Legend */}
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-gray-500">
+          <div className="mt-4 flex flex-wrap gap-3 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
               Approved
@@ -3172,18 +3467,34 @@ function LeaveRequestsPage({
               <span className="h-2 w-2 rounded-full bg-red-400" />
               Rejected
             </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-rose-400" />
+              Sick
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-sky-400" />
+              Vacation
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-amber-400" />
+              Personal
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="h-2 w-2 rounded-full bg-red-500" />
+              Emergency
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* My Requests */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      {/* Leave History */}
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100">
-              <FileText className="h-4 w-4 text-gray-600" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 dark:bg-gray-700">
+              <Clock className="h-4 w-4 text-gray-600 dark:text-gray-300" />
             </div>
-            My Requests
+            Leave History
           </CardTitle>
           <CardDescription>
             {holidayRequests.length === 0
@@ -3202,14 +3513,13 @@ function LeaveRequestsPage({
               {holidayRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="rounded-lg border border-gray-100 p-4 transition-colors hover:bg-gray-50"
+                  className="rounded-lg border border-gray-100 dark:border-gray-700 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    {/* Left: Date range + reason */}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <CalendarIcon className="h-3.5 w-3.5 text-gray-400" />
-                        <span className="text-sm font-medium text-gray-900">
+                        <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
                           {formatDateShort(req.startDate)} — {formatDateShort(req.endDate)}
                         </span>
                         <Badge className={`${getStatusColor(req.status)} text-[10px]`}>
@@ -3217,7 +3527,7 @@ function LeaveRequestsPage({
                         </Badge>
                       </div>
                       {req.reason && (
-                        <p className="text-xs text-gray-500 mt-1 line-clamp-2">{req.reason}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">{req.reason}</p>
                       )}
                       {/* Status Timeline */}
                       <div className="mt-3">
@@ -3228,7 +3538,6 @@ function LeaveRequestsPage({
                         />
                       </div>
                     </div>
-                    {/* Right: Reviewed info */}
                     {req.reviewedAt && (
                       <div className="text-xs text-gray-400 shrink-0 mt-1 sm:mt-0">
                         <span className="flex items-center gap-1">
@@ -3259,6 +3568,35 @@ function LeaveRequestsPage({
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="space-y-4 py-2">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Request Type</Label>
+                {/* Visual type selector with icons */}
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { value: 'sick', label: 'Sick Leave', icon: Thermometer, iconColor: 'text-rose-500', bgColor: 'bg-rose-50 border-rose-200', activeBg: 'bg-rose-100 border-rose-400 ring-rose-300', desc: 'Illness / Medical' },
+                    { value: 'vacation', label: 'Vacation', icon: TreePalm, iconColor: 'text-sky-500', bgColor: 'bg-sky-50 border-sky-200', activeBg: 'bg-sky-100 border-sky-400 ring-sky-300', desc: 'Holiday / Travel' },
+                    { value: 'personal', label: 'Personal', icon: User, iconColor: 'text-amber-500', bgColor: 'bg-amber-50 border-amber-200', activeBg: 'bg-amber-100 border-amber-400 ring-amber-300', desc: 'Personal matters' },
+                    { value: 'emergency', label: 'Emergency', icon: AlertTriangle, iconColor: 'text-red-500', bgColor: 'bg-red-50 border-red-200', activeBg: 'bg-red-100 border-red-400 ring-red-300', desc: 'Urgent situations' },
+                  ].map((t) => {
+                    const Icon = t.icon;
+                    const isActive = leaveType === t.value;
+                    return (
+                      <button
+                        key={t.value}
+                        type="button"
+                        onClick={() => setLeaveType(t.value)}
+                        className={`flex items-center gap-2 rounded-lg border p-2.5 text-left transition-all ${isActive ? `${t.activeBg} ring-2` : `${t.bgColor} hover:opacity-80`}`}
+                      >
+                        <Icon className={`h-4 w-4 shrink-0 ${t.iconColor}`} />
+                        <div className="min-w-0">
+                          <p className={`text-xs font-semibold ${isActive ? 'text-gray-900' : 'text-gray-700'} truncate`}>{t.label}</p>
+                          <p className="text-[10px] text-gray-400 truncate">{t.desc}</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="dialog-leave-start" className="text-sm font-medium">Start Date</Label>
