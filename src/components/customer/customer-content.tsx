@@ -1236,7 +1236,7 @@ function RouteMapView() {
       try {
         // Parse stops from stopsJson field
         let parsedStops: { name: string; lat: number; lng: number }[] = [];
-        if (selectedRoute.stopsJson) {
+        if (selectedRoute && selectedRoute.stopsJson) {
           parsedStops = JSON.parse(selectedRoute.stopsJson);
         }
         setStops(parsedStops);
@@ -1460,7 +1460,6 @@ function RouteMapView() {
                       color: '#16a34a',
                       weight: 5,
                       opacity: 0.8,
-                      smoothFactor: 1,
                     }}
                   />
                 )}

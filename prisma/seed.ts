@@ -545,6 +545,73 @@ async function main() {
   }
   console.log(`✅ ${journeyCount} journeys created`);
 
+  // 7b. Add 50 more completed journeys spread across last 30 days
+  const completedFeedbacks = [
+    "Good service, on time arrival.", "Bus was clean and comfortable.",
+    "Driver was very polite.", "AC was not working properly.",
+    "Reached destination on time.", "Crowded during peak hours.",
+    "Smooth ride, no issues.", "Conductor was helpful.",
+    "Slight delay due to traffic.", "Excellent experience overall.",
+    "Bus frequency could be improved.", "Comfortable seating.",
+    "Ticket price is reasonable.", "Need more stops on this route.",
+    "Staff was courteous.", "Route was scenic and pleasant."
+  ];
+  for (let i = 0; i < 50; i++) {
+    const route = pickRandom(allRoutes);
+    const customer = pickRandom(customerProfiles);
+    const routeSchedules = await db.schedule.findMany({
+      where: { routeId: route.id, status: "completed" },
+      take: 1,
+    });
+    if (routeSchedules.length === 0) continue;
+
+    const routeData = await db.route.findUnique({ where: { id: route.id } });
+    const daysAgo = randomBetween(1, 30);
+    await db.journey.create({
+      data: {
+        customerId: customer.id,
+        routeId: route.id,
+        scheduleId: routeSchedules[0].id,
+        status: "completed",
+        cost: routeData?.fare || 50,
+        rating: randomBetween(3, 5),
+        feedback: pickRandom(completedFeedbacks),
+        bookingDate: new Date(Date.now() - daysAgo * 86400000),
+      },
+    });
+    journeyCount++;
+  }
+  console.log(`✅ ${journeyCount} total journeys (added 50 more completed)`);
+
+  // 7c. Add 20 more planned journeys for today/tomorrow
+  const today2 = new Date().toISOString().split("T")[0];
+  const tomorrow = new Date(Date.now() + 86400000).toISOString().split("T")[0];
+  for (let i = 0; i < 20; i++) {
+    const route = pickRandom(allRoutes);
+    const customer = pickRandom(customerProfiles);
+    const routeSchedules = await db.schedule.findMany({
+      where: { routeId: route.id, status: { in: ["scheduled", "in_progress"] }, date: { in: [today2, tomorrow] } },
+      take: 1,
+    });
+    if (routeSchedules.length === 0) continue;
+
+    const routeData = await db.route.findUnique({ where: { id: route.id } });
+    await db.journey.create({
+      data: {
+        customerId: customer.id,
+        routeId: route.id,
+        scheduleId: routeSchedules[0].id,
+        status: "planned",
+        cost: routeData?.fare || 50,
+        rating: null,
+        feedback: "",
+        bookingDate: new Date(),
+      },
+    });
+    journeyCount++;
+  }
+  console.log(`✅ ${journeyCount} total journeys (added 20 more planned)`);
+
   // 8. Create some traffic alerts
   for (let i = 0; i < 15; i++) {
     const route = pickRandom(allRoutes);
@@ -583,6 +650,34 @@ async function main() {
   }
   console.log("✅ Notifications created");
 
+  // 9b. Add 10 more notifications with varied types
+  const extraNotifications = [
+    { type: "warning", title: "Route Delay Alert", message: "Your route BEST-012 is experiencing delays of up to 15 minutes due to heavy traffic near Bandra." },
+    { type: "success", title: "Trip Completed", message: "Your journey from Majestic to Whitefield has been completed successfully. Rate your experience!" },
+    { type: "error", title: "Payment Failed", message: "Your payment of ₹85 for route DTC-005 could not be processed. Please retry." },
+    { type: "info", title: "New Route Available", message: "A new intercity route RTC-045 from Bangalore to Hyderabad has been added. Book now!" },
+    { type: "warning", title: "Schedule Change", message: "Your morning schedule on route KIA-007 has been moved from 06:30 to 07:00 starting next week." },
+    { type: "success", title: "Leave Approved", message: "Your leave request for Dec 25-26 has been approved by the admin." },
+    { type: "info", title: "Maintenance Reminder", message: "Bus KA-01-F4521 is due for routine maintenance on Jan 5. Please plan accordingly." },
+    { type: "error", title: "Assignment Conflict", message: "You have been assigned to two overlapping schedules. Please contact dispatch." },
+    { type: "success", title: "Monthly Rating", message: "Congratulations! Your performance rating for November is 4.8/5.0. Keep up the great work!" },
+    { type: "warning", title: "Bus Breakdown", message: "Bus MH-02-B7893 has reported a breakdown on BEST-008. Alternate bus is being arranged." },
+  ];
+  for (const notif of extraNotifications) {
+    const profile = pickRandom([...customerProfiles.slice(0, 20), ...crewProfiles.slice(0, 15)]);
+    await db.notification.create({
+      data: {
+        userId: profile.id,
+        type: notif.type as "info" | "warning" | "success" | "error",
+        title: notif.title,
+        message: notif.message,
+        isRead: Math.random() > 0.6,
+        createdAt: new Date(Date.now() - randomBetween(0, 86400000 * 5)),
+      },
+    });
+  }
+  console.log("✅ 10 extra notifications created");
+
   // 10. Create some bus maintenance records
   for (let i = 0; i < 30; i++) {
     await db.busMaintenance.create({
@@ -615,6 +710,32 @@ async function main() {
     }
   }
   console.log("✅ Route analytics created");
+
+  // 11b. Fill route analytics gaps - ensure every route has analytics for last 7 days
+  for (const route of allRoutes) {
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(Date.now() - d * 86400000).toISOString().split("T")[0];
+      const existing = await db.routeAnalytics.findFirst({
+        where: { routeId: route.id, date },
+      });
+      if (!existing) {
+        const routeData = await db.route.findUnique({ where: { id: route.id } });
+        const isWeekend = new Date(date).getDay() === 0 || new Date(date).getDay() === 6;
+        const baseJourneys = isWeekend ? randomBetween(2, 20) : randomBetween(5, 40);
+        await db.routeAnalytics.create({
+          data: {
+            routeId: route.id,
+            date,
+            completionRate: randomFloat(0.7, 1.0),
+            revenue: Math.round((routeData?.fare || 50) * baseJourneys * randomFloat(0.6, 1.0)),
+            delayMin: randomBetween(0, isWeekend ? 10 : 30),
+            totalJourneys: baseJourneys,
+          },
+        });
+      }
+    }
+  }
+  console.log("✅ Route analytics gaps filled for all routes (last 7 days)");
 
   // 12. Create some holiday requests
   for (const crew of crewProfiles.slice(0, 20)) {

@@ -190,7 +190,7 @@ function MiniSparkline({ data, color = 'bg-emerald-400' }: { data: number[]; col
 /*  Star rating component                                              */
 /* ------------------------------------------------------------------ */
 function StarRating({ rating }: { rating: number }) {
-  const stars = [];
+  const stars: React.ReactNode[] = [];
   const full = Math.floor(rating);
   const hasHalf = rating - full >= 0.5;
   for (let i = 0; i < 5; i++) {
@@ -485,7 +485,7 @@ function DashboardPage({
         ]);
         setAnalytics(analyticsData);
         // FIX #2: Traffic alerts come wrapped in { alerts: [...] }
-        const alertArr = Array.isArray(alertsData) ? alertsData : alertsData.alerts ?? alertsData.data ?? [];
+        const alertArr: any[] = Array.isArray(alertsData) ? alertsData : ((alertsData as Record<string, unknown>)?.alerts ?? (alertsData as Record<string, unknown>)?.data ?? []) as any[];
         setAlerts(alertArr);
       } catch {
         // Fallback demo data — FIX #1: use activeSchedules

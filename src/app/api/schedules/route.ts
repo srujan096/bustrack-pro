@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     if (id) {
       const schedule = await db.schedule.findUnique({
         where: { id },
-        include: { route: true, crewAssignments: { include: { crew: true, crew: { include: { crewProfile: true } } } } },
+        include: { route: true, crewAssignments: { include: { crew: true } } },
       });
       return NextResponse.json({ schedule });
     }

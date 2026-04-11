@@ -19,15 +19,16 @@ export async function GET(request: NextRequest) {
     });
 
     // Get customer spending stats
-    let spendingStats = null;
+    let spendingStats: { totalSpent: number; totalTrips: number; avgRating: number } | null = null;
     if (customerId) {
       const completed = await db.journey.findMany({
         where: { customerId, status: 'completed' },
-        select: { cost: true },
+        select: { cost: true, rating: true },
       });
       const totalSpent = completed.reduce((sum, j) => sum + j.cost, 0);
-      const avgRating = completed.filter(j => j.rating).length > 0
-        ? completed.filter(j => j.rating).reduce((sum, j) => sum + (j.rating || 0), 0) / completed.filter(j => j.rating).length
+      const rated = completed.filter(j => j.rating);
+      const avgRating = rated.length > 0
+        ? rated.reduce((sum, j) => sum + (j.rating || 0), 0) / rated.length
         : 0;
       spendingStats = { totalSpent, totalTrips: completed.length, avgRating };
     }

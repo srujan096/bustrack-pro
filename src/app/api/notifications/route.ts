@@ -17,9 +17,9 @@ export async function GET(request: NextRequest) {
       take: 50,
     });
 
-    const unreadCount = await db.notification.count({
+    const unreadCount = userId ? await db.notification.count({
       where: { userId, isRead: false },
-    });
+    }) : 0;
 
     return NextResponse.json({ notifications, unreadCount });
   } catch (error) {
