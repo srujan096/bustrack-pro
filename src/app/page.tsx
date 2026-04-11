@@ -440,11 +440,11 @@ function AppShell({
                 onClick={() => setPortal(page.id)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                   portal === page.id
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400'
+                    ? `bg-gradient-to-r ${config.color}/10 dark:${config.color}/20 text-gray-900 dark:text-white shadow-sm`
                     : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
                 }`}
               >
-                <svg className="w-4.5 h-4.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4.5 h-4.5 flex-shrink-0 ${portal === page.id ? 'text-gray-900 dark:text-white' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={page.icon} />
                 </svg>
                 {page.label}

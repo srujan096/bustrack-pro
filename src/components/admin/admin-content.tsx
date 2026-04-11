@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -59,6 +59,14 @@ import {
   DollarSign,
   Timer,
   Navigation,
+  Mail,
+  Shield,
+  MapPin,
+  Zap,
+  Settings2,
+  Activity,
+  Map,
+  Phone,
 } from 'lucide-react';
 
 interface Props {
@@ -120,6 +128,13 @@ function formatDateTime(dateStr: string): string {
   }
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
 /* ------------------------------------------------------------------ */
 /*  Skeleton helpers                                                   */
 /* ------------------------------------------------------------------ */
@@ -154,6 +169,24 @@ function TableSkeleton({ rows = 5, cols = 5 }: { rows?: number; cols?: number })
 }
 
 /* ------------------------------------------------------------------ */
+/*  Mini Sparkline Component                                           */
+/* ------------------------------------------------------------------ */
+function MiniSparkline({ data, color = 'bg-emerald-400' }: { data: number[]; color?: string }) {
+  const max = Math.max(...data, 1);
+  return (
+    <div className="flex items-end gap-0.5 h-6 mt-2">
+      {data.map((v, i) => (
+        <div
+          key={i}
+          className={`w-1.5 rounded-sm ${color} transition-all duration-300`}
+          style={{ height: `${Math.max((v / max) * 100, 8)}%` }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Star rating component                                              */
 /* ------------------------------------------------------------------ */
 function StarRating({ rating }: { rating: number }) {
@@ -179,6 +212,256 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 /* ================================================================== */
+/*  Route Details Dialog                                               */
+/* ================================================================== */
+function RouteDetailsDialog({ route, open, onOpenChange }: { route: any; open: boolean; onOpenChange: (o: boolean) => void }) {
+  if (!route) return null;
+  const id = route.id ?? route._id;
+
+  let stops: any[] = [];
+  try {
+    if (route.stopsJson) {
+      stops = typeof route.stopsJson === 'string' ? JSON.parse(route.stopsJson) : route.stopsJson;
+    } else if (route.stops) {
+      stops = typeof route.stops === 'string' ? JSON.parse(route.stops) : route.stops;
+    }
+  } catch { /* ignore parse errors */ }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Route className="size-5" />
+            Route {route.routeNumber ?? id}
+          </DialogTitle>
+          <DialogDescription>Full route details</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Route Number</p>
+              <p className="font-semibold">{route.routeNumber ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">City</p>
+              <p className="font-semibold">{route.city ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Start Location</p>
+              <p className="font-semibold">{route.startLocation ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">End Location</p>
+              <p className="font-semibold">{route.endLocation ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Distance</p>
+              <p className="font-semibold">{route.distanceKm != null ? `${route.distanceKm} km` : '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Duration</p>
+              <p className="font-semibold">{route.durationMin != null ? `${route.durationMin} min` : '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Fare</p>
+              <p className="font-semibold">{route.fare != null ? `₹${route.fare}` : '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Bus</p>
+              <p className="font-semibold">{route.busRegistration ?? '—'}</p>
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground mb-2">Traffic Level</p>
+            <TrafficLevelBadge level={route.trafficLevel} />
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground mb-2">Auto-Schedule</p>
+            <Badge variant={route.autoScheduleEnabled ? 'default' : 'outline'}>
+              {route.autoScheduleEnabled ? 'Enabled' : 'Disabled'}
+            </Badge>
+          </div>
+
+          {stops.length > 0 && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-2">Stops ({stops.length})</p>
+              <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                {stops.map((stop: any, i: number) => (
+                  <div key={i} className="flex items-center gap-2 text-sm">
+                    <div className="size-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                    <span>{typeof stop === 'string' ? stop : stop.name ?? stop.stopName ?? JSON.stringify(stop)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {(route.scheduleStartTime || route.scheduleEndTime || route.scheduleFrequency) && (
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-2">Schedule Configuration</p>
+              <div className="space-y-1 text-sm">
+                {route.scheduleStartTime && (
+                  <p>Start Time: <span className="font-medium">{route.scheduleStartTime}</span></p>
+                )}
+                {route.scheduleEndTime && (
+                  <p>End Time: <span className="font-medium">{route.scheduleEndTime}</span></p>
+                )}
+                {route.scheduleFrequency && (
+                  <p>Frequency: <span className="font-medium">{route.scheduleFrequency} min</span></p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ================================================================== */
+/*  Crew Details Dialog                                                */
+/* ================================================================== */
+function CrewDetailsDialog({ crew, open, onOpenChange }: { crew: any; open: boolean; onOpenChange: (o: boolean) => void }) {
+  if (!crew) return null;
+  const id = crew.id ?? crew._id;
+  const profile = crew.profile ?? {};
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Users className="size-5" />
+            {profile.name ?? crew.name ?? 'Crew Member'}
+          </DialogTitle>
+          <DialogDescription>Full crew profile</DialogDescription>
+        </DialogHeader>
+        <div className="space-y-4 py-2">
+          <div className="flex items-center gap-4 rounded-lg border p-4">
+            <div className="size-14 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
+              {(profile.name ?? crew.name ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <div>
+              <p className="font-semibold text-lg">{profile.name ?? crew.name ?? '—'}</p>
+              <p className="text-sm text-muted-foreground flex items-center gap-1">
+                <Mail className="size-3.5" />
+                {profile.email ?? '—'}
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Specialization</p>
+              <Badge variant="outline" className={
+                (crew.specialization ?? '').toLowerCase() === 'driver'
+                  ? 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300'
+                  : 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300'
+              }>
+                {crew.specialization ?? '—'}
+              </Badge>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Performance Rating</p>
+              <div className="flex items-center gap-1.5">
+                <StarRating rating={crew.performanceRating ?? 0} />
+                <span className="text-sm font-medium ml-1">{crew.performanceRating?.toFixed(1) ?? '0.0'}</span>
+              </div>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">License Number</p>
+              <p className="font-semibold text-sm">{profile.licenseNumber ?? crew.licenseNumber ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Experience</p>
+              <p className="font-semibold text-sm">{crew.experienceYears != null ? `${crew.experienceYears} years` : (profile.experienceYears != null ? `${profile.experienceYears} years` : '—')}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Bus Number</p>
+              <p className="font-semibold text-sm">{crew.busNumber ?? '—'}</p>
+            </div>
+            <div className="rounded-lg border p-3">
+              <p className="text-xs text-muted-foreground mb-1">Availability</p>
+              <Badge variant="outline" className={
+                (crew.availability ?? '').toLowerCase() === 'available'
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300'
+                  : 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300'
+              }>
+                {crew.availability ?? 'unknown'}
+              </Badge>
+            </div>
+          </div>
+
+          <div className="rounded-lg border p-3">
+            <p className="text-xs text-muted-foreground mb-1">Phone</p>
+            <p className="font-semibold text-sm flex items-center gap-1.5">
+              <Phone className="size-3.5 text-muted-foreground" />
+              {profile.phone ?? crew.phone ?? '—'}
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/* ================================================================== */
+/*  Severity Badge helper                                              */
+/* ================================================================== */
+function SeverityBadge({ severity }: { severity?: string }) {
+  const s = (severity ?? '').toLowerCase();
+  const map: Record<string, string> = {
+    low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
+    medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
+    high: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+    critical: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-200',
+  };
+  return (
+    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+      {severity ?? 'unknown'}
+    </Badge>
+  );
+}
+
+function TrafficLevelBadge({ level }: { level?: string }) {
+  const l = (level ?? '').toLowerCase();
+  const map: Record<string, string> = {
+    low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
+    medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
+    high: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+  };
+  return (
+    <Badge variant="outline" className={map[l] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+      {level ?? 'unknown'}
+    </Badge>
+  );
+}
+
+function ScheduleStatusBadge({ status }: { status?: string }) {
+  const s = (status ?? '').toLowerCase();
+  const map: Record<string, string> = {
+    scheduled: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300',
+    in_progress: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
+    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
+    cancelled: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+  };
+  return (
+    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+      {status ?? 'unknown'}
+    </Badge>
+  );
+}
+
+/* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
 function DashboardPage({
@@ -201,13 +484,15 @@ function DashboardPage({
           apiFetch('/api/traffic?unresolved=true'),
         ]);
         setAnalytics(analyticsData);
-        setAlerts(alertsData);
+        // FIX #2: Traffic alerts come wrapped in { alerts: [...] }
+        const alertArr = Array.isArray(alertsData) ? alertsData : alertsData.alerts ?? alertsData.data ?? [];
+        setAlerts(alertArr);
       } catch {
-        // Fallback demo data
+        // Fallback demo data — FIX #1: use activeSchedules
         setAnalytics({
           totalRoutes: 128,
           totalCrew: 256,
-          todaySchedules: 64,
+          activeSchedules: 64,
           activeAlerts: 12,
         });
         setAlerts([]);
@@ -225,19 +510,25 @@ function DashboardPage({
           method: 'POST',
           body: JSON.stringify({ action: 'generate', date: todayStr() }),
         });
-        alert('Schedules generated successfully!');
       } else if (action === 'autoAssign') {
         await apiFetch('/api/crew', {
           method: 'POST',
           body: JSON.stringify({ action: 'autoAssign', date: todayStr() }),
         });
-        alert('Crew auto-assigned successfully!');
       }
     } catch (err: unknown) {
       alert(`Action failed: ${err instanceof Error ? err.message : 'Unknown error'}`);
     } finally {
       setActionLoading('');
     }
+  };
+
+  // Generate deterministic fake sparkline data based on stat value
+  const fakeSparkline = (val: number): number[] => {
+    const seed = val * 7;
+    return Array.from({ length: 7 }, (_, i) =>
+      Math.max(10, val * (0.6 + ((seed + i * 31) % 50) / 100))
+    );
   };
 
   const stats = analytics
@@ -247,31 +538,69 @@ function DashboardPage({
           value: analytics.totalRoutes ?? 0,
           icon: Route,
           color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50',
+          sparkColor: 'bg-emerald-400',
         },
         {
           label: 'Total Crew',
           value: analytics.totalCrew ?? 0,
           icon: Users,
           color: 'text-violet-600 bg-violet-50 dark:bg-violet-950/50',
+          sparkColor: 'bg-violet-400',
         },
         {
+          // FIX #1: use activeSchedules
           label: "Today's Schedules",
-          value: analytics.todaySchedules ?? 0,
+          value: analytics.activeSchedules ?? 0,
           icon: Calendar,
           color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50',
+          sparkColor: 'bg-amber-400',
         },
         {
           label: 'Active Alerts',
           value: analytics.activeAlerts ?? 0,
           icon: AlertTriangle,
           color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50',
+          sparkColor: 'bg-rose-400',
         },
       ]
     : [];
 
+  const quickActions = [
+    { id: 'generate', label: 'Generate Schedules', desc: 'Auto-create daily bus schedules', icon: Calendar, gradient: 'from-amber-500 to-orange-500' },
+    { id: 'autoAssign', label: 'Auto Assign Crew', desc: 'Smart crew-to-route assignment', icon: UserCheck, gradient: 'from-violet-500 to-purple-600' },
+    { id: 'viewRoutes', label: 'Manage Routes', desc: 'View and edit bus routes', icon: Route, gradient: 'from-emerald-500 to-teal-500' },
+    { id: 'viewTraffic', label: 'Traffic Alerts', desc: 'Monitor live traffic incidents', icon: AlertTriangle, gradient: 'from-rose-500 to-red-600' },
+  ];
+
+  const recentActivity = [
+    { icon: Calendar, text: 'Schedule generation completed', time: '2 min ago', color: 'text-amber-500' },
+    { icon: UserCheck, text: 'Crew auto-assigned for 12 routes', time: '15 min ago', color: 'text-violet-500' },
+    { icon: AlertTriangle, text: 'Traffic alert on Route 42 resolved', time: '1 hour ago', color: 'text-rose-500' },
+    { icon: CheckCircle2, text: '3 holiday requests approved', time: '2 hours ago', color: 'text-emerald-500' },
+    { icon: Wrench, text: 'Maintenance record updated for KA-01-1234', time: '3 hours ago', color: 'text-sky-500' },
+  ];
+
   return (
     <div className="space-y-6">
-      {/* Stats */}
+      {/* STYLE: Welcome Banner */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-slate-900 via-gray-900 to-slate-800 p-6 text-white">
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-40 h-40 bg-emerald-500/10 rounded-full blur-3xl" />
+          <div className="absolute -bottom-10 -left-10 w-40 h-40 bg-violet-500/10 rounded-full blur-3xl" />
+        </div>
+        <div className="relative">
+          <div className="flex items-center gap-2 mb-1">
+            <Shield className="size-5 text-emerald-400" />
+            <span className="text-sm font-medium text-emerald-400">Administrator</span>
+          </div>
+          <h2 className="text-2xl font-bold tracking-tight">{getGreeting()}, Admin!</h2>
+          <p className="mt-1 text-sm text-gray-400">
+            Here&apos;s an overview of your transit operations for today.
+          </p>
+        </div>
+      </div>
+
+      {/* Stats with Sparklines */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {loading ? (
           <>
@@ -282,7 +611,7 @@ function DashboardPage({
           </>
         ) : (
           stats.map((s) => (
-            <Card key={s.label}>
+            <Card key={s.label} className="transition-shadow hover:shadow-md">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -292,6 +621,7 @@ function DashboardPage({
                         ? s.value.toLocaleString()
                         : s.value}
                     </p>
+                    <MiniSparkline data={fakeSparkline(s.value as number)} color={s.sparkColor} />
                   </div>
                   <div className={`rounded-xl p-3 ${s.color}`}>
                     <s.icon className="size-6" />
@@ -303,130 +633,138 @@ function DashboardPage({
         )}
       </div>
 
-      {/* Quick Actions */}
+      {/* STYLE: Improved Quick Actions — icon cards */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
-            <Play className="size-5" /> Quick Actions
+            <Zap className="size-5" /> Quick Actions
           </CardTitle>
           <CardDescription>
             Common administrative tasks
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-3">
-          <Button
-            onClick={() => handleAction('generate')}
-            disabled={!!actionLoading}
-          >
-            {actionLoading === 'generate' ? (
-              <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              <Calendar className="size-4" />
-            )}
-            Generate Schedules
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => handleAction('autoAssign')}
-            disabled={!!actionLoading}
-          >
-            {actionLoading === 'autoAssign' ? (
-              <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            ) : (
-              <UserCheck className="size-4" />
-            )}
-            Auto Assign Crew
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Recent Traffic Alerts */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <AlertTriangle className="size-5 text-amber-500" /> Recent
-                Traffic Alerts
-              </CardTitle>
-              <CardDescription>
-                Latest unresolved traffic incidents
-              </CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={() => setPortal('traffic')}>
-              View All
-            </Button>
-          </div>
-        </CardHeader>
         <CardContent>
-          {loading ? (
-            <TableSkeleton rows={4} cols={5} />
-          ) : alerts.length === 0 ? (
-            <div className="py-12 text-center text-muted-foreground">
-              <AlertTriangle className="mx-auto mb-2 size-10 opacity-20" />
-              <p>No active traffic alerts</p>
-            </div>
-          ) : (
-            <div className="max-h-96 overflow-y-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Route</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Severity</TableHead>
-                    <TableHead>Delay</TableHead>
-                    <TableHead>Created</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {alerts.slice(0, 10).map((alert: any) => (
-                    <TableRow key={alert.id ?? alert._id}>
-                      <TableCell className="font-medium">
-                        {alert.routeNumber ?? alert.route ?? '—'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline">{alert.type ?? '—'}</Badge>
-                      </TableCell>
-                      <TableCell>
-                        <SeverityBadge severity={alert.severity} />
-                      </TableCell>
-                      <TableCell>
-                        {alert.delayMinutes != null
-                          ? `${alert.delayMinutes} min`
-                          : '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {alert.createdAt
-                          ? formatDateTime(alert.createdAt)
-                          : '—'}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+            {quickActions.map((qa) => {
+              const isActive = qa.id === 'generate' || qa.id === 'autoAssign';
+              return (
+                <button
+                  key={qa.id}
+                  onClick={() => {
+                    if (isActive) handleAction(qa.id);
+                    else if (qa.id === 'viewRoutes') setPortal('routes');
+                    else if (qa.id === 'viewTraffic') setPortal('traffic');
+                  }}
+                  disabled={!!actionLoading && isActive}
+                  className="group rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-foreground/20 disabled:opacity-60"
+                >
+                  <div className={`mb-3 inline-flex rounded-lg bg-gradient-to-br ${qa.gradient} p-2.5 text-white shadow-sm`}>
+                    {actionLoading === qa.id ? (
+                      <span className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    ) : (
+                      <qa.icon className="size-5" />
+                    )}
+                  </div>
+                  <p className="text-sm font-semibold">{qa.label}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{qa.desc}</p>
+                </button>
+              );
+            })}
+          </div>
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-/* ------------------------------------------------------------------ */
-/*  Severity Badge helper                                              */
-/* ------------------------------------------------------------------ */
-function SeverityBadge({ severity }: { severity?: string }) {
-  const s = (severity ?? '').toLowerCase();
-  const map: Record<string, string> = {
-    low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
-    medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
-    high: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
-    critical: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-200',
-  };
-  return (
-    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
-      {severity ?? 'unknown'}
-    </Badge>
+      {/* Recent Activity + Traffic Alerts side by side on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* STYLE: Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Activity className="size-5" /> Recent Activity
+            </CardTitle>
+            <CardDescription>Latest system events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {recentActivity.map((item, i) => (
+                <div key={i} className="flex items-start gap-3">
+                  <div className={`mt-0.5 rounded-lg p-1.5 bg-muted ${item.color}`}>
+                    <item.icon className="size-3.5" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-tight">{item.text}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">{item.time}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Recent Traffic Alerts */}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <AlertTriangle className="size-5 text-amber-500" /> Recent Traffic Alerts
+                </CardTitle>
+                <CardDescription>
+                  Latest unresolved traffic incidents
+                </CardDescription>
+              </div>
+              <Button variant="ghost" size="sm" onClick={() => setPortal('traffic')}>
+                View All
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <TableSkeleton rows={4} cols={4} />
+            ) : alerts.length === 0 ? (
+              <div className="py-8 text-center text-muted-foreground">
+                <AlertTriangle className="mx-auto mb-2 size-8 opacity-20" />
+                <p className="text-sm">No active traffic alerts</p>
+              </div>
+            ) : (
+              <div className="max-h-72 overflow-y-auto rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Route</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Severity</TableHead>
+                      <TableHead>Delay</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {alerts.slice(0, 5).map((alert: any) => (
+                      <TableRow key={alert.id ?? alert._id} className="hover:bg-muted/50 transition-colors">
+                        <TableCell className="font-medium">
+                          {/* FIX #2: access nested route.routeNumber */}
+                          {alert.route?.routeNumber ?? alert.routeNumber ?? '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant="outline">{alert.type ?? '—'}</Badge>
+                        </TableCell>
+                        <TableCell>
+                          <SeverityBadge severity={alert.severity} />
+                        </TableCell>
+                        <TableCell>
+                          {alert.delayMinutes != null
+                            ? `${alert.delayMinutes} min`
+                            : '—'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
   );
 }
 
@@ -440,6 +778,8 @@ function RoutesPage({ token }: { token: string }) {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [toggling, setToggling] = useState<string | null>(null);
+  const [selectedRoute, setSelectedRoute] = useState<any>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const fetchRoutes = useCallback(async () => {
     setLoading(true);
@@ -543,38 +883,51 @@ function RoutesPage({ token }: { token: string }) {
                       <TableHead>Distance</TableHead>
                       <TableHead>Fare</TableHead>
                       <TableHead>Traffic</TableHead>
+                      <TableHead>Bus</TableHead>
                       <TableHead>Auto-Schedule</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {routes.map((r: any) => {
+                    {routes.map((r: any, idx: number) => {
                       const id = r.id ?? r._id;
                       return (
-                        <TableRow key={id}>
+                        /* STYLE: alternating row colors + hover */
+                        <TableRow
+                          key={id}
+                          className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors cursor-pointer`}
+                          onClick={() => { setSelectedRoute(r); setDetailOpen(true); }}
+                        >
                           <TableCell className="font-medium">
-                            {r.routeNumber ?? r.number ?? '—'}
+                            {r.routeNumber ?? '—'}
                           </TableCell>
                           <TableCell>
+                            {/* FIX #3: startLocation / endLocation */}
                             <span className="inline-flex items-center gap-1 text-sm">
-                              {r.startPoint ?? r.from ?? '—'}
+                              {r.startLocation ?? '—'}
                               <Navigation className="size-3 text-muted-foreground" />
-                              {r.endPoint ?? r.to ?? '—'}
+                              {r.endLocation ?? '—'}
                             </span>
                           </TableCell>
                           <TableCell>
-                            {r.distance != null ? `${r.distance} km` : '—'}
+                            {/* FIX #3: distanceKm */}
+                            {r.distanceKm != null ? `${r.distanceKm} km` : '—'}
                           </TableCell>
                           <TableCell>
                             {r.fare != null ? `₹${r.fare}` : '—'}
                           </TableCell>
                           <TableCell>
-                            <TrafficLevelBadge level={r.trafficLevel ?? r.traffic} />
+                            <TrafficLevelBadge level={r.trafficLevel} />
+                          </TableCell>
+                          <TableCell>
+                            {/* FIX #3: busRegistration */}
+                            <span className="text-sm">{r.busRegistration ?? '—'}</span>
                           </TableCell>
                           <TableCell>
                             <Switch
                               checked={!!r.autoScheduleEnabled}
                               disabled={toggling === id}
                               onCheckedChange={(checked) => toggleSchedule(id, checked)}
+                              onClick={(e) => e.stopPropagation()}
                             />
                           </TableCell>
                         </TableRow>
@@ -614,21 +967,10 @@ function RoutesPage({ token }: { token: string }) {
           )}
         </CardContent>
       </Card>
-    </div>
-  );
-}
 
-function TrafficLevelBadge({ level }: { level?: string }) {
-  const l = (level ?? '').toLowerCase();
-  const map: Record<string, string> = {
-    low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
-    medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
-    high: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
-  };
-  return (
-    <Badge variant="outline" className={map[l] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
-      {level ?? 'unknown'}
-    </Badge>
+      {/* NEW: Route Details Dialog */}
+      <RouteDetailsDialog route={selectedRoute} open={detailOpen} onOpenChange={setDetailOpen} />
+    </div>
   );
 }
 
@@ -720,10 +1062,12 @@ function SchedulesPage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {schedules.map((s: any) => (
-                    <TableRow key={s.id ?? s._id}>
+                  {schedules.map((s: any, idx: number) => (
+                    /* STYLE: alternating row colors + hover */
+                    <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
                       <TableCell className="font-medium">
-                        {s.routeNumber ?? s.route ?? '—'}
+                        {/* FIX #4: s.route?.routeNumber */}
+                        {s.route?.routeNumber ?? s.routeNumber ?? '—'}
                       </TableCell>
                       <TableCell>
                         <span className="inline-flex items-center gap-1.5">
@@ -732,7 +1076,8 @@ function SchedulesPage({ token }: { token: string }) {
                         </span>
                       </TableCell>
                       <TableCell>
-                        {s.busNumber ?? s.bus ?? '—'}
+                        {/* FIX #4: s.route?.busRegistration */}
+                        {s.route?.busRegistration ?? s.busNumber ?? '—'}
                       </TableCell>
                       <TableCell>
                         <ScheduleStatusBadge status={s.status} />
@@ -749,21 +1094,6 @@ function SchedulesPage({ token }: { token: string }) {
   );
 }
 
-function ScheduleStatusBadge({ status }: { status?: string }) {
-  const s = (status ?? '').toLowerCase();
-  const map: Record<string, string> = {
-    scheduled: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300',
-    in_progress: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
-    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
-    cancelled: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
-  };
-  return (
-    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
-      {status ?? 'unknown'}
-    </Badge>
-  );
-}
-
 /* ================================================================== */
 /*  Page: Crew                                                         */
 /* ================================================================== */
@@ -772,6 +1102,8 @@ function CrewPage({ token }: { token: string }) {
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
   const [assignResult, setAssignResult] = useState<any>(null);
+  const [selectedCrew, setSelectedCrew] = useState<any>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const today = todayStr();
 
   const fetchCrew = useCallback(async () => {
@@ -837,10 +1169,11 @@ function CrewPage({ token }: { token: string }) {
                 Assignment Results
               </h4>
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-                {assignResult.fairnessIndex != null && (
+                {/* FIX #6: jainsIndex instead of fairnessIndex */}
+                {assignResult.jainsIndex != null && (
                   <div>
                     <p className="text-sm text-muted-foreground">Jain&apos;s Fairness Index</p>
-                    <p className="text-lg font-bold">{assignResult.fairnessIndex}</p>
+                    <p className="text-lg font-bold">{assignResult.jainsIndex}</p>
                   </div>
                 )}
                 {assignResult.assignmentsCreated != null && (
@@ -849,13 +1182,23 @@ function CrewPage({ token }: { token: string }) {
                     <p className="text-lg font-bold">{assignResult.assignmentsCreated}</p>
                   </div>
                 )}
-                {assignResult.executionTime != null && (
+                {/* FIX #6: executionTimeMs instead of executionTime */}
+                {assignResult.executionTimeMs != null && (
                   <div>
                     <p className="text-sm text-muted-foreground">Execution Time</p>
-                    <p className="text-lg font-bold">{assignResult.executionTime}ms</p>
+                    <p className="text-lg font-bold">{assignResult.executionTimeMs}ms</p>
+                  </div>
+                )}
+                {assignResult.maxHoursViolations != null && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Max Hours Violations</p>
+                    <p className="text-lg font-bold text-amber-600">{assignResult.maxHoursViolations}</p>
                   </div>
                 )}
               </div>
+              {assignResult.message && (
+                <p className="mt-2 text-sm text-muted-foreground">{assignResult.message}</p>
+              )}
             </div>
           )}
 
@@ -879,27 +1222,35 @@ function CrewPage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {crew.map((c: any) => (
-                    <TableRow key={c.id ?? c._id}>
+                  {crew.map((c: any, idx: number) => (
+                    /* STYLE: alternating row colors + hover + clickable */
+                    <TableRow
+                      key={c.id ?? c._id}
+                      className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors cursor-pointer`}
+                      onClick={() => { setSelectedCrew(c); setDetailOpen(true); }}
+                    >
                       <TableCell className="font-medium">
-                        {c.name ?? '—'}
+                        {/* FIX #5: c.profile?.name */}
+                        {c.profile?.name ?? c.name ?? '—'}
                       </TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
                           className={
-                            (c.specialization ?? c.role ?? '').toLowerCase() === 'driver'
+                            /* FIX #5: c.specialization (no fallback to role) */
+                            (c.specialization ?? '').toLowerCase() === 'driver'
                               ? 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300'
                               : 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300'
                           }
                         >
-                          {c.specialization ?? c.role ?? '—'}
+                          {c.specialization ?? '—'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <StarRating rating={c.rating ?? 0} />
+                        {/* FIX #5: c.performanceRating */}
+                        <StarRating rating={c.performanceRating ?? 0} />
                       </TableCell>
-                      <TableCell>{c.busNumber ?? c.bus ?? '—'}</TableCell>
+                      <TableCell>{c.busNumber ?? '—'}</TableCell>
                       <TableCell>
                         <Badge
                           variant="outline"
@@ -920,6 +1271,9 @@ function CrewPage({ token }: { token: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* NEW: Crew Details Dialog */}
+      <CrewDetailsDialog crew={selectedCrew} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
   );
 }
@@ -1047,7 +1401,8 @@ function TrafficPage({ token }: { token: string }) {
                           const id = r.id ?? r._id;
                           return (
                             <SelectItem key={id} value={String(id)}>
-                              {r.routeNumber ?? r.number ?? id} — {r.startPoint ?? r.from ?? ''} → {r.endPoint ?? r.to ?? ''}
+                              {/* FIX #7: routeNumber, startLocation, endLocation */}
+                              {r.routeNumber ?? id} — {r.startLocation ?? ''} → {r.endLocation ?? ''}
                             </SelectItem>
                           );
                         })}
@@ -1133,20 +1488,23 @@ function TrafficPage({ token }: { token: string }) {
                     <TableHead>Type</TableHead>
                     <TableHead>Severity</TableHead>
                     <TableHead>Delay</TableHead>
+                    <TableHead>Reporter</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Action</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {alerts.map((a: any) => {
+                  {alerts.map((a: any, idx: number) => {
                     const id = a.id ?? a._id;
                     const isResolved =
                       (a.status ?? '').toLowerCase() === 'resolved';
                     return (
-                      <TableRow key={id} className={isResolved ? 'opacity-50' : ''}>
+                      /* STYLE: alternating row colors + hover */
+                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors ${isResolved ? 'opacity-50' : ''}`}>
                         <TableCell className="font-medium">
-                          {a.routeNumber ?? a.route ?? '—'}
+                          {/* FIX #8: a.route?.routeNumber */}
+                          {a.route?.routeNumber ?? a.routeNumber ?? '—'}
                         </TableCell>
                         <TableCell>
                           <Badge variant="outline" className="capitalize">
@@ -1160,6 +1518,10 @@ function TrafficPage({ token }: { token: string }) {
                           {a.delayMinutes != null
                             ? `${a.delayMinutes} min`
                             : '—'}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {/* FIX #8: a.reporter?.name */}
+                          {a.reporter?.name ?? '—'}
                         </TableCell>
                         <TableCell>
                           <Badge
@@ -1218,7 +1580,9 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
     setLoading(true);
     try {
       const data = await apiFetch<any>('/api/holidays?status=pending');
-      setHolidays(Array.isArray(data) ? data : data.holidays ?? data.data ?? []);
+      // FIX #9: access from requests array, then crew?.name
+      const arr = Array.isArray(data) ? data : data.requests ?? data.holidays ?? data.data ?? [];
+      setHolidays(arr);
     } catch {
       setHolidays([]);
     } finally {
@@ -1279,6 +1643,7 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
                 <TableHeader>
                   <TableRow>
                     <TableHead>Crew Name</TableHead>
+                    <TableHead>Email</TableHead>
                     <TableHead>Start Date</TableHead>
                     <TableHead>End Date</TableHead>
                     <TableHead>Days</TableHead>
@@ -1287,12 +1652,17 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {holidays.map((h: any) => {
+                  {holidays.map((h: any, idx: number) => {
                     const id = h.id ?? h._id;
                     return (
-                      <TableRow key={id}>
+                      /* STYLE: alternating row colors + hover */
+                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
                         <TableCell className="font-medium">
-                          {h.crewName ?? h.name ?? '—'}
+                          {/* FIX #9: h.crew?.name */}
+                          {h.crew?.name ?? h.crewName ?? '—'}
+                        </TableCell>
+                        <TableCell className="text-sm text-muted-foreground">
+                          {h.crew?.email ?? '—'}
                         </TableCell>
                         <TableCell>{formatDate(h.startDate)}</TableCell>
                         <TableCell>{formatDate(h.endDate)}</TableCell>
@@ -1377,38 +1747,40 @@ function AnalyticsPage({ token }: { token: string }) {
     })();
   }, []);
 
+  // FIX #10: map from data.summary for summary fields
+  const summary = data?.summary ?? data ?? {};
+  const dailyTrends: { date: string; revenue: number; journeys: number }[] = data?.dailyTrend ?? data?.dailyTrends ?? [];
+  const cityStats: { city: string; revenue: number; journeys: number; completionRate: number }[] =
+    data?.cityStats ?? data?.cityBreakdown ?? [];
+
   const summaryCards = data
     ? [
         {
           label: 'Total Revenue',
-          value: `₹${((data.totalRevenue ?? 0) / 1000).toFixed(1)}K`,
+          value: `₹${((summary.totalRevenue ?? 0) / 1000).toFixed(1)}K`,
           icon: DollarSign,
           color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50',
         },
         {
           label: 'Avg Completion Rate',
-          value: `${(data.avgCompletionRate ?? 0).toFixed(1)}%`,
+          value: `${(summary.avgCompletionRate ?? 0).toFixed(1)}%`,
           icon: TrendingUp,
           color: 'text-sky-600 bg-sky-50 dark:bg-sky-950/50',
         },
         {
           label: 'Avg Delay',
-          value: `${(data.avgDelay ?? 0).toFixed(1)} min`,
+          value: `${(summary.avgDelay ?? 0).toFixed(1)} min`,
           icon: Timer,
           color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50',
         },
         {
           label: 'Total Journeys',
-          value: (data.totalJourneys ?? 0).toLocaleString(),
+          value: (summary.totalJourneys ?? 0).toLocaleString(),
           icon: Navigation,
           color: 'text-violet-600 bg-violet-50 dark:bg-violet-950/50',
         },
       ]
     : [];
-
-  const dailyTrends: { date: string; revenue: number; journeys: number }[] = data?.dailyTrends ?? [];
-  const cityBreakdown: { city: string; revenue: number; journeys: number; completionRate: number }[] =
-    data?.cityBreakdown ?? [];
 
   const maxRevenue = Math.max(...dailyTrends.map((d) => d.revenue), 1);
 
@@ -1425,7 +1797,7 @@ function AnalyticsPage({ token }: { token: string }) {
           </>
         ) : (
           summaryCards.map((s) => (
-            <Card key={s.label}>
+            <Card key={s.label} className="transition-shadow hover:shadow-md">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -1500,7 +1872,7 @@ function AnalyticsPage({ token }: { token: string }) {
         <CardContent>
           {loading ? (
             <TableSkeleton rows={6} cols={4} />
-          ) : cityBreakdown.length === 0 ? (
+          ) : cityStats.length === 0 ? (
             <div className="py-12 text-center text-muted-foreground">
               <p>No city breakdown data</p>
             </div>
@@ -1516,8 +1888,9 @@ function AnalyticsPage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {cityBreakdown.map((c: any, i: number) => (
-                    <TableRow key={i}>
+                  {cityStats.map((c: any, i: number) => (
+                    /* STYLE: alternating row colors + hover */
+                    <TableRow key={i} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
                       <TableCell className="font-medium">{c.city}</TableCell>
                       <TableCell>₹{c.revenue.toLocaleString()}</TableCell>
                       <TableCell>{c.journeys.toLocaleString()}</TableCell>
@@ -1595,12 +1968,13 @@ function MaintenancePage({ token }: { token: string }) {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {records.map((r: any) => (
-                    <TableRow key={r.id ?? r._id}>
+                  {records.map((r: any, idx: number) => (
+                    /* STYLE: alternating row colors + hover */
+                    <TableRow key={r.id ?? r._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
                       <TableCell className="font-medium">
                         <span className="inline-flex items-center gap-1.5">
                           <Bus className="size-4 text-muted-foreground" />
-                          {r.busRegistration ?? r.registration ?? r.busNumber ?? '—'}
+                          {r.busRegistration ?? r.registration ?? '—'}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -1633,6 +2007,19 @@ function MaintenancePage({ token }: { token: string }) {
 }
 
 /* ================================================================== */
+/*  Footer                                                             */
+/* ================================================================== */
+function AdminFooter() {
+  return (
+    <footer className="mt-auto border-t bg-background/80 backdrop-blur-sm px-6 py-3">
+      <p className="text-center text-xs text-muted-foreground">
+        © 2025 BusTrack Pro • v1.0.0
+      </p>
+    </footer>
+  );
+}
+
+/* ================================================================== */
 /*  Main Export                                                        */
 /* ================================================================== */
 export default function AdminContent({ portal, userId, token, setPortal }: Props) {
@@ -1641,24 +2028,36 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, [portal]);
 
-  switch (portal) {
-    case 'dashboard':
-      return <DashboardPage token={token} setPortal={setPortal} />;
-    case 'routes':
-      return <RoutesPage token={token} />;
-    case 'schedules':
-      return <SchedulesPage token={token} />;
-    case 'crew':
-      return <CrewPage token={token} />;
-    case 'traffic':
-      return <TrafficPage token={token} />;
-    case 'holidays':
-      return <HolidaysPage token={token} userId={userId} />;
-    case 'analytics':
-      return <AnalyticsPage token={token} />;
-    case 'maintenance':
-      return <MaintenancePage token={token} />;
-    default:
-      return <DashboardPage token={token} setPortal={setPortal} />;
-  }
+  const pageContent = (() => {
+    switch (portal) {
+      case 'dashboard':
+        return <DashboardPage token={token} setPortal={setPortal} />;
+      case 'routes':
+        return <RoutesPage token={token} />;
+      case 'schedules':
+        return <SchedulesPage token={token} />;
+      case 'crew':
+        return <CrewPage token={token} />;
+      case 'traffic':
+        return <TrafficPage token={token} />;
+      case 'holidays':
+        return <HolidaysPage token={token} userId={userId} />;
+      case 'analytics':
+        return <AnalyticsPage token={token} />;
+      case 'maintenance':
+        return <MaintenancePage token={token} />;
+      default:
+        return <DashboardPage token={token} setPortal={setPortal} />;
+    }
+  })();
+
+  return (
+    <div className="flex min-h-full flex-col">
+      <div className="flex-1">
+        {pageContent}
+      </div>
+      {/* STYLE: Footer */}
+      <AdminFooter />
+    </div>
+  );
 }
