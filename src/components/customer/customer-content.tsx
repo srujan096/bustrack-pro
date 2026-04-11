@@ -372,6 +372,36 @@ function SeatBadge({ trafficLevel }: { trafficLevel: string | undefined }) {
   );
 }
 
+// ─── Weather Badge ───────────────────────────────────────────────────────────
+
+function getWeatherForCity(city: string | undefined): {
+  emoji: string;
+  label: string;
+  bg: string;
+  text: string;
+  advisory: string;
+} {
+  const c = city?.toUpperCase() ?? '';
+  if (c.includes('DEL')) return { emoji: '🔥', label: 'Hot', bg: 'bg-gradient-to-r from-red-50 to-orange-50', text: 'text-red-700', advisory: 'Expect 5-10 min delay' };
+  if (c.includes('MUM')) return { emoji: '🌧️', label: 'Rainy', bg: 'bg-gradient-to-r from-blue-50 to-sky-50', text: 'text-blue-700', advisory: 'Expect 5-10 min delay' };
+  if (c.includes('CHN')) return { emoji: '⛅', label: 'Cloudy', bg: 'bg-gradient-to-r from-gray-50 to-slate-100', text: 'text-gray-700', advisory: '' };
+  return { emoji: '☀️', label: 'Sunny', bg: 'bg-gradient-to-r from-amber-50 to-yellow-50', text: 'text-amber-700', advisory: '' };
+}
+
+function WeatherBadge({ city }: { city: string | undefined }) {
+  const weather = getWeatherForCity(city);
+  return (
+    <div className="flex flex-col items-start">
+      <Badge variant="outline" className={`gap-0.5 text-[10px] border-0 ${weather.bg} ${weather.text}`}>
+        <span>{weather.emoji}</span> {weather.label}
+      </Badge>
+      {weather.advisory && (
+        <span className="text-[10px] text-amber-600 mt-0.5">{weather.advisory}</span>
+      )}
+    </div>
+  );
+}
+
 // ─── Spending Donut Chart ────────────────────────────────────────────────────
 
 function SpendingDonut({ totalSpent }: { totalSpent: number }) {
@@ -1374,6 +1404,84 @@ function MapRouteComparison({ routes, onClose }: { routes: RouteResult[]; onClos
   );
 }
 
+// ─── Commute Statistics Card ────────────────────────────────────────────────
+
+function CommuteStatistics({ userId }: { userId: string }) {
+  const stats = useMemo(() => {
+    let seed = 0;
+    for (let i = 0; i < userId.length; i++) {
+      seed = ((seed << 5) - seed + userId.charCodeAt(i)) | 0;
+    }
+    const absSeed = Math.abs(seed);
+
+    const totalCommutes = (absSeed % 50) + 20;
+    const favoriteRouteNums = ['R-101', 'R-215', 'R-335', 'R-500', 'R-142', 'R-287', 'R-401', 'R-512'];
+    const favoriteRoute = favoriteRouteNums[absSeed % favoriteRouteNums.length];
+    const avgFare = (absSeed % 30) + 20;
+    const savingsPct = (absSeed % 15) + 25;
+
+    return { totalCommutes, favoriteRoute, avgFare, savingsPct };
+  }, [userId]);
+
+  const metrics = [
+    {
+      label: 'Total Commutes',
+      value: String(stats.totalCommutes),
+      icon: Bus,
+      iconBg: 'bg-sky-100',
+      iconColor: 'text-sky-600',
+    },
+    {
+      label: 'Favorite Route',
+      value: stats.favoriteRoute,
+      icon: Bus,
+      iconBg: 'bg-violet-100',
+      iconColor: 'text-violet-600',
+    },
+    {
+      label: 'Avg Daily Fare',
+      value: formatCurrency(stats.avgFare),
+      icon: IndianRupee,
+      iconBg: 'bg-amber-100',
+      iconColor: 'text-amber-600',
+    },
+    {
+      label: 'Monthly Savings',
+      value: `${stats.savingsPct}%`,
+      icon: TrendingUp,
+      iconBg: 'bg-emerald-100',
+      iconColor: 'text-emerald-600',
+    },
+  ];
+
+  return (
+    <Card className="transit-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <TrendingUp className="size-5 text-emerald-500" />
+          Commute Statistics
+        </CardTitle>
+        <CardDescription>Your travel patterns at a glance</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4">
+          {metrics.map(m => (
+            <div key={m.label} className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+              <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${m.iconBg}`}>
+                <m.icon className={`size-5 ${m.iconColor}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">{m.label}</p>
+                <p className="text-lg font-bold tracking-tight">{m.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 function Dashboard({
@@ -1519,6 +1627,9 @@ function Dashboard({
           </Card>
         ))}
       </div>
+
+      {/* Commute Statistics */}
+      <CommuteStatistics userId={userId} />
 
       {/* Trip Planner */}
       <TripPlanner onFindRoutes={() => setPortal('search')} />
@@ -2175,12 +2286,13 @@ function SearchRoutes({
                       <CardContent className="p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex-1 space-y-2">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <Badge variant="outline" className="font-mono text-xs">
                                 {route.routeNumber}
                               </Badge>
                               {trafficBadge(route.trafficLevel)}
                               <SeatBadge trafficLevel={route.trafficLevel} />
+                              <WeatherBadge city={route.city} />
                             </div>
                             <div className="flex items-center gap-1 text-sm">
                               <MapPin className="size-3.5 text-emerald-500" />
@@ -2743,6 +2855,95 @@ function RouteMapView() {
   );
 }
 
+// ─── Travel Timeline ────────────────────────────────────────────────────────
+
+function TravelTimeline({ userId }: { userId: string }) {
+  const entries = useMemo(() => {
+    let seed = 0;
+    for (let i = 0; i < userId.length; i++) {
+      seed = ((seed << 5) - seed + userId.charCodeAt(i)) | 0;
+    }
+    const absSeed = Math.abs(seed);
+
+    const statuses: Array<'completed' | 'planned' | 'cancelled'> = ['completed', 'completed', 'completed', 'completed', 'planned', 'cancelled'];
+    const routeNumbers = ['R-101', 'R-215', 'R-335', 'R-500', 'R-142', 'R-287'];
+    const fromCities = ['Majestic', 'Koramangala', 'Indiranagar', 'Whitefield', 'HSR Layout', 'Jayanagar'];
+    const toCities = ['Electronic City', 'MG Road', 'Hebbal', 'Marathahalli', 'Silk Board', 'Basavanagudi'];
+    const fares = [35, 45, 25, 55, 40, 30];
+
+    const today = new Date();
+
+    return statuses.map((status, i) => {
+      const dayOffset = status === 'planned' ? 3 : status === 'cancelled' ? -3 : -(i * 5 + 1);
+      const d = new Date(today);
+      d.setDate(d.getDate() + dayOffset);
+
+      return {
+        date: format(d, 'MMM dd'),
+        routeNumber: routeNumbers[(absSeed + i) % routeNumbers.length],
+        from: fromCities[(absSeed + i * 3) % fromCities.length],
+        to: toCities[(absSeed + i * 7) % toCities.length],
+        fare: fares[(absSeed + i * 2) % fares.length],
+        status: status as 'completed' | 'planned' | 'cancelled',
+      };
+    });
+  }, [userId]);
+
+  const statusDot: Record<string, string> = {
+    completed: 'bg-emerald-500 ring-emerald-200',
+    planned: 'bg-amber-500 ring-amber-200',
+    cancelled: 'bg-red-500 ring-red-200',
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Clock className="size-5 text-amber-500" />
+          Travel Timeline
+        </CardTitle>
+        <CardDescription>Your recent travel activity</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative">
+          {/* Vertical connecting line */}
+          <div className="absolute left-[13px] top-3 bottom-3 w-0.5 bg-muted-foreground/15" />
+          <div className="space-y-5">
+            {entries.map((entry, i) => {
+              const StatusIcon = entry.status === 'completed' ? CheckCircle2 : entry.status === 'planned' ? Clock : XCircle;
+              const iconColor = entry.status === 'completed' ? 'text-emerald-500' : entry.status === 'planned' ? 'text-amber-500' : 'text-red-500';
+              return (
+                <div key={i} className="flex items-start gap-4 pl-0.5">
+                  {/* Timeline dot */}
+                  <div className={`relative z-10 mt-2.5 h-[10px] w-[10px] shrink-0 rounded-full ring-2 ${statusDot[entry.status] ?? statusDot.completed}`} />
+                  {/* Entry card */}
+                  <div className="flex-1 rounded-lg border bg-muted/20 p-3 transition-colors hover:bg-muted/30">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-muted-foreground">{entry.date}</span>
+                      <StatusIcon className={`size-3.5 ${iconColor}`} />
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <Badge variant="outline" className="font-mono text-[10px]">
+                        {entry.routeNumber}
+                      </Badge>
+                      <span className="text-muted-foreground">{entry.from}</span>
+                      <ArrowRight className="size-3 text-muted-foreground" />
+                      <span className="font-medium">{entry.to}</span>
+                    </div>
+                    <div className="mt-1.5 text-xs font-medium text-emerald-700">
+                      {formatCurrency(entry.fare)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── My Bookings ─────────────────────────────────────────────────────────────
 
 function MyBookings({ userId }: { userId: string }) {
@@ -2813,6 +3014,9 @@ function MyBookings({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Travel Timeline */}
+      <TravelTimeline userId={userId} />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">

@@ -757,10 +757,20 @@ export default function Home() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-3 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <p className="text-gray-500 text-sm">Loading BusTrack Pro...</p>
+      <div className="min-h-screen flex items-center justify-center bg-background mesh-gradient">
+        <div className="flex flex-col items-center gap-4">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
+              <BusIcon className="w-10 h-10 text-white" animate={true} />
+            </div>
+            <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 animate-pulse-glow" />
+          </div>
+          <div className="text-center">
+            <p className="text-sm font-medium text-foreground">Loading BusTrack Pro</p>
+            <div className="w-32 h-1 bg-muted rounded-full mt-2 overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-blue-500 to-emerald-500 rounded-full animate-[shimmer_1.5s_ease-in-out_infinite]" style={{ width: '60%' }} />
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -771,7 +781,7 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-950 flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col mesh-gradient">
       <AppShell
         user={user}
         token={token || ''}
@@ -780,12 +790,12 @@ export default function Home() {
         onLogout={handleLogout}
       />
       {/* Enhanced Footer */}
-      <footer className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 px-4 py-2 flex-shrink-0">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-gray-400 dark:text-gray-500">
+      <footer className="bg-card border-t border-border px-4 py-2.5 flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)]">
+        <div className="portal-container flex flex-col sm:flex-row items-center justify-between gap-1.5 text-xs text-muted-foreground">
           <div className="flex items-center gap-1.5">
             <span>&copy; 2025 BusTrack Pro</span>
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span>v3.0.0</span>
+            <span>v4.0.0</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
@@ -1099,14 +1109,14 @@ function AppShell({
 
       {/* Mobile Sidebar (overlay) */}
       {isMobile && sidebarOpen && (
-        <aside className="fixed left-0 top-0 bottom-0 w-72 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 z-50 shadow-2xl animate-sidebar-slide">
+        <aside className="fixed left-0 top-0 bottom-0 w-72 glass-sidebar z-50 shadow-2xl animate-sidebar-slide border-r border-white/5">
           {sidebarContent}
         </aside>
       )}
 
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-shrink-0 overflow-hidden">
+        <aside className="w-64 glass-sidebar flex-shrink-0 overflow-hidden border-r border-white/5">
           {sidebarContent}
         </aside>
       )}
@@ -1114,7 +1124,7 @@ function AppShell({
       {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 flex-shrink-0">
+        <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 flex-shrink-0">
           <div className="flex items-center gap-3">
             <HamburgerButton
               isOpen={isMobile ? sidebarOpen : false}

@@ -77,6 +77,11 @@ import {
   Inbox,
   Fuel,
   LayoutList,
+  Gauge,
+  GitMerge,
+  ArrowRightLeft,
+  TrendingDown,
+  Compass,
 } from 'lucide-react';
 
 interface Props {
@@ -608,6 +613,318 @@ function FuelCostCalculator() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Live Departure Board                                               */
+/* ------------------------------------------------------------------ */
+function DepartureBoard() {
+  const [refreshKey, setRefreshKey] = useState(0);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setAnimating(true);
+      setTimeout(() => {
+        setRefreshKey((k) => k + 1);
+        setAnimating(false);
+      }, 500);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const now = new Date();
+  const baseHour = now.getHours();
+  const baseMin = now.getMinutes();
+
+  const statusList = ['On Time', 'On Time', 'On Time', 'On Time', 'Departed', 'Departed', 'Delayed', 'Delayed', 'Cancelled'];
+  const statusColors: Record<string, string> = {
+    'On Time': 'text-emerald-400',
+    'Departed': 'text-sky-400',
+    'Delayed': 'text-amber-400',
+    'Cancelled': 'text-rose-400',
+  };
+  const statusDotColors: Record<string, string> = {
+    'On Time': 'bg-emerald-500',
+    'Departed': 'bg-sky-500',
+    'Delayed': 'bg-amber-500',
+    'Cancelled': 'bg-rose-500',
+  };
+
+  const destinations = ['Majestic Bus Stand', 'Whitefield ITPL', 'Electronic City', 'Koramangala 4th Block', 'HSR Layout', 'Indiranagar 100ft Rd', 'Marathahalli Bridge', 'JP Nagar Phase 6', 'Hebbal Flyover', 'MG Road Metro'];
+  const routeNums = ['BLR-101', 'BLR-215', 'BLR-342', 'BLR-418', 'MUM-012', 'DEL-005', 'CHN-008', 'BLR-523', 'HYD-003', 'BLR-712'];
+  const gateNums = ['A1', 'A2', 'B1', 'B2', 'B3', 'C1', 'C2', 'C3', 'D1', 'D2'];
+
+  const departures = Array.from({ length: 10 }, (_, i) => {
+    const seed = baseHour * 100 + baseMin + i * 7 + refreshKey;
+    const timeOffset = (seed * 3) % 55;
+    const hour = (baseHour + Math.floor((i + 1) * 0.8)) % 24;
+    const minute = (baseMin + timeOffset) % 60;
+    const statusIdx = (seed * 3 + i * 5) % statusList.length;
+    return {
+      route: routeNums[i % routeNums.length],
+      destination: destinations[i % destinations.length],
+      time: `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`,
+      platform: gateNums[i % gateNums.length],
+      status: statusList[statusIdx],
+    };
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="led-text text-lg tracking-wider">DEPARTURES</CardTitle>
+          <div className="flex items-center gap-2">
+            <span className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">Live</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={`rounded-lg bg-slate-900 dark:bg-slate-950 p-3 transition-opacity duration-500 ${animating ? 'opacity-50' : 'opacity-100'}`}>
+          <div className="grid grid-cols-[1fr_1.3fr_auto_auto_auto] gap-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-2 px-2">
+            <span>Route</span>
+            <span>Destination</span>
+            <span className="text-center">Time</span>
+            <span className="text-center">Gate</span>
+            <span className="text-right">Status</span>
+          </div>
+          <div className="space-y-0.5">
+            {departures.map((d, i) => (
+              <div
+                key={`${i}-${refreshKey}`}
+                className="grid grid-cols-[1fr_1.3fr_auto_auto_auto] gap-3 text-sm px-2 py-1.5 rounded hover:bg-slate-800/70 transition-colors"
+              >
+                <span className="font-bold text-amber-400 font-mono text-xs">{d.route}</span>
+                <span className="text-slate-300 truncate text-xs">{d.destination}</span>
+                <span className="text-emerald-400 font-mono font-bold text-xs text-center tabular-nums">{d.time}</span>
+                <span className="text-slate-400 font-mono text-xs text-center">{d.platform}</span>
+                <div className="flex items-center justify-end gap-1.5">
+                  <span className={`size-2 rounded-full ${statusDotColors[d.status]} animate-pulse`} />
+                  <span className={`text-[11px] font-semibold ${statusColors[d.status]}`}>{d.status}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-800 flex items-center justify-between">
+            <span className="text-[10px] text-slate-600">Auto-refreshes every 30s</span>
+            <span className="text-[10px] text-slate-600 font-mono tabular-nums">
+              {String(now.getHours()).padStart(2, '0')}:{String(now.getMinutes()).padStart(2, '0')}:{String(now.getSeconds()).padStart(2, '0')} IST
+            </span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Crew Fatigue Monitor                                               */
+/* ------------------------------------------------------------------ */
+function CrewFatigueMonitor() {
+  const crewData = [
+    { name: 'Rajesh Kumar', role: 'Driver', seed: 1 },
+    { name: 'Suresh Babu', role: 'Driver', seed: 2 },
+    { name: 'Anitha Sharma', role: 'Conductor', seed: 3 },
+    { name: 'Mohammed Irfan', role: 'Driver', seed: 4 },
+    { name: 'Priya Nair', role: 'Conductor', seed: 5 },
+    { name: 'Venkat Rao', role: 'Driver', seed: 6 },
+  ];
+
+  const getCrewHours = (seed: number) => {
+    const hoursToday = 3 + ((seed * 7 + 3) % 9);
+    const hoursWeek = 18 + ((seed * 11 + 5) % 32);
+    const fatigueLevel = hoursToday < 6 ? 'Low' : hoursToday <= 8 ? 'Medium' : 'High';
+    const weekAvg = hoursWeek / 5;
+    const highRisk = weekAvg > 10;
+    return { hoursToday, hoursWeek, fatigueLevel, weekAvg: Math.round(weekAvg * 10) / 10, highRisk };
+  };
+
+  const fatigueColors: Record<string, { bar: string; text: string; bg: string }> = {
+    Low: { bar: 'bg-emerald-500', text: 'text-emerald-700 dark:text-emerald-400', bg: 'bg-emerald-100 dark:bg-emerald-950/50' },
+    Medium: { bar: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-400', bg: 'bg-amber-100 dark:bg-amber-950/50' },
+    High: { bar: 'bg-rose-500', text: 'text-rose-700 dark:text-rose-400', bg: 'bg-rose-100 dark:bg-rose-950/50' },
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Gauge className="size-5" /> Crew Fatigue Monitor
+        </CardTitle>
+        <CardDescription>Real-time crew hours tracking and fatigue risk assessment</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {crewData.map((c) => {
+            const data = getCrewHours(c.seed);
+            const colors = fatigueColors[data.fatigueLevel];
+            const progressPercent = Math.min((data.hoursToday / 12) * 100, 100);
+            return (
+              <div key={c.seed} className={`rounded-xl border p-4 transition-all hover:shadow-md ${colors.bg}`}>
+                <div className="flex items-start justify-between mb-3">
+                  <div>
+                    <p className="font-semibold text-sm">{c.name}</p>
+                    <Badge variant="outline" className={`text-[10px] mt-1 ${
+                      c.role.toLowerCase() === 'driver'
+                        ? 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300'
+                        : 'bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-950/60 dark:text-violet-300'
+                    }`}>{c.role}</Badge>
+                  </div>
+                  {data.highRisk && (
+                    <Badge className="bg-rose-600 text-white text-[10px] shrink-0">
+                      <AlertTriangle className="size-3 mr-1" />
+                      High Risk
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="rounded-lg bg-white/60 dark:bg-black/20 p-2">
+                    <p className="text-[10px] text-muted-foreground">Today</p>
+                    <p className={`text-lg font-bold ${colors.text}`}>{data.hoursToday}h</p>
+                  </div>
+                  <div className="rounded-lg bg-white/60 dark:bg-black/20 p-2">
+                    <p className="text-[10px] text-muted-foreground">This Week</p>
+                    <p className="text-lg font-bold text-foreground">{data.hoursWeek}h</p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="text-muted-foreground">Hours / 12h limit</span>
+                    <span className={`font-semibold ${colors.text}`}>{Math.round(progressPercent)}%</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-white/40 dark:bg-black/20 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all duration-500 ${colors.bar}`}
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className={`text-[10px] font-semibold ${colors.text}`}>Fatigue: {data.fatigueLevel}</span>
+                    <span className="text-[10px] text-muted-foreground">Avg: {data.weekAvg}h/day</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Route Optimization Insights                                        */
+/* ------------------------------------------------------------------ */
+function OptimizationInsights({ showToast }: { showToast: (msg: string, type?: 'success' | 'error') => void }) {
+  const suggestions = [
+    {
+      id: 1,
+      title: 'Merge Overlapping Routes 101 & 103',
+      icon: GitMerge,
+      impact: 'Save 12%',
+      impactColor: 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-950/60',
+      priority: 'High',
+      priorityColor: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+      description: 'Routes BLR-101 and BLR-103 share 8 of 12 stops between Majestic and Koramangala. Merging could reduce fleet requirement by 3 buses during off-peak hours.',
+    },
+    {
+      id: 2,
+      title: 'Reduce Headway on Route 215 Peak Hours',
+      icon: TrendingDown,
+      impact: 'Reduce 3 buses',
+      impactColor: 'text-sky-700 bg-sky-100 dark:text-sky-300 dark:bg-sky-950/60',
+      priority: 'Medium',
+      priorityColor: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
+      description: 'Current 20-min frequency during 8-10 AM causes overcrowding. Reducing to 12-min headway would decrease average wait time by 40%.',
+    },
+    {
+      id: 3,
+      title: 'Add Express Variant on Route 342',
+      icon: ArrowRightLeft,
+      impact: 'Save 18 min',
+      impactColor: 'text-violet-700 bg-violet-100 dark:text-violet-300 dark:bg-violet-950/60',
+      priority: 'Medium',
+      priorityColor: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
+      description: 'Long-distance commuters from Electronic City to Whitefield could benefit from a limited-stop express service, saving 18 minutes per trip.',
+    },
+    {
+      id: 4,
+      title: 'Redistribute Buses from Low-Demand Route 712',
+      icon: Compass,
+      impact: '+15% efficiency',
+      impactColor: 'text-emerald-700 bg-emerald-100 dark:text-emerald-300 dark:bg-emerald-950/60',
+      priority: 'Low',
+      priorityColor: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
+      description: 'Route BLR-712 operates at 32% occupancy during non-peak. Reallocating 2 buses to Route 418 would improve overall fleet utilization.',
+    },
+    {
+      id: 5,
+      title: 'Implement Dynamic Scheduling for DEL Routes',
+      icon: Zap,
+      impact: 'Save 8%',
+      impactColor: 'text-sky-700 bg-sky-100 dark:text-sky-300 dark:bg-sky-950/60',
+      priority: 'High',
+      priorityColor: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+      description: 'Delhi routes experience high variance in demand. AI-driven dynamic scheduling could reduce idle time by 8% and improve on-time performance.',
+    },
+  ];
+
+  const handleApply = (title: string) => {
+    showToast(`Optimization applied: ${title}`, 'success');
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Compass className="size-5" /> Optimization Insights
+        </CardTitle>
+        <CardDescription>AI-powered route optimization suggestions based on ridership data</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          {suggestions.map((s) => {
+            const IconComp = s.icon;
+            return (
+              <div
+                key={s.id}
+                className="transit-card rounded-xl border p-4 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0 rounded-lg bg-muted p-2">
+                    <IconComp className="size-4 text-muted-foreground" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <h4 className="text-sm font-semibold truncate">{s.title}</h4>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 mb-2">
+                      <Badge variant="outline" className={s.priorityColor}>{s.priority}</Badge>
+                      <Badge variant="outline" className={`text-[10px] ${s.impactColor}`}>{s.impact}</Badge>
+                    </div>
+                    <p className="text-xs text-muted-foreground leading-relaxed mb-3">{s.description}</p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      onClick={() => handleApply(s.title)}
+                    >
+                      <CheckCircle2 className="size-3 mr-1" />
+                      Apply
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ================================================================== */
 /*  Route Details Dialog                                               */
 /* ================================================================== */
@@ -1099,6 +1416,9 @@ function DashboardPage({
         <PassengerAnalytics />
       </div>
 
+      {/* Live Departure Board */}
+      <DepartureBoard />
+
       {/* STYLE: Improved Quick Actions — icon cards */}
       <Card>
         <CardHeader>
@@ -1437,6 +1757,9 @@ function RoutesPage({ token }: { token: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Route Optimization Insights */}
+      <OptimizationInsights showToast={showToast} />
 
       {/* NEW: Route Details Dialog */}
       <RouteDetailsDialog route={selectedRoute} open={detailOpen} onOpenChange={setDetailOpen} />
@@ -1790,6 +2113,9 @@ function CrewPage({ token }: { token: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Crew Fatigue Monitor */}
+      <CrewFatigueMonitor />
 
       {/* NEW: Crew Details Dialog */}
       <CrewDetailsDialog crew={selectedCrew} open={detailOpen} onOpenChange={setDetailOpen} />

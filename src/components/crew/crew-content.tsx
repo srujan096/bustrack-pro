@@ -66,6 +66,16 @@ import {
   Zap,
   Fuel,
   CircleDot,
+  Plus,
+  Cloud,
+  CloudRain,
+  Droplets,
+  Wind,
+  Trophy,
+  ArrowUp,
+  ArrowDown,
+  Coffee,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -1073,6 +1083,382 @@ function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
   );
 }
 
+// ──────────────────────────── New Feature: Digital Shift Logbook ────────────────────────────
+
+function ShiftLogbook({ crewName }: { crewName: string }) {
+  const activityTypeDefs = [
+    { type: 'Shift Started', icon: Play, color: 'emerald' as const, desc: 'Morning shift started on Route R-201' },
+    { type: 'Route Completed', icon: CheckCircle2, color: 'emerald' as const, desc: 'Completed Route R-201 - Majestic to Silk Board' },
+    { type: 'Refuel', icon: Fuel, color: 'amber' as const, desc: 'Bus refueled at HP Petrol Bunk, Indiranagar' },
+    { type: 'Break Taken', icon: Coffee, color: 'amber' as const, desc: 'Lunch break at Koramangala depot' },
+    { type: 'Break Ended', icon: Clock, color: 'amber' as const, desc: 'Resumed shift after 30-min break' },
+    { type: 'Passenger Issue', icon: Users, color: 'red' as const, desc: 'Overcrowding reported at Silk Board junction' },
+    { type: 'Incident Reported', icon: AlertTriangle, color: 'red' as const, desc: 'Minor scratch on bus near HSR Layout' },
+    { type: 'Shift Ended', icon: Square, color: 'emerald' as const, desc: 'Evening shift completed. Total: 8h 15m' },
+  ];
+
+  const [entries, setEntries] = useState(() => {
+    const now = new Date();
+    return activityTypeDefs.map((a, i) => {
+      const timeOffset = (activityTypeDefs.length - 1 - i) * 45;
+      const entryTime = new Date(now.getTime() - timeOffset * 60000);
+      return {
+        id: `${crewName}-${i}`,
+        type: a.type,
+        icon: a.icon,
+        color: a.color,
+        desc: a.desc,
+        timestamp: `${String(entryTime.getHours()).padStart(2, '0')}:${String(entryTime.getMinutes()).padStart(2, '0')}`,
+        status: i === 0 ? 'Active' : 'Logged',
+      };
+    });
+  });
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newType, setNewType] = useState('');
+  const [newNotes, setNewNotes] = useState('');
+
+  const activityTypeOptions = [
+    'Shift Started', 'Break Taken', 'Break Ended', 'Incident Reported',
+    'Route Completed', 'Refuel', 'Passenger Issue', 'Shift Ended',
+  ];
+
+  const getIconForType = (type: string) => {
+    const found = activityTypeDefs.find((a) => a.type === type);
+    if (found) return { icon: found.icon, color: found.color };
+    return { icon: FileText, color: 'gray' as const };
+  };
+
+  const getColorClasses = (color: string) => {
+    if (color === 'emerald') return { bg: 'bg-emerald-100', text: 'text-emerald-600', ring: 'ring-emerald-200' };
+    if (color === 'amber') return { bg: 'bg-amber-100', text: 'text-amber-600', ring: 'ring-amber-200' };
+    if (color === 'red') return { bg: 'bg-red-100', text: 'text-red-600', ring: 'ring-red-200' };
+    return { bg: 'bg-gray-100', text: 'text-gray-600', ring: 'ring-gray-200' };
+  };
+
+  const handleAddEntry = () => {
+    if (!newType || !newNotes) return;
+    const now = new Date();
+    const { icon, color } = getIconForType(newType);
+    const newEntry = {
+      id: `new-${Date.now()}`,
+      type: newType,
+      icon,
+      color,
+      desc: newNotes,
+      timestamp: `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`,
+      status: 'Just Added' as const,
+    };
+    setEntries((prev) => [newEntry, ...prev]);
+    setDialogOpen(false);
+    setNewType('');
+    setNewNotes('');
+    toast({ title: 'Log entry added', description: `${newType}: ${newNotes}` });
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <FileText className="h-5 w-5 text-gray-500" />
+              Shift Logbook
+            </CardTitle>
+            <CardDescription>Today&apos;s shift activity timeline</CardDescription>
+          </div>
+          <Button size="sm" className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700 h-8 px-3" onClick={() => setDialogOpen(true)}>
+            <Plus className="h-3.5 w-3.5" />
+            Add Entry
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-0 max-h-96 overflow-y-auto">
+          {entries.map((entry, i) => {
+            const Icon = entry.icon;
+            const colors = getColorClasses(entry.color);
+            return (
+              <div key={entry.id} className="flex gap-3 relative">
+                {i < entries.length - 1 && (
+                  <div className="absolute left-[15px] top-[32px] bottom-0 w-px bg-gray-200" />
+                )}
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${colors.bg} ring-2 ${colors.ring} relative z-10`}>
+                  <Icon className={`h-3.5 w-3.5 ${colors.text}`} />
+                </div>
+                <div className="flex-1 pb-4 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-gray-900 truncate">{entry.type}</p>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Badge className={
+                        entry.status === 'Active'
+                          ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]'
+                          : entry.status === 'Just Added'
+                            ? 'bg-sky-100 text-sky-700 border-sky-200 text-[10px]'
+                            : 'bg-gray-100 text-gray-500 border-gray-200 text-[10px]'
+                      }>
+                        {entry.status}
+                      </Badge>
+                      <span className="text-xs text-gray-400 font-mono">{entry.timestamp}</span>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{entry.desc}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Add Log Entry</DialogTitle>
+            <DialogDescription>Record a new shift activity</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Activity Type</Label>
+              <Select value={newType} onValueChange={setNewType}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select activity type" />
+                </SelectTrigger>
+                <SelectContent>
+                  {activityTypeOptions.map((t) => (
+                    <SelectItem key={t} value={t}>{t}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Notes</Label>
+              <Textarea
+                value={newNotes}
+                onChange={(e) => setNewNotes(e.target.value)}
+                placeholder="Describe the activity..."
+                rows={3}
+                className="resize-none"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button
+              className="bg-emerald-600 text-white hover:bg-emerald-700"
+              onClick={handleAddEntry}
+              disabled={!newType || !newNotes}
+            >
+              Add Entry
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Daily Weather Widget ────────────────────────────
+
+function DailyWeatherWidget({ crewName }: { crewName: string }) {
+  const weatherData = useMemo(() => {
+    const cities = ['Bangalore', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Kolkata', 'Pune'];
+    const cityIdx = simpleHash(crewName) % cities.length;
+    const city = cities[cityIdx];
+
+    const conditions = [
+      { type: 'Sunny', iconName: 'sun', tempRange: [30, 38] as const, humidityRange: [25, 45] as const, windRange: [8, 20] as const, roadLabel: 'Good' as const, advisory: 'Clear conditions - normal operations' },
+      { type: 'Cloudy', iconName: 'cloud', tempRange: [24, 32] as const, humidityRange: [50, 70] as const, windRange: [12, 25] as const, roadLabel: 'Fair' as const, advisory: 'Overcast skies - maintain normal speed' },
+      { type: 'Rainy', iconName: 'rain', tempRange: [22, 28] as const, humidityRange: [75, 95] as const, windRange: [15, 35] as const, roadLabel: 'Poor' as const, advisory: 'Heavy rain - drive carefully, reduce speed' },
+    ];
+    const condIdx = getSeededValue(crewName + 'weather', 0, 2);
+    const cond = conditions[condIdx];
+
+    const temp = cond.tempRange[0] + getSeededValue(crewName + 'temp', 0, cond.tempRange[1] - cond.tempRange[0]);
+    const humidity = cond.humidityRange[0] + getSeededValue(crewName + 'hum', 0, cond.humidityRange[1] - cond.humidityRange[0]);
+    const wind = cond.windRange[0] + getSeededValue(crewName + 'wind', 0, cond.windRange[1] - cond.windRange[0]);
+    const roadPct = cond.roadLabel === 'Good'
+      ? 75 + getSeededValue(crewName + 'road', 0, 20)
+      : cond.roadLabel === 'Fair'
+        ? 45 + getSeededValue(crewName + 'road2', 0, 25)
+        : 15 + getSeededValue(crewName + 'road3', 0, 25);
+
+    return { city, type: cond.type, iconName: cond.iconName, temp, humidity, wind, roadLabel: cond.roadLabel, advisory: cond.advisory, roadPct };
+  }, [crewName]);
+
+  const roadColor = weatherData.roadLabel === 'Good' ? 'bg-emerald-500' : weatherData.roadLabel === 'Fair' ? 'bg-amber-500' : 'bg-red-500';
+
+  const weatherIconEl = weatherData.iconName === 'sun'
+    ? <Sun className="h-10 w-10 text-amber-500" />
+    : weatherData.iconName === 'rain'
+      ? <CloudRain className="h-10 w-10 text-sky-500" />
+      : <Cloud className="h-10 w-10 text-gray-400" />;
+
+  return (
+    <Card className="transit-card rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Cloud className="h-5 w-5 text-sky-500" />
+          Today&apos;s Weather
+        </CardTitle>
+        <CardDescription>{weatherData.city}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-center gap-3">
+            {weatherIconEl}
+            <div>
+              <p className="text-3xl font-bold text-gray-900">{weatherData.temp}°C</p>
+              <p className="text-sm text-gray-500">{weatherData.type}</p>
+            </div>
+          </div>
+          <div className="text-right space-y-1.5">
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 justify-end">
+              <Droplets className="h-3.5 w-3.5 text-sky-400" />
+              <span>{weatherData.humidity}% humidity</span>
+            </div>
+            <div className="flex items-center gap-1.5 text-sm text-gray-600 justify-end">
+              <Wind className="h-3.5 w-3.5 text-gray-400" />
+              <span>{weatherData.wind} km/h wind</span>
+            </div>
+          </div>
+        </div>
+        <div className="mt-4 pt-3 border-t border-gray-100">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-500">Road Condition</span>
+            <Badge className={
+              weatherData.roadLabel === 'Good'
+                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+                : weatherData.roadLabel === 'Fair'
+                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                  : 'bg-red-100 text-red-700 border-red-200'
+            }>
+              {weatherData.roadLabel}
+            </Badge>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className={`h-full rounded-full transition-all ${roadColor}`} style={{ width: `${weatherData.roadPct}%` }} />
+          </div>
+        </div>
+        <div className={`mt-3 flex items-start gap-2 rounded-lg px-3 py-2 text-xs ${
+          weatherData.roadLabel === 'Good'
+            ? 'bg-emerald-50 text-emerald-700'
+            : weatherData.roadLabel === 'Fair'
+              ? 'bg-amber-50 text-amber-700'
+              : 'bg-red-50 text-red-700'
+        }`}>
+          <Navigation className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          <span className="font-medium">{weatherData.advisory}</span>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Performance Scorecard ────────────────────────────
+
+function PerformanceScorecard({ crewName }: { crewName: string }) {
+  const data = useMemo(() => {
+    const overallScore = 55 + getSeededValue(crewName + 'overall', 0, 40);
+    const safety = 60 + getSeededValue(crewName + 'safety', 0, 38);
+    const punctuality = 55 + getSeededValue(crewName + 'punct', 0, 42);
+    const passengerRating = 50 + getSeededValue(crewName + 'paxr', 0, 48);
+    const fuelEfficiency = 55 + getSeededValue(crewName + 'feff', 0, 43);
+    const rank = 1 + getSeededValue(crewName + 'rank', 0, 103);
+    const totalCrew = 104;
+    const thisMonthScore = overallScore;
+    const lastMonthScore = overallScore + (simpleHash(crewName + 'lm') % 15) - 7;
+    const diff = thisMonthScore - lastMonthScore;
+    return { overallScore, safety, punctuality, passengerRating, fuelEfficiency, rank, totalCrew, thisMonthScore, lastMonthScore, diff };
+  }, [crewName]);
+
+  const metrics = [
+    { label: 'Safety Score', value: data.safety },
+    { label: 'Punctuality', value: data.punctuality },
+    { label: 'Passenger Rating', value: data.passengerRating },
+    { label: 'Fuel Efficiency', value: data.fuelEfficiency },
+  ];
+
+  const getBarColor = (v: number) => v >= 80 ? 'bg-emerald-500' : v >= 60 ? 'bg-amber-500' : 'bg-red-500';
+  const getBarBg = (v: number) => v >= 80 ? 'bg-emerald-100' : v >= 60 ? 'bg-amber-100' : 'bg-red-100';
+  const getTextColor = (v: number) => v >= 80 ? 'text-emerald-600' : v >= 60 ? 'text-amber-600' : 'text-red-600';
+
+  const radius = 54;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (data.overallScore / 100) * circumference;
+  const scoreColor = data.overallScore >= 80 ? '#10b981' : data.overallScore >= 60 ? '#f59e0b' : '#ef4444';
+  const scoreBg = data.overallScore >= 80 ? '#d1fae5' : data.overallScore >= 60 ? '#fef3c7' : '#fee2e2';
+
+  return (
+    <Card className="transit-card rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-amber-500" />
+              Performance Scorecard
+            </CardTitle>
+            <CardDescription>Your monthly performance metrics</CardDescription>
+          </div>
+          <Badge className="bg-gradient-to-r from-amber-100 to-amber-50 text-amber-700 border-amber-200 text-xs font-bold">
+            #{data.rank} of {data.totalCrew}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-center justify-between gap-6 mb-5">
+          <div className="relative shrink-0">
+            <svg width="120" height="120" className="-rotate-90">
+              <circle cx="60" cy="60" r={radius} fill="none" strokeWidth="10" stroke={scoreBg} />
+              <circle
+                cx="60" cy="60" r={radius} fill="none" strokeWidth="10"
+                strokeLinecap="round" stroke={scoreColor}
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                style={{ transition: 'stroke-dashoffset 1s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-bold text-gray-900">{data.overallScore}</span>
+              <span className="text-[10px] text-gray-400">Overall</span>
+            </div>
+          </div>
+          <div className="flex-1 space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">This Month</p>
+                <p className="text-lg font-bold text-gray-900">{data.thisMonthScore}</p>
+              </div>
+              <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${data.diff >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                {data.diff >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+                {Math.abs(data.diff)}
+              </div>
+            </div>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-gray-500">Last Month</p>
+                <p className="text-lg font-bold text-gray-400">{data.lastMonthScore}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="space-y-3">
+          {metrics.map((m) => (
+            <div key={m.label}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-medium text-gray-600">{m.label}</span>
+                <span className={`text-xs font-bold ${getTextColor(m.value)}`}>{m.value}%</span>
+              </div>
+              <div className={`h-2 rounded-full overflow-hidden ${getBarBg(m.value)}`}>
+                <div className={`h-full rounded-full transition-all duration-500 ${getBarColor(m.value)}`} style={{ width: `${m.value}%` }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── Quick Actions ────────────────────────────
+
 function QuickActions() {
   const actions = [
     {
@@ -1508,6 +1894,9 @@ function DashboardPage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Today's Weather Widget */}
+      <DailyWeatherWidget crewName={crewProfile?.profile?.name || ''} />
 
       {/* Today's Route Preview */}
       {todayAssignments.length > 0 && (
@@ -2030,6 +2419,9 @@ function AssignmentsPage({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Shift Logbook */}
+      <ShiftLogbook crewName={crewProfile?.profile?.name || ''} />
     </div>
   );
 }
@@ -2878,6 +3270,9 @@ function ProfilePage({
           </CardContent>
         </Card>
       </div>
+
+      {/* Performance Scorecard */}
+      <PerformanceScorecard crewName={crewProfile.profile?.name || ''} />
 
       {/* Earnings Tracker */}
       <EarningsTracker crewName={crewProfile.profile?.name || ''} />
