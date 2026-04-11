@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Card,
   CardContent,
@@ -57,6 +57,15 @@ import {
   DollarSign,
   Award,
   X,
+  Pause,
+  RotateCcw,
+  Users,
+  Navigation,
+  MessageSquare,
+  Flame,
+  Zap,
+  Fuel,
+  CircleDot,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -268,6 +277,712 @@ function getBarColor(hours: number): string {
   if (hours <= 8) return 'bg-emerald-500';
   if (hours <= 9) return 'bg-amber-500';
   return 'bg-red-500';
+}
+
+// ──────────────────────────── New Feature: Seed-based Data Helpers ────────────────────────────
+
+function getSeededValue(seed: string, min: number, max: number): number {
+  const h = simpleHash(seed);
+  return min + (h % (max - min + 1));
+}
+
+function getMonthlyEarnings(name: string): { month: string; amount: number }[] {
+  const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+  return months.map((m, i) => ({
+    month: m,
+    amount: 18000 + getSeededValue(name + m, 2000, 12000),
+  }));
+}
+
+function getStopsForRoute(seed: string): { name: string; isCurrent: boolean; passed: boolean }[] {
+  const allStops = [
+    'Majestic Bus Stand', 'Indiranagar', 'Koramangala', 'HSR Layout',
+    'Silk Board', 'Electronic City', 'Hebbal', 'Whitefield',
+    'Marathahalli', 'KR Puram',
+  ];
+  const count = 5 + (simpleHash(seed) % 4); // 5-8 stops
+  const currentIdx = 2 + (simpleHash(seed + 'curr') % (count - 3)); // 2 to count-2
+  return allStops.slice(0, count).map((name, i) => ({
+    name,
+    isCurrent: i === currentIdx,
+    passed: i < currentIdx,
+  }));
+}
+
+function getTripPerformanceData(seed: string): { route: string; scheduled: string; actual: string; status: 'early' | 'ontime' | 'late' }[] {
+  const routes = ['R201', 'R315', 'R402', 'R128', 'R507'];
+  const statuses: ('early' | 'ontime' | 'late')[] = ['early', 'ontime', 'ontime', 'late', 'ontime'];
+  return routes.map((r, i) => {
+    const h = getSeededValue(seed + r, 0, 10);
+    const minOff = h <= 2 ? -(5 + h) : h <= 8 ? 0 : h - 2;
+    const scheduled = `${8 + i}:${String(15 + i * 7).padStart(2, '0')} ${i < 3 ? 'AM' : 'PM'}`;
+    const parts = scheduled.split(':');
+    let hr = parseInt(parts[0]);
+    let mn = parseInt(parts[1].split(' ')[0]);
+    const period = parts[1].split(' ')[1];
+    mn += minOff;
+    if (mn < 0) { mn += 60; hr -= 1; }
+    if (mn >= 60) { mn -= 60; hr += 1; }
+    const actual = `${hr}:${String(mn).padStart(2, '0')} ${period}`;
+    const status = minOff < -2 ? 'early' : minOff > 3 ? 'late' : 'ontime';
+    return { route: r, scheduled, actual, status };
+  });
+}
+
+function getWeeklyOnTimeData(seed: string): { day: string; onTime: number; total: number }[] {
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  return days.map((d) => {
+    const total = 4 + (simpleHash(seed + d) % 5);
+    const onTime = 2 + (simpleHash(seed + d + 'ot') % (total - 1));
+    return { day: d, onTime, total };
+  });
+}
+
+// ──────────────────────────── New Feature: Digital Trip Manifest ────────────────────────────
+
+function DigitalTripManifest({ crewName, assignments }: { crewName: string; assignments: AssignmentData[] }) {
+  const todayStr = getTodayStr();
+  const todayAsgn = assignments.filter((a) => a.schedule.date === todayStr);
+  const trip = todayAsgn.length > 0 ? todayAsgn[0] : null;
+
+  const routeNumber = trip?.schedule.route?.routeNumber || `R${100 + getSeededValue(crewName, 1, 400)}`;
+  const departureTime = trip?.schedule.departureTime || `${8 + (getSeededValue(crewName + 'dep', 0, 2))}:${String(getSeededValue(crewName + 'dep2', 0, 59)).padStart(2, '0')}`;
+  const busReg = trip?.schedule.route?.busRegistration || `KA-${String(getSeededValue(crewName + 'bus', 1, 99)).padStart(2, '0')}-F-${String(getSeededValue(crewName + 'bus2', 1000, 9999))}`;
+  const totalPassengers = 30 + getSeededValue(crewName + 'pax', 0, 25);
+  const busCapacity = 55;
+  const occupancyPct = Math.round((totalPassengers / busCapacity) * 100);
+  const stops = getStopsForRoute(crewName + routeNumber);
+  const currentStop = stops.find((s) => s.isCurrent);
+  const nextStop = stops.find((s) => !s.passed && !s.isCurrent);
+  const progressPct = stops.length > 1 ? Math.round((stops.filter((s) => s.passed).length / (stops.length - 1)) * 100) : 0;
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white overflow-hidden">
+      <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 px-5 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Bus className="h-4 w-4 text-white/80" />
+            <span className="text-xs font-semibold text-white/80 uppercase tracking-wider">Digital Trip Manifest</span>
+          </div>
+          <span className="text-xs text-white/70">{formatDate(todayStr)}</span>
+        </div>
+      </div>
+      <CardContent className="p-0">
+        {/* Route & Time Row */}
+        <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-dashed border-gray-200">
+          <div>
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Route Number</p>
+            <p className="text-lg font-bold text-emerald-700">{routeNumber}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Departure</p>
+            <p className="text-lg font-bold text-gray-900">{departureTime}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Bus Reg</p>
+            <p className="text-lg font-bold text-gray-900">{busReg}</p>
+          </div>
+        </div>
+
+        {/* Passengers Progress Bar */}
+        <div className="px-5 py-3 border-b border-dashed border-gray-200">
+          <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <Users className="h-3.5 w-3.5 text-gray-400" />
+              <span className="text-xs font-medium text-gray-600">Passengers</span>
+            </div>
+            <span className="text-xs font-bold text-gray-900">{totalPassengers}/{busCapacity} <span className="text-gray-400 font-normal">({occupancyPct}%)</span></span>
+          </div>
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${occupancyPct > 85 ? 'bg-red-500' : occupancyPct > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`}
+              style={{ width: `${occupancyPct}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Route Progress */}
+        <div className="px-5 py-3 border-b border-dashed border-gray-200">
+          <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Route Progress</p>
+          <div className="flex items-center gap-1 w-full overflow-hidden">
+            {stops.map((stop, i) => (
+              <React.Fragment key={stop.name}>
+                <div className="flex flex-col items-center shrink-0" style={{ width: '14px' }}>
+                  <div className={`h-3 w-3 rounded-full border-2 transition-all ${
+                    stop.isCurrent
+                      ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200'
+                      : stop.passed
+                        ? 'bg-emerald-400 border-emerald-300'
+                        : 'bg-gray-100 border-gray-200'
+                  }`} />
+                  <span className="mt-1 text-[8px] text-gray-400 leading-tight truncate max-w-[32px]">{stop.name.split(' ')[0]}</span>
+                </div>
+                {i < stops.length - 1 && (
+                  <div className="flex-1 min-w-[8px]">
+                    <div className="h-0.5 w-full bg-gray-100 relative">
+                      <div
+                        className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-700 ${stop.passed ? 'w-full' : 'w-0'}`}
+                      />
+                    </div>
+                  </div>
+                )}
+              </React.Fragment>
+            ))}
+          </div>
+          <div className="mt-2 flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <Navigation className="h-3 w-3 text-emerald-500" />
+              <span className="text-xs font-semibold text-emerald-700">Current: {currentStop?.name || '—'}</span>
+            </div>
+            <span className="text-xs text-gray-400">{progressPct}% complete</span>
+          </div>
+        </div>
+
+        {/* Next Stop */}
+        <div className="px-5 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50">
+                <MapPin className="h-4 w-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider">Next Stop</p>
+                <p className="text-sm font-semibold text-gray-900">{nextStop?.name || '—'}</p>
+              </div>
+            </div>
+            <span className="text-xs text-gray-400">~{2 + (simpleHash(crewName + 'eta') % 6)} min</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Shift Timer ────────────────────────────
+
+function ShiftTimer() {
+  const [shiftState, setShiftState] = useState<'idle' | 'running' | 'paused'>('idle');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const totalShiftHours = 8;
+  const totalShiftSeconds = totalShiftHours * 3600;
+
+  useEffect(() => {
+    if (shiftState === 'running') {
+      intervalRef.current = setInterval(() => {
+        setElapsedSeconds((prev) => prev + 1);
+      }, 1000);
+    }
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+    };
+  }, [shiftState]);
+
+  const handleStart = () => {
+    if (shiftState === 'idle') {
+      setElapsedSeconds(0);
+    }
+    setShiftState('running');
+    toast({ title: 'Shift Started', description: 'Your shift timer is now running.' });
+  };
+
+  const handlePause = () => {
+    setShiftState('paused');
+    toast({ title: 'Shift Paused', description: 'Timer paused. Resume when ready.' });
+  };
+
+  const handleEnd = () => {
+    setShiftState('idle');
+    setElapsedSeconds(0);
+    toast({ title: 'Shift Ended', description: `Total time: ${formatShiftTime(elapsedSeconds)}` });
+  };
+
+  const formatShiftTime = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+  };
+
+  const progressPct = Math.min((elapsedSeconds / totalShiftSeconds) * 100, 100);
+  const color = elapsedSeconds < 6 * 3600 ? 'emerald' : elapsedSeconds < 8 * 3600 ? 'amber' : 'red';
+  const strokeColor = color === 'emerald' ? '#10b981' : color === 'amber' ? '#f59e0b' : '#ef4444';
+  const bgColor = color === 'emerald' ? '#d1fae5' : color === 'amber' ? '#fef3c7' : '#fee2e2';
+
+  const radius = 58;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (progressPct / 100) * circumference;
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-2">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Timer className="h-5 w-5 text-gray-500" />
+          Shift Timer
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center gap-4">
+          {/* Circular Progress */}
+          <div className="relative">
+            <svg width="140" height="140" className="-rotate-90">
+              <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="10" stroke={bgColor} />
+              <circle
+                cx="70" cy="70" r={radius} fill="none" strokeWidth="10"
+                strokeLinecap="round" stroke={strokeColor}
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                style={{ transition: 'stroke-dashoffset 1s ease, stroke 0.5s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-bold text-gray-900 font-mono">{formatShiftTime(elapsedSeconds)}</span>
+              <span className="text-[10px] text-gray-400">/ {totalShiftHours}h shift</span>
+            </div>
+          </div>
+
+          {/* Status badge */}
+          <div className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold ${
+            color === 'emerald' ? 'bg-emerald-50 text-emerald-700' : color === 'amber' ? 'bg-amber-50 text-amber-700' : 'bg-red-50 text-red-700'
+          }`}>
+            {shiftState === 'running' && <Zap className="h-3 w-3" />}
+            {shiftState === 'paused' && <Pause className="h-3 w-3" />}
+            {shiftState === 'idle' && <CircleDot className="h-3 w-3" />}
+            {shiftState === 'running' ? 'Active' : shiftState === 'paused' ? 'Paused' : 'Not Started'}
+          </div>
+
+          {/* Control Buttons */}
+          <div className="flex items-center gap-2">
+            {shiftState !== 'running' && (
+              <Button size="sm" className="gap-1 bg-emerald-600 text-white hover:bg-emerald-700 h-9 px-4" onClick={handleStart}>
+                <Play className="h-3.5 w-3.5" />
+                {shiftState === 'paused' ? 'Resume' : 'Start'}
+              </Button>
+            )}
+            {shiftState === 'running' && (
+              <Button size="sm" variant="outline" className="gap-1 border-amber-300 text-amber-700 hover:bg-amber-50 h-9 px-4" onClick={handlePause}>
+                <Pause className="h-3.5 w-3.5" />
+                Pause
+              </Button>
+            )}
+            {shiftState !== 'idle' && (
+              <Button size="sm" variant="outline" className="gap-1 border-red-300 text-red-600 hover:bg-red-50 h-9 px-4" onClick={handleEnd}>
+                <Square className="h-3.5 w-3.5" />
+                End
+              </Button>
+            )}
+            {shiftState === 'idle' && elapsedSeconds === 0 && (
+              <Button size="sm" variant="outline" className="gap-1 border-gray-300 text-gray-500 h-9 px-4" disabled>
+                <Square className="h-3.5 w-3.5" />
+                End
+              </Button>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Route Performance ────────────────────────────
+
+function RoutePerformance({ crewName }: { crewName: string }) {
+  const trips = useMemo(() => getTripPerformanceData(crewName), [crewName]);
+  const weeklyData = useMemo(() => getWeeklyOnTimeData(crewName), [crewName]);
+
+  const statusBadge = (status: string) => {
+    if (status === 'early') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 text-[10px]">Early</Badge>;
+    if (status === 'late') return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Late</Badge>;
+    return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">On Time</Badge>;
+  };
+
+  const maxTotal = Math.max(...weeklyData.map((d) => d.total));
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <TrendingUp className="h-5 w-5 text-gray-500" />
+          Route Performance
+        </CardTitle>
+        <CardDescription>Recent trip punctuality and weekly on-time rate</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-5 lg:grid-cols-2">
+          {/* Recent Trips Table */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Recent Trips</p>
+            <div className="space-y-2">
+              {trips.map((t) => (
+                <div key={t.route} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
+                  <div>
+                    <p className="text-sm font-semibold text-gray-900">{t.route}</p>
+                    <p className="text-[10px] text-gray-400">{t.scheduled} → {t.actual}</p>
+                  </div>
+                  {statusBadge(t.status)}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Weekly On-Time Bar Chart */}
+          <div>
+            <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Weekly On-Time Rate</p>
+            <div className="flex items-end gap-2 h-32">
+              {weeklyData.map((d) => {
+                const rate = d.total > 0 ? (d.onTime / d.total) * 100 : 0;
+                return (
+                  <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
+                    <span className="text-[10px] text-gray-400">{Math.round(rate)}%</span>
+                    <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '80px' }}>
+                      <div
+                        className={`absolute bottom-0 left-0 right-0 rounded-t-md transition-all ${
+                          rate >= 80 ? 'bg-emerald-500' : rate >= 60 ? 'bg-amber-400' : 'bg-red-400'
+                        }`}
+                        style={{ height: `${Math.max(rate, d.total > 0 ? 8 : 0)}%` }}
+                      />
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-500">{d.day}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Pre-Trip Checklist ────────────────────────────
+
+function PreTripChecklist({ crewName }: { crewName: string }) {
+  const initialItems = [
+    { id: 'vinsp', label: 'Vehicle inspection', icon: Shield, defaultChecked: getSeededValue(crewName + 'chk1', 0, 1) === 1 },
+    { id: 'fuel', label: 'Fuel level check', icon: Fuel, defaultChecked: getSeededValue(crewName + 'chk2', 0, 1) === 1 },
+    { id: 'tire', label: 'Tire condition', icon: CircleDot, defaultChecked: getSeededValue(crewName + 'chk3', 0, 1) === 1 },
+    { id: 'lights', label: 'Lights & signals', icon: Zap, defaultChecked: getSeededValue(crewName + 'chk4', 0, 1) === 1 },
+    { id: 'firstaid', label: 'First aid kit', icon: Award, defaultChecked: getSeededValue(crewName + 'chk5', 0, 1) === 1 },
+    { id: 'fireext', label: 'Fire extinguisher', icon: Flame, defaultChecked: getSeededValue(crewName + 'chk6', 0, 1) === 1 },
+    { id: 'tktmach', label: 'Ticket machine', icon: FileText, defaultChecked: getSeededValue(crewName + 'chk7', 0, 1) === 1 },
+  ];
+
+  const [items, setItems] = useState(initialItems);
+
+  const toggleItem = (id: string) => {
+    setItems((prev) =>
+      prev.map((item) =>
+        item.id === id ? { ...item, defaultChecked: !item.defaultChecked } : item
+      )
+    );
+  };
+
+  const completedCount = items.filter((i) => i.defaultChecked).length;
+  const totalCount = items.length;
+  const pct = Math.round((completedCount / totalCount) * 100);
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Pre-Trip Checklist
+            </CardTitle>
+            <CardDescription>Complete before starting your shift</CardDescription>
+          </div>
+          <div className="text-right">
+            <p className={`text-2xl font-bold ${pct === 100 ? 'text-emerald-600' : pct >= 50 ? 'text-amber-600' : 'text-gray-600'}`}>
+              {pct}%
+            </p>
+            <p className="text-[10px] text-gray-400">{completedCount}/{totalCount} items</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Progress bar */}
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-gray-400'}`}
+            style={{ width: `${pct}%` }}
+          />
+        </div>
+        <div className="space-y-2">
+          {items.map((item) => {
+            const Icon = item.icon;
+            return (
+              <button
+                key={item.id}
+                onClick={() => toggleItem(item.id)}
+                className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all duration-300 ${
+                  item.defaultChecked
+                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                    : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all duration-300 shrink-0 ${
+                  item.defaultChecked
+                    ? 'bg-emerald-500 border-emerald-500'
+                    : 'border-gray-300 bg-white'
+                }`}>
+                  {item.defaultChecked && (
+                    <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+                <Icon className={`h-4 w-4 shrink-0 transition-colors duration-300 ${
+                  item.defaultChecked ? 'text-emerald-600' : 'text-gray-400'
+                }`} />
+                <span className={`text-sm font-medium transition-colors duration-300 ${
+                  item.defaultChecked ? 'text-emerald-800' : 'text-gray-700'
+                }`}>
+                  {item.label}
+                </span>
+                {item.defaultChecked && (
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500 ml-auto shrink-0" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+        {pct === 100 && (
+          <div className="mt-4 flex items-center gap-2 rounded-lg bg-emerald-50 border border-emerald-200 px-3 py-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+            <span className="text-sm font-medium text-emerald-700">All checks completed! Ready to depart.</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Quick Communication ────────────────────────────
+
+function QuickCommunication() {
+  const messages = [
+    { label: 'Running 5 min late', icon: Clock, color: 'amber', desc: 'Notify dispatch about delay' },
+    { label: 'Arrived at stop', icon: MapPin, color: 'emerald', desc: 'Confirm arrival at current stop' },
+    { label: 'Emergency - need backup', icon: AlertCircle, color: 'red', desc: 'Request immediate assistance' },
+    { label: 'Break request', icon: Pause, color: 'violet', desc: 'Request a short break' },
+  ];
+
+  const colorMap: Record<string, { bg: string; iconBg: string; iconText: string; hover: string }> = {
+    amber: { bg: 'bg-amber-50 border-amber-100', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:bg-amber-100 hover:border-amber-200' },
+    emerald: { bg: 'bg-emerald-50 border-emerald-100', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:bg-emerald-100 hover:border-emerald-200' },
+    red: { bg: 'bg-red-50 border-red-100', iconBg: 'bg-red-100', iconText: 'text-red-600', hover: 'hover:bg-red-100 hover:border-red-200' },
+    violet: { bg: 'bg-violet-50 border-violet-100', iconBg: 'bg-violet-100', iconText: 'text-violet-600', hover: 'hover:bg-violet-100 hover:border-violet-200' },
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <MessageSquare className="h-5 w-5 text-gray-500" />
+          Quick Communication
+        </CardTitle>
+        <CardDescription>Send pre-built messages to dispatch</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {messages.map((msg) => {
+            const colors = colorMap[msg.color];
+            const Icon = msg.icon;
+            return (
+              <button
+                key={msg.label}
+                onClick={() => toast({ title: 'Message Sent', description: `"${msg.label}" sent to dispatch.`, })}
+                className={`flex items-center gap-3 rounded-lg border px-3 py-3 text-left transition-all ${colors.bg} ${colors.hover}`}
+              >
+                <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${colors.iconBg}`}>
+                  <Icon className={`h-4 w-4 ${colors.iconText}`} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-900 truncate">{msg.label}</p>
+                  <p className="text-[10px] text-gray-500 truncate">{msg.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Earnings Tracker ────────────────────────────
+
+function EarningsTracker({ crewName }: { crewName: string }) {
+  const earnings = useMemo(() => getMonthlyEarnings(crewName), [crewName]);
+  const thisMonth = earnings[earnings.length - 1];
+  const lastMonth = earnings[earnings.length - 2];
+  const ytdTotal = earnings.reduce((s, e) => s + e.amount, 0);
+  const avgMonthly = Math.round(ytdTotal / earnings.length);
+
+  // SVG Line Chart
+  const chartW = 500;
+  const chartH = 180;
+  const padL = 50;
+  const padR = 20;
+  const padT = 20;
+  const padB = 30;
+  const plotW = chartW - padL - padR;
+  const plotH = chartH - padT - padB;
+  const minVal = Math.min(...earnings.map((e) => e.amount)) * 0.85;
+  const maxVal = Math.max(...earnings.map((e) => e.amount)) * 1.05;
+
+  const getX = (i: number) => padL + (i / (earnings.length - 1)) * plotW;
+  const getY = (v: number) => padT + plotH - ((v - minVal) / (maxVal - minVal)) * plotH;
+
+  const linePath = earnings.map((e, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(e.amount)}`).join(' ');
+  const areaPath = linePath + ` L ${getX(earnings.length - 1)} ${padT + plotH} L ${padL} ${padT + plotH} Z`;
+  const gridLines = 4;
+  const gridValues = Array.from({ length: gridLines }, (_, i) => minVal + (i / (gridLines - 1)) * (maxVal - minVal));
+
+  const fmt = (n: number) => `₹${(n / 1000).toFixed(1)}k`;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: 'This Month', value: `₹${thisMonth.amount.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
+          { label: 'Last Month', value: `₹${lastMonth.amount.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
+          { label: 'YTD Total', value: `₹${ytdTotal.toLocaleString('en-IN')}`, icon: DollarSign, color: 'amber' },
+          { label: 'Avg Monthly', value: `₹${avgMonthly.toLocaleString('en-IN')}`, icon: Briefcase, color: 'rose' },
+        ].map((c) => {
+          const Icon = c.icon;
+          return (
+            <div key={c.label} className={`rounded-xl border p-3 bg-gradient-to-br from-${c.color}-50 to-white border-${c.color}-100`}>
+              <div className="flex items-center gap-1.5 mb-1">
+                <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
+                <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
+              </div>
+              <p className="text-lg font-bold text-gray-900">{c.value}</p>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* SVG Line Chart */}
+      <Card className="rounded-xl shadow-sm bg-white">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <DollarSign className="h-5 w-5 text-emerald-600" />
+            Monthly Earnings (Last 6 Months)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full">
+            <defs>
+              <linearGradient id="earnGrad" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+                <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+              </linearGradient>
+            </defs>
+            {/* Grid lines */}
+            {gridValues.map((v) => (
+              <g key={v}>
+                <line x1={padL} y1={getY(v)} x2={chartW - padR} y2={getY(v)} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="4 4" />
+                <text x={padL - 5} y={getY(v) + 3} textAnchor="end" className="fill-gray-400 text-[9px]">{fmt(v)}</text>
+              </g>
+            ))}
+            {/* Area fill */}
+            <path d={areaPath} fill="url(#earnGrad)" />
+            {/* Line */}
+            <path d={linePath} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+            {/* Dots and labels */}
+            {earnings.map((e, i) => (
+              <g key={e.month}>
+                <circle cx={getX(i)} cy={getY(e.amount)} r="4" fill="white" stroke="#10b981" strokeWidth="2" />
+                <text x={getX(i)} y={getY(e.amount) - 10} textAnchor="middle" className="fill-gray-600 text-[9px] font-semibold">{e.amount.toLocaleString('en-IN')}</text>
+                <text x={getX(i)} y={chartH - 8} textAnchor="middle" className="fill-gray-500 text-[10px] font-medium">{e.month}</text>
+              </g>
+            ))}
+          </svg>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ──────────────────────────── New Feature: Calendar Shift Summary ────────────────────────────
+
+function ShiftSummaryCard({ dateStr, assignments, crewName }: { dateStr: string; assignments: AssignmentData[]; crewName: string }) {
+  const dayAssignments = assignments.filter((a) => a.schedule.date === dateStr);
+  const seed = simpleHash(dateStr + crewName);
+
+  // Generate deterministic shift summary from assignments
+  const morningShift = dayAssignments.find((a) => {
+    const h = parseInt(a.schedule.departureTime.split(':')[0], 10);
+    return h < 13;
+  });
+  const eveningShift = dayAssignments.find((a) => {
+    const h = parseInt(a.schedule.departureTime.split(':')[0], 10);
+    return h >= 13;
+  });
+
+  const morningTime = morningShift?.schedule.departureTime || (seed % 3 === 0 ? `${6 + (seed % 3)}:${String(15 + (seed % 4) * 10).padStart(2, '0')}` : null);
+  const eveningTime = eveningShift?.schedule.departureTime || (seed % 2 === 0 ? `${(15 + (seed % 4))}:${String(15 + (seed % 4) * 10).padStart(2, '0')}` : null);
+  const morningRoute = morningShift?.schedule.route?.routeNumber || (morningTime ? `R${200 + (seed % 300)}` : null);
+  const eveningRoute = eveningShift?.schedule.route?.routeNumber || (eveningTime ? `R${100 + (seed % 200)}` : null);
+
+  // Calculate total hours deterministically
+  let totalHours = 0;
+  if (morningTime) totalHours += 4 + (seed % 3) * 0.5;
+  if (eveningTime) totalHours += 3 + (seed % 2) * 0.5;
+  const hasOvertime = totalHours > 8;
+
+  if (!morningTime && !eveningTime) return null;
+
+  return (
+    <div className={`rounded-lg border p-3 ${hasOvertime ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 bg-white'}`}>
+      <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">{formatDate(dateStr)}</p>
+      {morningTime && (
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-amber-100">
+            <Sun className="h-3 w-3 text-amber-600" />
+          </div>
+          <span className="text-xs text-gray-700">Morning: <span className="font-semibold">{morningTime}</span> — R{morningRoute?.replace('R', '') || '—'}</span>
+        </div>
+      )}
+      {eveningTime && (
+        <div className="flex items-center gap-2 mb-1.5">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+            <Moon className="h-3 w-3 text-violet-600" />
+          </div>
+          <span className="text-xs text-gray-700">Evening: <span className="font-semibold">{eveningTime}</span> — R{eveningRoute?.replace('R', '') || '—'}</span>
+        </div>
+      )}
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+        <span className="text-xs font-medium text-gray-600">Total: <span className="font-bold text-gray-900">{totalHours.toFixed(1)}h</span></span>
+        {hasOvertime && (
+          <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">
+            <Flame className="mr-0.5 h-2.5 w-2.5" />
+            Overtime
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Sun/Moon tiny icons (for shift summary)
+function Sun({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+    </svg>
+  );
+}
+
+function Moon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
+  );
 }
 
 // ──────────────────────────── Reusable Visual Components ────────────────────────────
@@ -948,6 +1663,17 @@ function DashboardPage({
         <QuickActions />
       </div>
 
+      {/* Digital Trip Manifest + Shift Timer grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <DigitalTripManifest crewName={crewProfile?.profile?.name || ''} assignments={assignments} />
+        <ShiftTimer />
+      </div>
+
+      {/* Route Performance */}
+      {crewProfile && (
+        <RoutePerformance crewName={crewProfile.profile?.name || ''} />
+      )}
+
       {/* Upcoming Assignments Timeline */}
       {upcomingAssignments.length > 0 && (
         <Card className="rounded-xl shadow-sm bg-white">
@@ -1149,6 +1875,12 @@ function AssignmentsPage({
         </div>
       </div>
 
+      {/* Pre-Trip Checklist + Quick Communication grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PreTripChecklist crewName={crewProfile?.profile?.name || ''} />
+        <QuickCommunication />
+      </div>
+
       <Tabs defaultValue="upcoming">
         <TabsList>
           <TabsTrigger value="upcoming">
@@ -1306,9 +2038,11 @@ function AssignmentsPage({
 
 function CalendarPage({
   assignments,
+  crewProfile,
   loading,
 }: {
   assignments: AssignmentData[];
+  crewProfile: CrewProfileData | null;
   loading: boolean;
 }) {
   const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
@@ -1486,10 +2220,13 @@ function CalendarPage({
             </div>
           </CardHeader>
           <CardContent>
+            {/* Shift Summary Card */}
+            <ShiftSummaryCard dateStr={selectedDate} assignments={assignments} crewName={crewProfile?.profile?.name || ''} />
+
             {selectedAssignments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-6 text-gray-400">
                 <CalendarIcon className="mb-2 h-8 w-8" />
-                <p className="text-sm">No assignments scheduled</p>
+                <p className="text-sm">No assignment details available</p>
               </div>
             ) : (
               <div className="space-y-3">
@@ -2142,6 +2879,9 @@ function ProfilePage({
         </Card>
       </div>
 
+      {/* Earnings Tracker */}
+      <EarningsTracker crewName={crewProfile.profile?.name || ''} />
+
       {/* Performance History (Last 7 Days) */}
       <Card className="rounded-xl shadow-sm bg-white">
         <CardHeader>
@@ -2453,6 +3193,7 @@ export default function CrewContent({ portal, userId, token }: Props) {
       return (
         <CalendarPage
           assignments={assignments}
+          crewProfile={crewProfile}
           loading={loading}
         />
       );

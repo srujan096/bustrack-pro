@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import { format, subDays } from 'date-fns';
@@ -40,6 +40,14 @@ import {
 } from '@/components/ui/table';
 import { toast } from '@/hooks/use-toast';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
   Wallet,
   Bus,
   CalendarClock,
@@ -70,6 +78,17 @@ import {
   Filter,
   ChevronDown,
   ChevronUp,
+  Compass,
+  MapPinned,
+  BusFront,
+  Hourglass,
+  UserPlus,
+  Armchair,
+  X,
+  Zap,
+  Gauge,
+  MapPinIcon,
+  Waypoints,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -499,7 +518,7 @@ function RouteDetailPanel({
   isBooking,
 }: {
   route: RouteResult;
-  onBook: () => void;
+  onBook: (seats?: string[]) => void;
   isBooking: boolean;
 }) {
   const stops = useMemo(() => {
@@ -611,6 +630,747 @@ function DashboardSkeleton() {
       </div>
       <Skeleton className="h-64 rounded-xl" />
     </div>
+  );
+}
+
+// ─── Animated Counter Hook ────────────────────────────────────────────────────
+
+function useAnimatedCounter(target: number, duration: number = 1500) {
+  const [count, setCount] = useState(0);
+  const rafRef = useRef<number>(0);
+  const startTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (target <= 0) {
+      // Reset via ref callback to avoid lint warning about setState in effect
+      const id = requestAnimationFrame(() => setCount(0));
+      return () => cancelAnimationFrame(id);
+    }
+    startTimeRef.current = performance.now();
+    const animate = (now: number) => {
+      const elapsed = now - startTimeRef.current;
+      const progress = Math.min(elapsed / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 3); // ease-out cubic
+      setCount(Math.round(eased * target));
+      if (progress < 1) {
+        rafRef.current = requestAnimationFrame(animate);
+      }
+    };
+    rafRef.current = requestAnimationFrame(animate);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [target, duration]);
+
+  return count;
+}
+
+// ─── Trip Planner ────────────────────────────────────────────────────────────
+
+function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
+  const [step, setStep] = useState(1);
+  const [origin, setOrigin] = useState('');
+  const [destination, setDestination] = useState('');
+  const [tripDate, setTripDate] = useState(getTodayString());
+  const [tripTime, setTripTime] = useState('09:00');
+  const [passengers, setPassengers] = useState(1);
+
+  const steps = [
+    { num: 1, label: 'Route' },
+    { num: 2, label: 'Details' },
+    { num: 3, label: 'Confirm' },
+  ];
+
+  const canProceedStep1 = origin.trim().length > 0 && destination.trim().length > 0 && origin !== destination;
+  const canProceedStep2 = tripDate && tripTime;
+
+  const handleFindRoutes = () => {
+    toast({
+      title: 'Finding Routes...',
+      description: `Searching for routes from ${origin} to ${destination} on ${tripDate}`,
+    });
+    onFindRoutes();
+  };
+
+  return (
+    <Card className="overflow-hidden border-primary/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <Compass className="size-5 text-primary" />
+          Trip Planner
+        </CardTitle>
+        <CardDescription>Plan your journey in 3 easy steps</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Step indicator */}
+        <div className="flex items-center gap-2">
+          {steps.map((s, i) => (
+            <React.Fragment key={s.num}>
+              <div className="flex items-center gap-2">
+                <div className={`flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold transition-colors ${
+                  step >= s.num ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {s.num}
+                </div>
+                <span className={`text-sm ${step >= s.num ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                  {s.label}
+                </span>
+              </div>
+              {i < steps.length - 1 && (
+                <div className={`h-0.5 flex-1 rounded-full transition-colors ${step > s.num ? 'bg-primary' : 'bg-muted'}`} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Step 1: Origin / Destination */}
+        {step === 1 && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <MapPinned className="size-3.5 text-emerald-500" /> Origin
+              </label>
+              <Input
+                placeholder="Enter origin city or stop"
+                value={origin}
+                onChange={e => setOrigin(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium flex items-center gap-1.5">
+                <MapPinned className="size-3.5 text-rose-500" /> Destination
+              </label>
+              <Input
+                placeholder="Enter destination city or stop"
+                value={destination}
+                onChange={e => setDestination(e.target.value)}
+              />
+            </div>
+            <Button
+              className="w-full"
+              disabled={!canProceedStep1}
+              onClick={() => setStep(2)}
+            >
+              Next <ArrowRight className="ml-1 size-4" />
+            </Button>
+          </div>
+        )}
+
+        {/* Step 2: Date / Time / Passengers */}
+        {step === 2 && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <CalendarClock className="size-3.5 text-sky-500" /> Date
+                </label>
+                <Input type="date" value={tripDate} onChange={e => setTripDate(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <Clock className="size-3.5 text-amber-500" /> Time
+                </label>
+                <Input type="time" value={tripTime} onChange={e => setTripTime(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium flex items-center gap-1.5">
+                  <UserPlus className="size-3.5 text-violet-500" /> Passengers
+                </label>
+                <Select value={String(passengers)} onValueChange={v => setPassengers(Number(v))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {[1, 2, 3, 4, 5, 6].map(n => (
+                      <SelectItem key={n} value={String(n)}>{n} {n === 1 ? 'Passenger' : 'Passengers'}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setStep(1)}>
+                Back
+              </Button>
+              <Button className="flex-1" disabled={!canProceedStep2} onClick={() => setStep(3)}>
+                Next <ArrowRight className="ml-1 size-4" />
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {/* Step 3: Route Suggestion with Visual */}
+        {step === 3 && (
+          <div className="space-y-4 animate-in fade-in duration-300">
+            {/* Visual route */}
+            <div className="rounded-xl border bg-muted/20 p-4">
+              <p className="mb-4 text-sm font-medium text-muted-foreground">Suggested Route</p>
+              <div className="flex items-center gap-2 overflow-x-auto pb-2">
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <div className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200" />
+                  <span className="text-xs font-medium max-w-[80px] text-center">{origin}</span>
+                </div>
+                <div className="flex items-center shrink-0">
+                  <div className="h-0.5 w-8 bg-emerald-400" />
+                  <div className="h-2 w-2 rounded-full bg-amber-400 ring-1 ring-amber-200 mx-1" />
+                  <div className="h-0.5 w-8 bg-amber-400" />
+                  <div className="h-2 w-2 rounded-full bg-amber-400 ring-1 ring-amber-200 mx-1" />
+                  <div className="h-0.5 w-8 bg-orange-400" />
+                  <div className="h-2 w-2 rounded-full bg-orange-400 ring-1 ring-orange-200 mx-1" />
+                  <div className="h-0.5 w-8 bg-red-400" />
+                </div>
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <div className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-rose-200" />
+                  <span className="text-xs font-medium max-w-[80px] text-center">{destination}</span>
+                </div>
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1"><CalendarClock className="size-3" />{tripDate}</span>
+                <span className="flex items-center gap-1"><Clock className="size-3" />{tripTime}</span>
+                <span className="flex items-center gap-1"><UserPlus className="size-3" />{passengers} {passengers === 1 ? 'Passenger' : 'Passengers'}</span>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setStep(2)}>
+                Back
+              </Button>
+              <Button className="flex-1" onClick={handleFindRoutes}>
+                <Search className="size-4" /> Find Routes
+              </Button>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Live Bus Tracker ────────────────────────────────────────────────────────
+
+function LiveBusTracker() {
+  const buses = useMemo(() => [
+    { number: 'KA-01-4521', route: 'Route 500', eta: 5, status: 'on-time', progress: 72, color: 'bg-emerald-500' },
+    { number: 'KA-01-7832', route: 'Route 215', eta: 8, status: 'delayed', progress: 45, color: 'bg-amber-500' },
+    { number: 'KA-03-1190', route: 'Route 335', eta: 2, status: 'boarding', progress: 90, color: 'bg-sky-500' },
+  ], []);
+
+  const statusLabel: Record<string, { text: string; cls: string; dotCls: string }> = {
+    'on-time': { text: 'On Time', cls: 'text-emerald-700 bg-emerald-100 border-emerald-200', dotCls: 'bg-emerald-500' },
+    'delayed': { text: 'Delayed', cls: 'text-amber-700 bg-amber-100 border-amber-200', dotCls: 'bg-amber-500' },
+    'boarding': { text: 'Boarding', cls: 'text-sky-700 bg-sky-100 border-sky-200', dotCls: 'bg-sky-500' },
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <BusFront className="size-5 text-primary" />
+          Live Bus Tracker
+          <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            Live
+          </span>
+        </CardTitle>
+        <CardDescription>Nearby buses on your frequent routes</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {buses.map((bus, i) => {
+          const s = statusLabel[bus.status] ?? statusLabel['on-time'];
+          return (
+            <div key={i} className="rounded-lg border p-3 transition-colors hover:bg-muted/30">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Bus className="size-4 text-muted-foreground" />
+                  <span className="text-sm font-mono font-semibold">{bus.number}</span>
+                </div>
+                <Badge variant="outline" className={`text-[10px] ${s.cls}`}>{s.text}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
+                <span>{bus.route}</span>
+                <span className="flex items-center gap-1">
+                  <Hourglass className="size-3" /> ETA {bus.eta} min
+                </span>
+              </div>
+              <div className="relative h-2 w-full rounded-full bg-muted">
+                <div
+                  className={`absolute left-0 top-0 h-2 rounded-full transition-all duration-1000 ${bus.color}`}
+                  style={{ width: `${bus.progress}%` }}
+                />
+                <div
+                  className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white shadow-sm transition-all duration-1000 ${bus.color}`}
+                  style={{ left: `calc(${bus.progress}% - 6px)` }}
+                />
+              </div>
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Upcoming Trip Countdown ────────────────────────────────────────────────
+
+function UpcomingTripCountdown({ journey }: { journey: Journey }) {
+  const [countdown, setCountdown] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+  const [mounted, setMounted] = useState(false);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    if (!mountedRef.current) {
+      mountedRef.current = true;
+      // Use timeout to avoid calling setState synchronously in effect
+      setTimeout(() => setMounted(true), 0);
+    }
+    function updateCountdown() {
+      const dateStr = journey.schedule?.date;
+      const timeStr = journey.schedule?.departureTime;
+      if (!dateStr || !timeStr) return;
+      const target = new Date(`${dateStr}T${timeStr}:00`);
+      const now = new Date();
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setCountdown({ days: 0, hours: 0, minutes: 0, seconds: 0 });
+        return;
+      }
+      setCountdown({
+        days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+        hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+        minutes: Math.floor((diff / (1000 * 60)) % 60),
+        seconds: Math.floor((diff / 1000) % 60),
+      });
+    }
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 1000);
+    return () => clearInterval(interval);
+  }, [journey]);
+
+  const pad = (n: number) => String(n).padStart(2, '0');
+
+  if (!mounted) {
+    return <Skeleton className="h-40 rounded-xl" />;
+  }
+
+  const timeBlocks = [
+    { value: countdown.days, label: 'Days' },
+    { value: countdown.hours, label: 'Hours' },
+    { value: countdown.minutes, label: 'Minutes' },
+    { value: countdown.seconds, label: 'Seconds' },
+  ];
+
+  return (
+    <Card className="overflow-hidden border-primary/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Hourglass className="size-5 text-amber-500" />
+          Upcoming Trip Countdown
+        </CardTitle>
+        <CardDescription>Your next booked journey</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Trip details */}
+        <div className="flex items-center gap-3 rounded-lg bg-muted/30 p-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+            <Bus className="size-5 text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold text-sm">{jRouteNumber(journey)}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {jStartLocation(journey)} → {jEndLocation(journey)}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-sm font-medium">{jDate(journey)}</p>
+            <p className="text-xs text-muted-foreground">{jTime(journey)}</p>
+          </div>
+        </div>
+
+        {/* Countdown timer */}
+        <div className="grid grid-cols-4 gap-2">
+          {timeBlocks.map((block) => (
+            <div key={block.label} className="flex flex-col items-center rounded-lg border bg-gradient-to-b from-muted/50 to-muted/20 p-2">
+              <span className="text-2xl font-bold tabular-nums tracking-tight">{pad(block.value)}</span>
+              <span className="text-[10px] text-muted-foreground uppercase tracking-wide">{block.label}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Seat Selection Dialog ───────────────────────────────────────────────────
+
+function SeatSelection({
+  route,
+  onConfirm,
+  onClose,
+}: {
+  route: RouteResult;
+  onConfirm: (seats: string[]) => void;
+  onClose: () => void;
+}) {
+  const rows = 10;
+  const cols = 4;
+  const letters = ['A', 'B', 'C', 'D'];
+
+  // Deterministic booked seats from route ID
+  const bookedSeats = useMemo(() => {
+    const booked = new Set<string>();
+    let hash = 0;
+    for (let i = 0; i < route.id.length; i++) {
+      hash = ((hash << 5) - hash + route.id.charCodeAt(i)) | 0;
+    }
+    const bookedCount = Math.abs(hash % 15) + 5; // 5-19 booked seats
+    for (let i = 0; i < bookedCount; i++) {
+      const seed = Math.abs((hash * (i + 7)) | 0);
+      const r = (seed % rows) + 1;
+      const c = Math.abs((seed >> 3) % cols);
+      booked.add(`${r}${letters[c]}`);
+    }
+    return booked;
+  }, [route.id]);
+
+  const [selectedSeats, setSelectedSeats] = useState<Set<string>>(new Set());
+
+  const toggleSeat = (seat: string) => {
+    if (bookedSeats.has(seat)) return;
+    setSelectedSeats(prev => {
+      const next = new Set(prev);
+      if (next.has(seat)) next.delete(seat);
+      else if (next.size < 6) next.add(seat);
+      else {
+        toast({ title: 'Maximum 6 seats', description: 'You can select up to 6 seats per booking.', variant: 'destructive' });
+      }
+      return next;
+    });
+  };
+
+  const seatPrice = route.fare ?? 0;
+  const totalPrice = seatPrice * selectedSeats.size;
+
+  const getSeatStyle = (seat: string) => {
+    if (bookedSeats.has(seat)) return 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50';
+    if (selectedSeats.has(seat)) return 'bg-emerald-500 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300';
+    return 'border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 cursor-pointer';
+  };
+
+  const grid = [];
+  for (let r = 1; r <= rows; r++) {
+ for (let c = 0; c < cols; c++) {
+   const seat = `${r}${letters[c]}`;
+   grid.push({ seat, row: r, col: c, label: seat });
+   }
+  }
+
+  return (
+    <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Armchair className="size-5 text-emerald-500" />
+            Select Your Seats
+          </DialogTitle>
+          <DialogDescription>
+            {route.routeNumber} — {route.startLocation} → {route.endLocation}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* Seat legend */}
+          <div className="flex items-center justify-center gap-4 text-xs">
+            <div className="flex items-center gap-1.5">
+              <div className="h-5 w-5 rounded border-2 border-emerald-400" />
+              <span className="text-muted-foreground">Available</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-5 w-5 rounded bg-gray-300" />
+              <span className="text-muted-foreground">Booked</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="h-5 w-5 rounded bg-emerald-500" />
+              <span className="text-muted-foreground">Selected</span>
+            </div>
+          </div>
+
+          {/* Seat grid */}
+          <div className="rounded-xl border bg-muted/20 p-3">
+            {/* Driver area */}
+            <div className="flex justify-center mb-3">
+              <div className="h-6 w-16 rounded-t-lg bg-muted-foreground/20 flex items-center justify-center text-[10px] text-muted-foreground">
+                Driver
+              </div>
+            </div>
+            {/* Seats */}
+            <div className="grid grid-cols-4 gap-1.5">
+              {grid.map(({ seat, col }) => {
+                // Add aisle gap after column 1 (B)
+                const isAisleAfter = col === 1;
+                return (
+                  <div
+                    key={seat}
+                    className={`relative flex items-center justify-center h-9 w-full rounded-md border-2 text-xs font-medium transition-all ${getSeatStyle(seat)} ${isAisleAfter ? 'mr-2' : ''}`}
+                    onClick={() => toggleSeat(seat)}
+                  >
+                    {seat}
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-2 flex justify-center gap-8 text-[10px] text-muted-foreground">
+              <span>A B</span>
+              <span>C D</span>
+            </div>
+          </div>
+
+          {/* Selection summary */}
+          <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Selected Seats</span>
+              <span className="font-medium">
+                {selectedSeats.size > 0 ? Array.from(selectedSeats).sort().join(', ') : 'None'}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-muted-foreground">Price per seat</span>
+              <span className="text-sm font-medium">{formatCurrency(seatPrice)}</span>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <span className="font-medium">Total</span>
+              <span className={`text-lg font-bold ${selectedSeats.size > 0 ? 'text-emerald-600' : 'text-muted-foreground'}`}>
+                {formatCurrency(totalPrice)}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+          <Button
+            disabled={selectedSeats.size === 0}
+            onClick={() => onConfirm(Array.from(selectedSeats))}
+          >
+            <CheckCircle2 className="size-4" />
+            Confirm {selectedSeats.size} Seat{selectedSeats.size !== 1 ? 's' : ''} — {formatCurrency(totalPrice)}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Travel Stats (Journey History) ──────────────────────────────────────────
+
+function TravelStats({ journeys, visible }: { journeys: Journey[]; visible: boolean }) {
+  const totalTrips = journeys.length;
+  const totalDist = journeys.reduce((s, j) => s + (jDistance(j) ?? 0), 0);
+  const totalSpent = journeys.reduce((s, j) => s + (j.cost ?? 0), 0);
+  const ratedJourneys = journeys.filter(j => (j.rating ?? 0) > 0);
+  const avgRating = ratedJourneys.length > 0
+    ? ratedJourneys.reduce((s, j) => s + (j.rating ?? 0), 0) / ratedJourneys.length
+    : 0;
+
+  const animatedTrips = useAnimatedCounter(visible ? totalTrips : 0, 1200);
+  const animatedDist = useAnimatedCounter(visible ? Math.round(totalDist) : 0, 1500);
+  const animatedSpent = useAnimatedCounter(visible ? Math.round(totalSpent) : 0, 1800);
+  const animatedRatingX10 = useAnimatedCounter(visible ? Math.round(avgRating * 10) : 0, 1400);
+
+  const statCards = [
+    { label: 'Total Trips', value: String(animatedTrips), icon: Bus, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
+    { label: 'Total Distance', value: `${animatedDist.toLocaleString()} km`, icon: Navigation, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
+    { label: 'Total Spent', value: `₹${animatedSpent.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
+    { label: 'Average Rating', value: `${(animatedRatingX10 / 10).toFixed(1)} / 5`, icon: Star, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
+  ];
+
+  return (
+    <Card className={`border-primary/10 ${visible ? '' : 'hidden'}`}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <Gauge className="size-5 text-primary" />
+          Travel Stats
+        </CardTitle>
+        <CardDescription>Your journey statistics at a glance</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {statCards.map((s) => (
+            <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} p-4 text-center transition-all hover:shadow-sm`}>
+              <s.icon className={`mx-auto mb-2 size-6 ${s.color}`} />
+              <p className={`text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Debounced Autocomplete Input ────────────────────────────────────────────
+
+function AutocompleteInput({
+  label,
+  placeholder,
+  allRoutes,
+  locations,
+  value,
+  onChange,
+}: {
+  label: string;
+  placeholder: string;
+  allRoutes: RouteResult[];
+  locations: string[];
+  value: string;
+  onChange: (val: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<{ type: 'route' | 'city'; text: string; sub: string }[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setQuery(value);
+  }, [value]);
+
+  const handleInputChange = useCallback((inputVal: string) => {
+    setQuery(inputVal);
+    onChange(inputVal);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (inputVal.trim().length === 0) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+
+    debounceRef.current = setTimeout(() => {
+      const q = inputVal.toLowerCase();
+      const results: { type: 'route' | 'city'; text: string; sub: string }[] = [];
+
+      // Match route numbers
+      const routeMatches = allRoutes.filter(r =>
+        r.routeNumber.toLowerCase().includes(q)
+      ).slice(0, 3);
+      for (const r of routeMatches) {
+        results.push({ type: 'route', text: r.routeNumber, sub: `${r.startLocation} → ${r.endLocation}` });
+      }
+
+      // Match location/city names
+      const cityMatches = locations.filter(l =>
+        l.toLowerCase().includes(q)
+      ).slice(0, 5);
+      for (const c of cityMatches) {
+        results.push({ type: 'city', text: c, sub: 'Location' });
+      }
+
+      setSuggestions(results);
+      setShowDropdown(results.length > 0);
+    }, 300);
+  }, [allRoutes, locations, onChange]);
+
+  return (
+    <div className="relative">
+      <label className="text-sm font-medium">{label}</label>
+      <Input
+        ref={inputRef}
+        placeholder={placeholder}
+        value={query}
+        onChange={e => handleInputChange(e.target.value)}
+        onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+      />
+      {showDropdown && suggestions.length > 0 && (
+        <div className="absolute z-50 top-full mt-1 w-full rounded-lg border bg-popover shadow-lg max-h-48 overflow-y-auto">
+          {suggestions.map((s, i) => (
+            <button
+              key={`${s.type}-${s.text}-${i}`}
+              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors"
+              onMouseDown={(e) => {
+                e.preventDefault();
+                const selectVal = s.type === 'city' ? s.text : s.text;
+                setQuery(selectVal);
+                onChange(selectVal);
+                setShowDropdown(false);
+              }}
+            >
+              {s.type === 'route' ? (
+                <Route className="size-3.5 shrink-0 text-muted-foreground" />
+              ) : (
+                <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <div className="flex-1 min-w-0">
+                <p className="font-medium truncate">{s.text}</p>
+                <p className="text-xs text-muted-foreground truncate">{s.sub}</p>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Map Route Comparison Panel ──────────────────────────────────────────────
+
+function MapRouteComparison({ routes, onClose }: { routes: RouteResult[]; onClose: () => void }) {
+  if (routes.length < 2) return null;
+
+  const metrics = [
+    { label: 'Distance', render: (r: RouteResult) => r.distanceKm ? `${r.distanceKm} km` : '—' },
+    { label: 'Duration', render: (r: RouteResult) => formatDuration(r.durationMin) },
+    { label: 'Fare', render: (r: RouteResult) => formatCurrency(r.fare), highlight: (rs: RouteResult[]) => {
+      const fares = rs.map(rt => rt.fare ?? 0).filter(f => f > 0);
+      return fares.length > 0;
+    }},
+    { label: 'Stops', render: (r: RouteResult) => String(r.stopsCount ?? '—') },
+    { label: 'Rating', render: (_r: RouteResult, i: number) => {
+      const ratings = [4.2, 3.8, 4.5]; // deterministic
+      return `${ratings[i % ratings.length]} ★`;
+    }},
+  ];
+
+  return (
+    <Card className="border-primary/30 shadow-lg">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <GitCompareArrows className="size-4 text-primary" />
+            Route Comparison
+          </CardTitle>
+          <Button variant="ghost" size="sm" className="h-7 w-7 p-0" onClick={onClose}>
+            <X className="size-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Compact grid layout */}
+        <div className="space-y-2">
+          {/* Route headers */}
+          <div className="grid gap-2" style={{ gridTemplateColumns: `100px repeat(${routes.length}, 1fr)` }}>
+            <div className="text-xs text-muted-foreground font-medium">Metric</div>
+            {routes.map(r => (
+              <div key={r.id} className="text-center">
+                <Badge variant="outline" className="font-mono text-[10px]">{r.routeNumber}</Badge>
+              </div>
+            ))}
+          </div>
+
+          {/* Metric rows */}
+          {metrics.map(m => (
+            <div key={m.label} className="grid gap-2 rounded-lg bg-muted/20 p-2" style={{ gridTemplateColumns: `100px repeat(${routes.length}, 1fr)` }}>
+              <div className="flex items-center text-xs font-medium text-muted-foreground">{m.label}</div>
+              {routes.map((r, i) => (
+                <div key={r.id} className="text-center text-sm font-medium">
+                  {m.render(r, i)}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -758,6 +1518,20 @@ function Dashboard({
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      {/* Trip Planner */}
+      <TripPlanner onFindRoutes={() => setPortal('search')} />
+
+      {/* Trip Countdown + Live Bus Tracker */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        {/* Upcoming Trip Countdown */}
+        {recentJourneys.length > 0 && (
+          <UpcomingTripCountdown journey={recentJourneys[0]} />
+        )}
+
+        {/* Live Bus Tracker */}
+        <LiveBusTracker />
       </div>
 
       {/* Spending Overview Donut Chart */}
@@ -1078,6 +1852,7 @@ function SearchRoutes({
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [hasSearched, setHasSearched] = useState(false);
   const [expandedRouteId, setExpandedRouteId] = useState<string | null>(null);
+  const [seatSelectionRoute, setSeatSelectionRoute] = useState<RouteResult | null>(null);
 
   // Load locations and all routes for popular section
   useEffect(() => {
@@ -1128,7 +1903,7 @@ function SearchRoutes({
     }
   }, [startLocation, endLocation, city]);
 
-  const handleBook = useCallback(async (route: RouteResult) => {
+  const handleBook = useCallback(async (route: RouteResult, seats?: string[]) => {
     try {
       setBookingId(route.id);
       const scheduleRes = await fetch(`/api/schedules?routeId=${route.id}&date=${date}`);
@@ -1155,9 +1930,12 @@ function SearchRoutes({
       if (!bookRes.ok) throw new Error('Booking failed');
       toast({
         title: 'Booking Confirmed!',
-        description: `Successfully booked route ${route.routeNumber}. Happy journey!`,
+        description: seats && seats.length > 0
+          ? `Booked route ${route.routeNumber} with seats ${seats.join(', ')}. Happy journey!`
+          : `Successfully booked route ${route.routeNumber}. Happy journey!`,
       });
       setExpandedRouteId(null);
+      setSeatSelectionRoute(null);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Booking failed');
     } finally {
@@ -1221,31 +1999,25 @@ function SearchRoutes({
             <div className="rounded-xl border bg-muted/30 p-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">From</label>
-                  <Select value={startLocation} onValueChange={setStartLocation}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Start location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map(loc => (
-                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteInput
+                    label="From"
+                    placeholder="Start location or route..."
+                    allRoutes={allRoutes}
+                    locations={locations}
+                    value={startLocation}
+                    onChange={setStartLocation}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">To</label>
-                  <Select value={endLocation} onValueChange={setEndLocation}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="End location" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {locations.map(loc => (
-                        <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <AutocompleteInput
+                    label="To"
+                    placeholder="End location or route..."
+                    allRoutes={allRoutes}
+                    locations={locations}
+                    value={endLocation}
+                    onChange={setEndLocation}
+                  />
                 </div>
 
                 <div className="space-y-1.5">
@@ -1458,7 +2230,7 @@ function SearchRoutes({
                               <Button
                                 size="sm"
                                 disabled={bookingId === route.id}
-                                onClick={() => handleBook(route)}
+                                onClick={() => setSeatSelectionRoute(route)}
                               >
                                 {bookingId === route.id ? (
                                   <Loader2 className="size-3 animate-spin" />
@@ -1490,7 +2262,13 @@ function SearchRoutes({
                       <div className="mt-2">
                         <RouteDetailPanel
                           route={route}
-                          onBook={() => handleBook(route)}
+                          onBook={(seats) => {
+                            if (seats && seats.length > 0) {
+                              handleBook(route, seats);
+                            } else {
+                              setSeatSelectionRoute(route);
+                            }
+                          }}
                           isBooking={bookingId === route.id}
                         />
                       </div>
@@ -1513,6 +2291,15 @@ function SearchRoutes({
           </CardContent>
         </Card>
       )}
+
+      {/* Seat Selection Dialog */}
+      {seatSelectionRoute && (
+        <SeatSelection
+          route={seatSelectionRoute}
+          onConfirm={(seats) => handleBook(seatSelectionRoute, seats)}
+          onClose={() => setSeatSelectionRoute(null)}
+        />
+      )}
     </div>
   );
 }
@@ -1531,6 +2318,7 @@ function RouteMapView() {
   const [stops, setStops] = useState<{ name: string; lat: number; lng: number }[]>([]);
   const [mapReady, setMapReady] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set());
+  const [compareRouteIds, setCompareRouteIds] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     async function fetchRoutes() {
@@ -1644,6 +2432,19 @@ function RouteMapView() {
     return [[minLat, minLng], [maxLat, maxLng]];
   }, [stops]);
 
+  const toggleCompareRoute = useCallback((routeId: string) => {
+    setCompareRouteIds(prev => {
+      const next = new Set(prev);
+      if (next.has(routeId)) next.delete(routeId);
+      else if (next.size < 3) next.add(routeId);
+      return next;
+    });
+  }, []);
+
+  const comparedRoutes = useMemo(() => {
+    return routes.filter(r => compareRouteIds.has(r.id));
+  }, [routes, compareRouteIds]);
+
   const greenIcon = L.divIcon({
     className: '',
     html: `<div style="background:#22c55e;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
@@ -1727,6 +2528,16 @@ function RouteMapView() {
             >
               <Heart className={`size-4 ${favs.has(selectedRoute.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
               <span className="ml-1 hidden sm:inline">{favs.has(selectedRoute.id) ? 'Unfavorite' : 'Favorite'}</span>
+            </Button>
+          )}
+          {selectedRoute && (
+            <Button
+              variant={compareRouteIds.has(selectedRoute.id) ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => toggleCompareRoute(selectedRoute.id)}
+            >
+              <GitCompareArrows className="size-3.5" />
+              <span className="ml-1 hidden sm:inline">{compareRouteIds.has(selectedRoute.id) ? 'Selected for Compare' : 'Compare'}</span>
             </Button>
           )}
         </CardContent>
@@ -1814,6 +2625,16 @@ function RouteMapView() {
                   />
                 )}
               </MapContainer>
+            )}
+
+            {/* Route Comparison Overlay */}
+            {comparedRoutes.length >= 2 && (
+              <div className="absolute bottom-4 left-4 right-4 z-[1001] max-w-lg mx-auto">
+                <MapRouteComparison
+                  routes={comparedRoutes}
+                  onClose={() => setCompareRouteIds(new Set())}
+                />
+              </div>
             )}
           </div>
         </CardContent>
@@ -2239,6 +3060,11 @@ function JourneyHistory({ userId }: { userId: string }) {
 
   return (
     <div className="space-y-4">
+      {/* Travel Stats */}
+      {!loading && journeys.length > 0 && (
+        <TravelStats journeys={journeys} visible={true} />
+      )}
+
       {/* Spending Summary Card */}
       {!loading && journeys.length > 0 && (
         <Card className="border-0 bg-gradient-to-r from-emerald-600 to-teal-600 text-white">

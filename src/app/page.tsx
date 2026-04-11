@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { UserProfile } from '@/types';
-import { Clock, Search, ArrowRight, CalendarDays, Route, Users } from 'lucide-react';
+import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon } from 'lucide-react';
+import { useTheme } from 'next-themes';
 
 // ============================================================
 // Bus SVG Icon Component
@@ -213,7 +214,7 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
           <div className="flex items-center justify-center gap-2">
             <h1 className="text-3xl font-bold text-white tracking-tight">BusTrack Pro</h1>
             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-              v2.0
+              v3.0
             </span>
           </div>
           <p className="text-slate-400 mt-2">Route &amp; Crew Management System</p>
@@ -784,7 +785,7 @@ export default function Home() {
           <div className="flex items-center gap-1.5">
             <span>&copy; 2025 BusTrack Pro</span>
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
-            <span>v2.0.0</span>
+            <span>v3.0.0</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="flex items-center gap-1.5">
@@ -813,6 +814,28 @@ export default function Home() {
         </div>
       </footer>
     </div>
+  );
+}
+
+// ============================================================
+// Theme Toggle Button
+// ============================================================
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme();
+
+  return (
+    <button
+      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+      className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 group"
+      aria-label="Toggle theme"
+      suppressHydrationWarning
+    >
+      {resolvedTheme === 'dark' ? (
+        <Sun className="w-5 h-5 text-amber-400 transition-transform duration-300 group-hover:rotate-45" />
+      ) : (
+        <Moon className="w-5 h-5 text-gray-600 transition-transform duration-300 group-hover:-rotate-12" />
+      )}
+    </button>
   );
 }
 
@@ -1107,6 +1130,7 @@ function AppShell({
             <LiveClock />
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             <NotificationBell userId={user.id} token={token} />
             <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
               {/* Online Status Indicator - pulsing green dot */}

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from 'react';
 import {
   Card,
   CardContent,
@@ -75,6 +75,8 @@ import {
   Trophy,
   Search,
   Inbox,
+  Fuel,
+  LayoutList,
 } from 'lucide-react';
 
 interface Props {
@@ -378,6 +380,231 @@ function WeeklyBarChart() {
         );
       })}
     </svg>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Quick Stats Ribbon                                                 */
+/* ------------------------------------------------------------------ */
+function QuickStatsRibbon() {
+  const pills = [
+    { label: 'Total Routes', value: '115', icon: Route, color: 'text-emerald-600' },
+    { label: 'Active Schedules', value: '64', icon: Calendar, color: 'text-amber-600' },
+    { label: 'Crew Available', value: '89', icon: Users, color: 'text-violet-600' },
+    { label: 'On-Time Rate', value: '94.2%', icon: TrendingUp, color: 'text-sky-600' },
+  ];
+  return (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {pills.map((p) => (
+        <div key={p.label} className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+          <p.icon className={`size-3.5 ${p.color}`} />
+          <span className="text-muted-foreground">{p.label}:</span>
+          <span className="font-semibold">{p.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live Fleet Tracker — SVG animated concentric routes                 */
+/* ------------------------------------------------------------------ */
+function LiveFleetTracker() {
+  const cx = 250, cy = 200;
+  const routes = [
+    { id: 'R-101', r: 50, color: '#10b981', status: 'on', buses: [{ dur: 25, off: 0 }, { dur: 32, off: 10 }] },
+    { id: 'R-215', r: 80, color: '#3b82f6', status: 'on', buses: [{ dur: 22, off: 0 }, { dur: 28, off: 6 }, { dur: 35, off: 14 }] },
+    { id: 'R-342', r: 110, color: '#f59e0b', status: 'delayed', buses: [{ dur: 30, off: 0 }] },
+    { id: 'R-418', r: 140, color: '#8b5cf6', status: 'on', buses: [{ dur: 20, off: 0 }, { dur: 27, off: 4 }] },
+    { id: 'R-523', r: 165, color: '#ef4444', status: 'delayed', buses: [{ dur: 28, off: 0 }] },
+    { id: 'R-607', r: 185, color: '#06b6d4', status: 'done', buses: [] },
+    { id: 'R-712', r: 205, color: '#ec4899', status: 'on', buses: [{ dur: 34, off: 0 }] },
+  ];
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Bus className="size-5" /> Live Fleet Tracker
+        </CardTitle>
+        <CardDescription>Real-time bus positions across active routes</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <svg viewBox="0 0 500 420" className="w-full h-auto">
+          <defs>
+            <radialGradient id="hubGlow"><stop offset="0%" stopColor="#10b981" stopOpacity="0.25" /><stop offset="100%" stopColor="#10b981" stopOpacity="0" /></radialGradient>
+            {routes.map((r) => (
+              <linearGradient key={`g${r.id}`} id={`g${r.id}`}><stop offset="0%" stopColor={r.color} /><stop offset="100%" stopColor={r.color} stopOpacity="0.15" /></linearGradient>
+            ))}
+          </defs>
+          <circle cx={cx} cy={cy} r="230" fill="url(#hubGlow)" />
+          {routes.map((r) => (
+            <circle key={r.id} cx={cx} cy={cy} r={r.r} fill="none" stroke={`url(#g${r.id})`} strokeWidth="1.5" strokeDasharray="6 3" opacity="0.5" />
+          ))}
+          <circle cx={cx} cy={cy} r="16" fill="#0f172a" stroke="#334155" strokeWidth="1" />
+          <circle cx={cx} cy={cy} r="6" fill="#10b981" opacity="0.9">
+            <animate attributeName="opacity" values="0.4;1;0.4" dur="2s" repeatCount="indefinite" />
+          </circle>
+          <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize="7" fontWeight="bold">HUB</text>
+          {routes.map((r) => r.buses.map((b, bi) => (
+            <g key={`${r.id}-${bi}`}>
+              <animateTransform attributeName="transform" type="rotate" from={`${b.off} ${cx} ${cy}`} to={`${360 + b.off} ${cx} ${cy}`} dur={`${b.dur}s`} repeatCount="indefinite" />
+              <circle cx={cx + r.r} cy={cy} r="5" fill={r.color} />
+              <circle cx={cx + r.r} cy={cy} r="10" fill={r.color} opacity="0.15">
+                <animate attributeName="r" values="8;13;8" dur="2s" repeatCount="indefinite" />
+                <animate attributeName="opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" />
+              </circle>
+            </g>
+          )))}
+          {routes.map((r, i) => {
+            const a = (i * 47) * Math.PI / 180;
+            return <text key={`l${r.id}`} x={cx + (r.r + 12) * Math.cos(a)} y={cy + (r.r + 12) * Math.sin(a)} fill="#94a3b8" fontSize="7" fontWeight="600">{r.id}</text>;
+          })}
+        </svg>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 mt-3 justify-center text-xs">
+          {[{ s: 'On Time', c: 'bg-emerald-500' }, { s: 'Delayed', c: 'bg-amber-500' }, { s: 'Completed', c: 'bg-sky-500' }].map((l) => (
+            <div key={l.s} className="flex items-center gap-1"><div className={`size-2 rounded-full ${l.c}`} /><span className="text-muted-foreground">{l.s}</span></div>
+          ))}
+          <span className="text-muted-foreground/30">|</span>
+          {routes.map((r) => (
+            <div key={r.id} className="flex items-center gap-1"><div className="size-2 rounded-full" style={{ backgroundColor: r.color }} /><span className="text-muted-foreground">{r.id}</span></div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Passenger Analytics — SVG area chart (24h timeline)                 */
+/* ------------------------------------------------------------------ */
+function PassengerAnalytics() {
+  const seed = 42;
+  const hourly = Array.from({ length: 24 }, (_, h) => {
+    let v = 12 + ((seed + h * 17) % 18);
+    if (h >= 7 && h <= 9) v += 50 - Math.abs(h - 8) * 18;
+    if (h >= 17 && h <= 19) v += 45 - Math.abs(h - 18) * 18;
+    if (h >= 22 || h <= 5) v = Math.max(3, v - 15);
+    return Math.round(Math.min(v, 100));
+  });
+  const maxV = Math.max(...hourly, 1);
+  const peakH = hourly.indexOf(Math.max(...hourly));
+  const avgL = Math.round(hourly.reduce((a, b) => a + b, 0) / 24);
+  const total = hourly.reduce((a, b) => a + b, 0);
+  const W = 600, H = 170, pL = 32, pR = 8, pT = 8, pB = 22;
+  const iW = W - pL - pR, iH = H - pT - pB, sX = iW / 23;
+  const pts = hourly.map((v, i) => ({ x: pL + i * sX, y: pT + iH - (v / maxV) * iH }));
+  const area = `M${pts[0].x},${pT + iH} ${pts.map((p) => `L${p.x},${p.y}`).join(' ')} L${pts[pts.length - 1].x},${pT + iH} Z`;
+  const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Users className="size-5" /> Passenger Analytics
+        </CardTitle>
+        <CardDescription>Hourly passenger flow — 24h timeline</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[{ l: 'Peak Hour', v: `${peakH}:00`, c: 'text-amber-600' }, { l: 'Average Load', v: `${avgL}%`, c: 'text-sky-600' }, { l: 'Total Today', v: total.toLocaleString(), c: 'text-emerald-600' }].map((s) => (
+            <div key={s.l} className="rounded-lg border p-2.5 text-center">
+              <p className="text-[10px] text-muted-foreground">{s.l}</p>
+              <p className={`text-lg font-bold ${s.c}`}>{s.v}</p>
+            </div>
+          ))}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+          <defs><linearGradient id="areaFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#10b981" stopOpacity="0.35" /><stop offset="100%" stopColor="#10b981" stopOpacity="0.03" /></linearGradient></defs>
+          {[0, 25, 50, 75, 100].map((v) => { const y = pT + iH - (v / maxV) * iH; return <g key={v}><line x1={pL} y1={y} x2={W - pR} y2={y} stroke="currentColor" className="text-muted/20" strokeWidth="0.5" /><text x={pL - 4} y={y + 3} textAnchor="end" className="fill-muted-foreground/50 text-[7px]">{v}</text></g>; })}
+          <path d={area} fill="url(#areaFill)" />
+          <path d={line} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          <circle cx={pts[peakH].x} cy={pts[peakH].y} r="4" fill="#f59e0b" />
+          <circle cx={pts[peakH].x} cy={pts[peakH].y} r="8" fill="#f59e0b" opacity="0.15" />
+          {hourly.map((_, i) => i % 3 === 0 && <text key={i} x={pL + i * sX} y={H - 5} textAnchor="middle" className="fill-muted-foreground/50 text-[7px]">{i}:00</text>)}
+        </svg>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Route Performance Heatmap                                          */
+/* ------------------------------------------------------------------ */
+function RoutePerformanceHeatmap() {
+  const routes = ['BLR-001', 'BLR-025', 'DEL-005', 'MUM-012', 'CHN-008', 'HYD-003', 'BLR-042', 'DEL-018'];
+  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const seed = 42;
+  const val = (ri: number, di: number) => Math.round(50 + ((seed + ri * 13 + di * 7 + ri * di * 3) % 50));
+  const clr = (v: number) => v >= 85 ? 'bg-emerald-500 text-white' : v >= 70 ? 'bg-amber-400 text-white' : 'bg-rose-500 text-white';
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Activity className="size-5" /> Route Performance Heatmap
+        </CardTitle>
+        <CardDescription>Performance scores by route and day of week</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <div className="inline-block min-w-full">
+            <div className="flex gap-1 mb-1"><div className="w-20 shrink-0" />{days.map((d) => <div key={d} className="flex-1 text-center text-[10px] font-medium text-muted-foreground">{d}</div>)}</div>
+            {routes.map((route, ri) => (
+              <div key={route} className="flex gap-1 mb-1">
+                <div className="w-20 shrink-0 flex items-center text-[11px] font-medium truncate">{route}</div>
+                {days.map((_, di) => { const v = val(ri, di); return <div key={di} className={`flex-1 flex items-center justify-center rounded text-[11px] font-semibold min-h-[30px] ${clr(v)}`} title={`${route} ${days[di]}: ${v}%`}>{v}</div>; })}
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-4 mt-4 justify-center text-xs">
+          {[{ l: 'Good (≥85)', c: 'bg-emerald-500' }, { l: 'Moderate (70-84)', c: 'bg-amber-400' }, { l: 'Poor (<70)', c: 'bg-rose-500' }].map((i) => (
+            <div key={i.l} className="flex items-center gap-1.5"><div className={`size-2.5 rounded ${i.c}`} /><span className="text-muted-foreground">{i.l}</span></div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Fuel Cost Calculator                                               */
+/* ------------------------------------------------------------------ */
+function FuelCostCalculator() {
+  const [distance, setDistance] = useState('');
+  const [fuelPrice, setFuelPrice] = useState('');
+  const [mileage, setMileage] = useState('4.5');
+  const d = parseFloat(distance) || 0;
+  const p = parseFloat(fuelPrice) || 0;
+  const m = parseFloat(mileage) || 1;
+  const cost = d > 0 && p > 0 ? (d / m) * p : null;
+  const fuelL = d > 0 && m > 0 ? d / m : null;
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Fuel className="size-5" /> Fuel Cost Calculator
+        </CardTitle>
+        <CardDescription>Estimate fuel expenses for any route</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1"><Label className="text-xs">Distance (km)</Label><Input type="number" placeholder="e.g. 250" value={distance} onChange={(e) => setDistance(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs">Fuel Price (₹/L)</Label><Input type="number" placeholder="e.g. 105" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs">Mileage (km/L)</Label><Input type="number" placeholder="e.g. 4.5" value={mileage} onChange={(e) => setMileage(e.target.value)} /></div>
+        </div>
+        {cost !== null && (
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <div className="rounded-lg border border-l-4 border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
+              <p className="text-[10px] text-muted-foreground">Estimated Cost</p>
+              <p className="text-xl font-bold text-emerald-600">₹{cost.toFixed(2)}</p>
+            </div>
+            <div className="rounded-lg border border-l-4 border-l-sky-500 bg-sky-50/50 dark:bg-sky-950/20 p-3">
+              <p className="text-[10px] text-muted-foreground">Fuel Required</p>
+              <p className="text-xl font-bold text-sky-600">{fuelL?.toFixed(1)} L</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -866,6 +1093,12 @@ function DashboardPage({
         </Card>
       </div>
 
+      {/* Live Fleet Tracker + Passenger Analytics */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <LiveFleetTracker />
+        <PassengerAnalytics />
+      </div>
+
       {/* STYLE: Improved Quick Actions — icon cards */}
       <Card>
         <CardHeader>
@@ -973,7 +1206,7 @@ function DashboardPage({
                   </TableHeader>
                   <TableBody>
                     {alerts.slice(0, 5).map((alert: any) => (
-                      <TableRow key={alert.id ?? alert._id} className="hover:bg-muted/50 transition-colors">
+                      <TableRow key={alert.id ?? alert._id} className="hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all">
                         <TableCell className="font-medium">
                           {/* FIX #2: access nested route.routeNumber */}
                           {alert.route?.routeNumber ?? alert.routeNumber ?? '—'}
@@ -1131,7 +1364,7 @@ function RoutesPage({ token }: { token: string }) {
                         /* STYLE: alternating row colors + hover */
                         <TableRow
                           key={id}
-                          className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors cursor-pointer`}
+                          className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer`}
                           onClick={() => { setSelectedRoute(r); setDetailOpen(true); }}
                         >
                           <TableCell className="font-medium">
@@ -1219,6 +1452,7 @@ function SchedulesPage({ token }: { token: string }) {
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
+  const [timelineView, setTimelineView] = useState(false);
   const today = todayStr();
 
   const fetchSchedules = useCallback(async () => {
@@ -1269,14 +1503,22 @@ function SchedulesPage({ token }: { token: string }) {
                 </span>
               </CardDescription>
             </div>
-            <Button onClick={handleGenerate} disabled={generating}>
-              {generating ? (
-                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-              ) : (
-                <Play className="size-4" />
-              )}
-              Generate Today&apos;s Schedules
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant={timelineView ? 'outline' : 'default'} size="sm" onClick={() => setTimelineView(false)}>
+                <Calendar className="size-3.5 mr-1" /> Table
+              </Button>
+              <Button variant={timelineView ? 'default' : 'outline'} size="sm" onClick={() => setTimelineView(true)}>
+                <LayoutList className="size-3.5 mr-1" /> Timeline
+              </Button>
+              <Button onClick={handleGenerate} disabled={generating}>
+                {generating ? (
+                  <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                ) : (
+                  <Play className="size-4" />
+                )}
+                Generate
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
@@ -1288,6 +1530,43 @@ function SchedulesPage({ token }: { token: string }) {
               title="No Schedules Yet"
               description="Click &quot;Generate&quot; to auto-create today's bus schedules based on route configurations."
             />
+          ) : timelineView ? (
+            <div className="overflow-x-auto">
+              <div className="min-w-[700px]">
+                {/* Timeline header: hours */}
+                <div className="flex mb-2 border-b pb-1">
+                  <div className="w-24 shrink-0 text-xs text-muted-foreground font-medium">Route</div>
+                  <div className="flex-1 flex">
+                    {Array.from({ length: 19 }, (_, h) => h + 5).map((h) => (
+                      <div key={h} className="flex-1 text-center text-[9px] text-muted-foreground/60">{h}:00</div>
+                    ))}
+                  </div>
+                </div>
+                {/* Timeline rows */}
+                <div className="space-y-1.5 max-h-[400px] overflow-y-auto">
+                  {schedules.slice(0, 20).map((s: any) => {
+                    const time = s.departureTime ?? s.time ?? '08:00';
+                    const parts = time.split(':');
+                    const hr = parseInt(parts[0] || '8', 10);
+                    const mn = parseInt(parts[1] || '0', 10);
+                    const startPct = Math.max(0, ((hr - 5) * 60 + mn) / (19 * 60)) * 100;
+                    const blockW = Math.max(4, 100 / 19);
+                    const routeNum = s.route?.routeNumber ?? s.routeNumber ?? '—';
+                    const status = (s.status ?? '').toLowerCase();
+                    const barColor = status === 'completed' ? 'bg-emerald-500' : status === 'in_progress' ? 'bg-amber-500' : 'bg-sky-500';
+                    return (
+                      <div key={s.id ?? s._id} className="flex items-center gap-2">
+                        <div className="w-24 shrink-0 text-xs font-medium truncate">{routeNum}</div>
+                        <div className="flex-1 relative h-6 bg-muted/30 rounded">
+                          <div className={`absolute top-1 h-4 rounded ${barColor} opacity-80`} style={{ left: `${startPct}%`, width: `${blockW}%` }} />
+                          <span className="absolute text-[8px] text-muted-foreground" style={{ left: `${startPct + 1}%`, top: '2px' }}>{time}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="max-h-[500px] overflow-y-auto rounded-md border">
               <Table>
@@ -1302,7 +1581,7 @@ function SchedulesPage({ token }: { token: string }) {
                 <TableBody>
                   {schedules.map((s: any, idx: number) => (
                     /* STYLE: alternating row colors + hover */
-                    <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
+                    <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
                       <TableCell className="font-medium">
                         {/* FIX #4: s.route?.routeNumber */}
                         {s.route?.routeNumber ?? s.routeNumber ?? '—'}
@@ -1466,7 +1745,7 @@ function CrewPage({ token }: { token: string }) {
                     /* STYLE: alternating row colors + hover + clickable */
                     <TableRow
                       key={c.id ?? c._id}
-                      className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors cursor-pointer`}
+                      className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer`}
                       onClick={() => { setSelectedCrew(c); setDetailOpen(true); }}
                     >
                       <TableCell className="font-medium">
@@ -1744,7 +2023,7 @@ function TrafficPage({ token }: { token: string }) {
                       (a.status ?? '').toLowerCase() === 'resolved';
                     return (
                       /* STYLE: alternating row colors + hover */
-                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors ${isResolved ? 'opacity-50' : ''}`}>
+                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all ${isResolved ? 'opacity-50' : ''}`}>
                         <TableCell className="font-medium">
                           {/* FIX #8: a.route?.routeNumber */}
                           {a.route?.routeNumber ?? a.routeNumber ?? '—'}
@@ -1901,7 +2180,7 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
                     const id = h.id ?? h._id;
                     return (
                       /* STYLE: alternating row colors + hover */
-                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
+                      <TableRow key={id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
                         <TableCell className="font-medium">
                           {/* FIX #9: h.crew?.name */}
                           {h.crew?.name ?? h.crewName ?? '—'}
@@ -2212,6 +2491,9 @@ function AnalyticsPage({ token }: { token: string }) {
         </CardContent>
       </Card>
 
+      {/* Route Performance Heatmap */}
+      <RoutePerformanceHeatmap />
+
       {/* Route Performance Matrix */}
       <Card>
         <CardHeader>
@@ -2293,7 +2575,7 @@ function AnalyticsPage({ token }: { token: string }) {
                 <TableBody>
                   {cityStats.map((c: any, i: number) => (
                     /* STYLE: alternating row colors + hover */
-                    <TableRow key={i} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
+                    <TableRow key={i} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
                       <TableCell className="font-medium">{c.city}</TableCell>
                       <TableCell>₹{c.revenue.toLocaleString()}</TableCell>
                       <TableCell>{c.journeys.toLocaleString()}</TableCell>
@@ -2342,6 +2624,9 @@ function MaintenancePage({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Fuel Cost Calculator */}
+      <FuelCostCalculator />
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -2374,7 +2659,7 @@ function MaintenancePage({ token }: { token: string }) {
                 <TableBody>
                   {records.map((r: any, idx: number) => (
                     /* STYLE: alternating row colors + hover */
-                    <TableRow key={r.id ?? r._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 transition-colors`}>
+                    <TableRow key={r.id ?? r._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
                       <TableCell className="font-medium">
                         <span className="inline-flex items-center gap-1.5">
                           <Bus className="size-4 text-muted-foreground" />
@@ -2473,6 +2758,7 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
     <ToastContext.Provider value={toastContextValue}>
       <div className="flex min-h-full flex-col">
         <div className="flex-1">
+          <QuickStatsRibbon />
           {pageContent}
         </div>
         {/* STYLE: Footer */}

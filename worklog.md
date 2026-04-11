@@ -531,3 +531,271 @@ The BusTrack Pro application is stable and fully functional after 4 rounds of it
 6. Add route search autocomplete with debounced API calls
 7. Mobile responsiveness fine-tuning and device testing
 
+---
+Task ID: 7c
+Agent: Main - Crew Portal Feature Enhancement
+Task: Add 7 major features to Crew Portal — Digital Trip Manifest, Pre-Trip Checklist, Earnings Tracker, Shift Timer, Route Performance, Calendar Shift Summary, Quick Communication
+
+## Work Log
+
+### 1. Digital Trip Manifest (Dashboard)
+- Receipt/ticket-style card with gradient header ("Digital Trip Manifest")
+- Three-column layout: Route Number, Departure Time, Bus Registration
+- Passenger count with progress bar (color-coded: green ≤60%, amber 60-85%, red >85%)
+- Animated route progress visualization: dot timeline with colored dots (passed/current/future) and connecting line fills
+- Current Stop indicator with Navigation icon and completion percentage
+- Next Stop card with MapPin icon and estimated time of arrival
+- Deterministic data seeded from crew name and assignment data
+
+### 2. Shift Timer (Dashboard)
+- Live circular SVG progress indicator (140x140px) showing elapsed time vs 8h shift
+- Real-time timer using setInterval (1s) with HH:MM:SS display
+- Three states: idle, running, paused — with Start/Resume, Pause, End buttons
+- Dynamic color changes: green (<6h), amber (6-8h), red (>8h) for stroke and badge
+- Status badge with icon (Zap for running, Pause for paused, CircleDot for idle)
+- Toast notifications on state transitions (start, pause, end with total time)
+
+### 3. Route Performance (Dashboard)
+- Recent Trips section: 5 deterministic trips with route number, scheduled→actual times
+- Color-coded arrival badges: Early (sky), On Time (emerald), Late (red)
+- Weekly On-Time Rate bar chart: 7 bars for Mon-Sun
+- Bar colors based on on-time percentage: green ≥80%, amber ≥60%, red <60%
+- Deterministic data seeded from crew name
+
+### 4. Pre-Trip Checklist (Assignments Page)
+- 7 interactive checklist items: Vehicle inspection, Fuel level check, Tire condition, Lights & signals, First aid kit, Fire extinguisher, Ticket machine
+- Each item has a custom icon (Shield, Fuel, CircleDot, Zap, Award, Flame, FileText)
+- Smooth toggle animation with CSS transitions (300ms) for background, border, and check mark
+- Completion percentage displayed in header with progress bar
+- "All checks completed! Ready to depart." success banner when 100%
+- Deterministic initial state seeded from crew name
+
+### 5. Quick Communication (Assignments Page)
+- 4 pre-built message buttons in a 2-column grid
+- Messages: "Running 5 min late" (amber), "Arrived at stop" (emerald), "Emergency - need backup" (red), "Break request" (violet)
+- Each button has icon, label, and description
+- Click triggers toast notification: "Message Sent" with message text
+- Color-coded backgrounds with hover effects
+
+### 6. Earnings Tracker (Profile Page)
+- 4 summary cards: This Month (₹X), Last Month (₹X), YTD Total (₹X), Average Monthly (₹X)
+- SVG line chart (500x180 viewBox) showing 6 months of earnings data
+- Gradient fill under line (linearGradient from emerald with 30% → 2% opacity)
+- Grid lines with ₹Xk labels, data points with circles, value labels above dots
+- Deterministic earnings seeded from crew name (₹18k-₹30k range)
+
+### 7. Calendar Shift Summary (Calendar Page)
+- Shift Summary cards shown when a date is selected
+- Morning Shift (Sun icon) and Evening Shift (Moon icon) with time and route
+- Total Hours calculation and Overtime indicator (Flame badge when >8h)
+- Deterministic shift data from assignment dates and crew name seed
+- Sun/Moon custom SVG icons for shift type visualization
+- CalendarPage updated to accept crewProfile prop for crew name
+
+### New Imports Added
+- `useRef` from React
+- Lucide icons: `Pause`, `RotateCcw`, `Users`, `Navigation`, `MessageSquare`, `Flame`, `Zap`, `Fuel`, `CircleDot`
+
+### New Helper Functions
+- `getSeededValue(seed, min, max)`: Deterministic value generation
+- `getMonthlyEarnings(name)`: 6-month earnings array
+- `getStopsForRoute(seed)`: Route stops with current/passed markers
+- `getTripPerformanceData(seed)`: Trip punctuality data
+- `getWeeklyOnTimeData(seed)`: Weekly on-time performance
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully (Turbopack)
+- All existing functionality preserved across all 5 crew portal pages
+- No `alert()` or `window.alert()` calls (all use `toast()`)
+- File grew from 2,491 lines to 3,232 lines (+741 lines)
+
+## Files Modified
+- `src/components/crew/crew-content.tsx`: Comprehensive enhancement with 7 new features across 4 pages
+
+---
+Task ID: 7a
+Agent: Main - Admin Portal Feature Enhancement
+Task: Add 7 major features to Admin Portal — Live Fleet Tracker, Passenger Analytics, Route Heatmap, Timeline View, Quick Stats, Table Hover, Fuel Calculator
+
+## Work Log
+
+### 1. Quick Stats Ribbon (All Pages)
+- Added `QuickStatsRibbon` component with 4 metric pills: Total Routes (115), Active Schedules (64), Crew Available (89), On-Time Rate (94.2%)
+- Each pill has colored icon, label, and bold value in rounded-full bordered containers
+- Rendered in `AdminContent` wrapper above every page's content
+- Responsive flex-wrap layout for mobile and desktop
+
+### 2. Live Fleet Tracker (Dashboard)
+- SVG-based visualization with 7 concentric route circles (R-101 through R-712)
+- Each route has unique gradient-colored dashed arc with `linearGradient` definition
+- Animated bus dots using SVG `<animateTransform type="rotate">` — dots orbit their route circle continuously
+- Pulsing outer rings on each bus dot for visual emphasis
+- Central hub with pulsing green indicator and "HUB" label
+- Radial glow background effect using `radialGradient`
+- Route labels positioned at deterministic angles around the circles
+- Legend showing status categories (On Time, Delayed, Completed) and per-route color dots
+- Deterministic route data: 10 animated bus dots across 7 routes, 1 "Completed" route with no buses
+
+### 3. Passenger Analytics (Dashboard)
+- SVG area chart with 24-hour timeline (0:00–23:00)
+- Deterministic hourly data with peaks at 8:00 AM and 6:00 PM, night dip 11 PM–5 AM
+- Gradient fill under the line (`linearGradient` from emerald with 35%→3% opacity)
+- Peak hour highlighted with amber dot and glow ring
+- Grid lines at 0/25/50/75/100 with value labels
+- X-axis time labels every 3 hours
+- Three stat cards above chart: Peak Hour, Average Load, Total Today
+
+### 4. Route Performance Heatmap (Analytics)
+- Grid visualization: 8 routes (rows) × 7 days of week (columns)
+- Color-coded cells: green (≥85 = Good), amber (70-84 = Moderate), red (<70 = Poor)
+- Deterministic values from seed-based formula: `50 + ((42 + ri*13 + di*7 + ri*di*3) % 50)`
+- Tooltip on each cell showing route, day, and score
+- Legend with color explanations
+- Overflow-x-auto for responsive layout on small screens
+
+### 5. Timeline View Toggle (Schedules)
+- Added `timelineView` state with Table/Timeline toggle buttons in header
+- Gantt-style horizontal timeline when enabled:
+  - 19-hour span (5:00 AM–11:00 PM) with hour labels
+  - Each schedule rendered as a colored block positioned by departure time
+  - Block colors by status: sky (scheduled), amber (in_progress), emerald (completed)
+  - Route number label on left, time label on block
+  - Max 20 schedules displayed in scrollable container
+- Compact Generate button in header alongside view toggles
+
+### 6. Table Row Hover Effects
+- Added `hover:shadow-[inset_3px_0_0_#10b981]` to ALL table rows across all pages
+- Creates subtle emerald left border accent on hover using inset box-shadow
+- Changed `transition-colors` to `transition-all` for smooth shadow animation
+- Applied to 8 table instances: Dashboard alerts, Routes, Schedules (table), Crew, Traffic, Holidays, Analytics city breakdown, Maintenance
+
+### 7. Fuel Cost Calculator (Maintenance)
+- Added `FuelCostCalculator` component with 3 inputs: Distance (km), Fuel Price (₹/L), Mileage (km/L)
+- Default mileage pre-filled at 4.5 km/L
+- Real-time calculation: Estimated Cost = (distance / mileage) × price
+- Two result cards with border-left accents:
+  - Estimated Cost (emerald) — shows ₹X.XX
+  - Fuel Required (sky) — shows X.X L
+- Results appear only when both distance and fuel price are provided
+
+### Import Updates
+- Added `useMemo` to React imports (was missing but used in AnalyticsPage)
+- Added `Fuel` and `LayoutList` from lucide-react
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully (Turbopack)
+- All existing functionality preserved across all 8 admin portal pages
+- No `alert()` calls (all use `useToast()` context hook)
+- File grew from 2,484 lines to 2,770 lines (+286 lines)
+
+## Files Modified
+- `src/components/admin/admin-content.tsx`: Comprehensive enhancement with 7 new features
+
+---
+Task ID: 7b
+Agent: Main - Customer Portal Feature Enhancement
+Task: Add 7 major features to Customer Portal — Trip Planner, Live Bus Tracker, Upcoming Trip Countdown, Seat Selection, Route Comparison Panel, Debounced Autocomplete, Travel Stats
+
+## Work Log
+
+### 1. Trip Planner (Dashboard)
+- Multi-step card with 3 steps: Route (Origin/Destination), Details (Date/Time/Passengers), Confirm (Visual route suggestion)
+- Step indicator with numbered circles and progress line between steps
+- Step 1: Text inputs for origin and destination with validation (must differ)
+- Step 2: Date picker, time picker, passengers selector (1-6)
+- Step 3: Visual route suggestion with colored connecting dots (green→amber→orange→red) and stops
+- "Find Routes" button navigates to Search Routes page
+- Uses `toast()` for search notification
+
+### 2. Live Bus Tracker (Dashboard)
+- Mini-widget card showing 3 nearby buses with deterministic data
+- Bus #KA-01-4521 (Route 500, ETA 5 min, On Time, 72% progress, emerald)
+- Bus #KA-01-7832 (Route 215, ETA 8 min, Delayed, 45% progress, amber)
+- Bus #KA-03-1190 (Route 335, ETA 2 min, Boarding, 90% progress, sky)
+- Animated progress bars with smooth CSS transitions (1000ms)
+- Color-coded dot indicators on progress bars
+- Live pulsing indicator in card header
+- Status badges: On Time (emerald), Delayed (amber), Boarding (sky)
+
+### 3. Upcoming Trip Countdown (Dashboard)
+- Shows next planned journey with trip details card (route number, from→to, date, time)
+- Live countdown timer using setInterval (1s) updating DD:HH:MM:SS format
+- Tabular-nums font for stable digit rendering
+- Countdown blocks in 4-column grid with gradient backgrounds
+- Monospaced padded display (00:00:00:00 format)
+- Trip details card with Bus icon and route info
+- Only displayed when user has planned journeys
+
+### 4. Seat Selection (Booking Flow)
+- 4 columns × 10 rows grid (40 seats: 1A-10D) in a Dialog modal
+- Color-coded seats: Available (green outline), Booked (gray), Selected (solid emerald with ring)
+- Aisle gap between columns B and C (mr-2 class)
+- Driver area indicator at top
+- Seat legend showing all three states
+- Deterministic booked seats (5-19) from route ID hash
+- Maximum 6 seats selectable with toast notification on limit
+- Selection summary: selected seats list, price per seat, total price
+- Confirm button with seat count and total price
+- Booking handler passes selected seats to toast notification
+
+### 5. Route Comparison Panel (Map Page)
+- "Compare" button added next to Favorite button in route selector
+- Supports selecting up to 3 routes for comparison
+- Comparison panel overlays bottom of map when 2+ routes selected
+- Compact grid layout showing 5 metrics: Distance, Duration, Fare, Stops, Rating
+- Deterministic ratings: [4.2, 3.8, 4.5] based on route index
+- Close button dismisses comparison panel
+- Button toggles between default and primary variant to show selection state
+
+### 6. Debounced Autocomplete (Search Page)
+- Replaced Select dropdowns for From/To fields with AutocompleteInput component
+- 300ms setTimeout-based debounce using useRef for timer cleanup
+- Searches both route numbers (up to 3 matches) and location names (up to 5 matches)
+- Dropdown with Route icon for route matches and MapPin icon for location matches
+- Shows route sub-text (startLocation → endLocation) for route matches
+- onMouseDown with preventDefault for reliable selection (avoids blur race condition)
+- Auto-hides dropdown on blur with 200ms delay
+
+### 7. Travel Stats (Journey History)
+- 4 stat cards in responsive 2×2 / 4-column grid: Total Trips, Total Distance (km), Total Spent (₹), Average Rating
+- Animated counters using custom `useAnimatedCounter` hook with requestAnimationFrame
+- Ease-out cubic easing (1 - (1-t)³) for smooth animation over 1200-1800ms
+- Each card has colored icon, bold value with tabular-nums, and muted label
+- Color-coded cards with matching borders: emerald (trips), sky (distance), amber (spent), violet (rating)
+- Only displayed when journey history has data
+
+### New Components Added
+- `useAnimatedCounter` hook: requestAnimationFrame-based animated counter with easing
+- `TripPlanner`: Multi-step trip planning card
+- `LiveBusTracker`: Live bus tracking widget
+- `UpcomingTripCountdown`: Live countdown timer for next journey
+- `SeatSelection`: Seat selection dialog with grid layout
+- `TravelStats`: Animated stat cards for journey history
+- `AutocompleteInput`: Debounced autocomplete input with dropdown
+- `MapRouteComparison`: Compact route comparison panel for map overlay
+
+### New Imports Added
+- `useRef` from React
+- Lucide icons: `Compass`, `MapPinned`, `BusFront`, `Hourglass`, `UserPlus`, `Armchair`, `X`, `Zap`, `Gauge`, `MapPinIcon`, `Waypoints`
+- Dialog components: `Dialog`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`
+
+### Modified Existing Components
+- `Dashboard`: Added TripPlanner, UpcomingTripCountdown, LiveBusTracker widgets
+- `SearchRoutes`: Replaced Select dropdowns with AutocompleteInput, added SeatSelection dialog state
+- `RouteDetailPanel`: Updated onBook signature to accept optional seats parameter
+- `handleBook`: Updated to accept optional seats parameter, pass to toast notification
+- `RouteMapView`: Added compareRouteIds state, toggleCompareRoute callback, compare button, MapRouteComparison overlay
+- `JourneyHistory`: Added TravelStats component at top of page
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully
+- All existing functionality preserved across all 5 customer portal pages
+- All `toast()` notifications used (no `alert()` calls)
+- File grew from 2,556 lines to 3,382 lines (+826 lines)
+
+## Files Modified
+- `src/components/customer/customer-content.tsx`: Comprehensive enhancement with 7 new features across 5 pages
+
