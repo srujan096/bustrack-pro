@@ -1,0 +1,179 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Profile {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  role      String   @default("customer") // admin, driver, conductor, customer
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crewProfile    CrewProfile?
+  crewAssignments CrewAssignment[]
+  holidayRequests HolidayRequest[]
+  journeys       Journey[] @relation("CustomerJourneys")
+  trafficReports TrafficAlert[]
+  notifications  Notification[]
+  auditLogs      AuditLog[]
+}
+
+model CrewProfile {
+  id               String   @id @default(cuid())
+  profileId        String   @unique
+  specialization   String   @default("driver") // driver, conductor
+  licenseNo        String   @default("")
+  experienceYears  Int      @default(1)
+  performanceRating Float   @default(4.0)
+  availability     String   @default("available") // available, on_leave, unavailable
+  maxDailyHours    Int      @default(8)
+  busNumber        String   @default("")
+
+  profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+}
+
+model Route {
+  id                   String   @id @default(cuid())
+  routeNumber          String   @unique
+  startLocation        String
+  endLocation          String
+  stopsJson            String   @default("[]") // JSON: [{name, lat, lng}]
+  distanceKm           Float    @default(0)
+  durationMin          Int      @default(0)
+  fare                 Float    @default(0)
+  trafficLevel         String   @default("low") // low, medium, high
+  autoScheduleEnabled  Boolean  @default(false)
+  startTime            String   @default("06:00")
+  endTime              String   @default("22:00")
+  frequencyMinutes     Int      @default(30)
+  busRegistration      String   @default("")
+  city                 String   @default("BLR")
+  mapAvailable         Boolean  @default(false)
+
+  schedules      Schedule[]
+  journeys       Journey[]
+  trafficAlerts  TrafficAlert[]
+  routeAnalytics RouteAnalytics[]
+}
+
+model Schedule {
+  id            String   @id @default(cuid())
+  routeId       String
+  date          String   // YYYY-MM-DD
+  departureTime String   // HH:MM
+  status        String   @default("scheduled") // scheduled, in_progress, completed, cancelled
+  createdAt     DateTime @default(now())
+
+  route           Route           @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  crewAssignments CrewAssignment[]
+  journeys        Journey[]
+}
+
+model CrewAssignment {
+  id          String    @id @default(cuid())
+  scheduleId  String
+  crewId      String
+  status      String    @default("pending") // pending, accepted, declined, completed
+  assignedAt  DateTime  @default(now())
+  completedAt DateTime?
+
+  schedule Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  crew     Profile   @relation(fields: [crewId], references: [id], onDelete: Cascade)
+}
+
+model HolidayRequest {
+  id         String    @id @default(cuid())
+  crewId     String
+  startDate  String    // YYYY-MM-DD
+  endDate    String
+  reason     String    @default("")
+  status     String    @default("pending") // pending, approved, rejected
+  reviewedBy String?
+  reviewedAt DateTime?
+
+  crew Profile @relation(fields: [crewId], references: [id], onDelete: Cascade)
+}
+
+model Journey {
+  id          String   @id @default(cuid())
+  customerId  String
+  routeId     String
+  scheduleId  String
+  status      String   @default("planned") // planned, completed, cancelled
+  cost        Float    @default(0)
+  rating      Int?
+  feedback    String   @default("")
+  bookingDate DateTime @default(now())
+
+  customer       Profile  @relation("CustomerJourneys", fields: [customerId], references: [id], onDelete: Cascade)
+  route          Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  schedule       Schedule @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+}
+
+model TrafficAlert {
+  id           String    @id @default(cuid())
+  routeId      String
+  reporterId   String
+  type         String    @default("congestion") // congestion, accident, road_closure, weather
+  severity     String    @default("low") // low, medium, high, critical
+  delayMinutes Int       @default(0)
+  message      String    @default("")
+  createdAt    DateTime  @default(now())
+  resolvedAt   DateTime?
+
+  route    Route   @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  reporter Profile @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  type      String   @default("info") // info, warning, success, error
+  title     String   @default("")
+  message   String   @default("")
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  tableName String   @default("")
+  action    String   @default("")
+  userId    String   @default("")
+  details   String   @default("")
+  timestamp DateTime @default(now())
+
+  user Profile @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model BusMaintenance {
+  id              String   @id @default(cuid())
+  busRegistration String
+  serviceType     String   @default("routine") // routine, repair, inspection
+  date            String
+  cost            Float    @default(0)
+  nextServiceDate String   @default("")
+  notes           String   @default("")
+  createdAt       DateTime @default(now())
+}
+
+model RouteAnalytics {
+  id             String   @id @default(cuid())
+  routeId        String
+  date           String
+  completionRate Float    @default(0)
+  revenue        Float    @default(0)
+  delayMin       Int      @default(0)
+  totalJourneys  Int      @default(0)
+
+  route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}

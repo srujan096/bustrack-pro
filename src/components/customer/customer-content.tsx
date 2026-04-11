@@ -1,0 +1,1445 @@
+'use client';
+
+import React, { useState, useEffect, useCallback } from 'react';
+import dynamic from 'next/dynamic';
+import L from 'leaflet';
+import { format } from 'date-fns';
+
+// Fix default marker icons
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+import 'leaflet/dist/leaflet.css';
+
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Wallet,
+  Bus,
+  CalendarClock,
+  CheckCircle2,
+  Search,
+  MapPin,
+  Map,
+  ArrowRight,
+  Clock,
+  IndianRupee,
+  Route,
+  Star,
+  XCircle,
+  Loader2,
+  Navigation,
+  TrendingUp,
+} from 'lucide-react';
+
+// Dynamic leaflet imports to avoid SSR
+const MapContainer = dynamic(() => import('react-leaflet').then(mod => mod.MapContainer), { ssr: false });
+const TileLayer = dynamic(() => import('react-leaflet').then(mod => mod.TileLayer), { ssr: false });
+const Marker = dynamic(() => import('react-leaflet').then(mod => mod.Marker), { ssr: false });
+const Popup = dynamic(() => import('react-leaflet').then(mod => mod.Popup), { ssr: false });
+const Polyline = dynamic(() => import('react-leaflet').then(mod => mod.Polyline), { ssr: false });
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+interface Props {
+  portal: string;
+  userId: string;
+  token: string;
+  setPortal: (p: string) => void;
+}
+
+interface SpendingStats {
+  totalSpending: number;
+  totalTrips: number;
+  plannedJourneys: number;
+  completedJourneys: number;
+}
+
+interface Journey {
+  id: string;
+  routeNumber?: string;
+  routeId?: string;
+  startLocation?: string;
+  endLocation?: string;
+  date?: string;
+  time?: string;
+  cost?: number;
+  status?: string;
+  rating?: number;
+  feedback?: string;
+  scheduleId?: string;
+}
+
+interface RouteResult {
+  id: string;
+  routeNumber: string;
+  startLocation: string;
+  endLocation: string;
+  distance?: number;
+  duration?: string;
+  fare?: number;
+  trafficLevel?: string;
+  city?: string;
+  stopsJson?: string;
+  stopsCount?: number;
+}
+
+interface Schedule {
+  id: string;
+  routeId: string;
+  departureTime: string;
+}
+
+// ─── Helper ──────────────────────────────────────────────────────────────────
+
+function getTodayString() {
+  return format(new Date(), 'yyyy-MM-dd');
+}
+
+function formatCurrency(amount: number | undefined) {
+  if (amount === undefined || amount === null) return '₹0';
+  return `₹${Number(amount).toLocaleString('en-IN')}`;
+}
+
+function trafficBadge(level: string | undefined) {
+  if (!level) return <Badge variant="secondary">Unknown</Badge>;
+  const cls: Record<string, string> = {
+    low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    moderate: 'bg-amber-100 text-amber-700 border-amber-200',
+    high: 'bg-orange-100 text-orange-700 border-orange-200',
+    severe: 'bg-red-100 text-red-700 border-red-200',
+  };
+  return (
+    <Badge variant="outline" className={cls[level.toLowerCase()] ?? cls.moderate}>
+      {level.charAt(0).toUpperCase() + level.slice(1)}
+    </Badge>
+  );
+}
+
+function statusBadge(status: string | undefined) {
+  if (!status) return <Badge variant="secondary">Unknown</Badge>;
+  const cls: Record<string, string> = {
+    planned: 'bg-sky-100 text-sky-700 border-sky-200',
+    completed: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+    cancelled: 'bg-red-100 text-red-700 border-red-200',
+  };
+  return (
+    <Badge variant="outline" className={cls[status.toLowerCase()] ?? cls.planned}>
+      {status.charAt(0).toUpperCase() + status.slice(1)}
+    </Badge>
+  );
+}
+
+// ─── Star Rating Component ───────────────────────────────────────────────────
+
+function StarRating({
+  rating,
+  onChange,
+}: {
+  rating: number;
+  onChange?: (r: number) => void;
+}) {
+  const [hovered, setHovered] = useState(0);
+  return (
+    <div className="flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(s => (
+        <Star
+          key={s}
+          className={`size-5 transition-colors ${
+            s <= (hovered || rating)
+              ? 'fill-amber-400 text-amber-400'
+              : 'text-muted-foreground/30'
+          } ${onChange ? 'cursor-pointer' : ''}`}
+          onMouseEnter={() => onChange && setHovered(s)}
+          onMouseLeave={() => onChange && setHovered(0)}
+          onClick={() => onChange?.(s)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ─── Dashboard Skeleton ──────────────────────────────────────────────────────
+
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {[1, 2, 3, 4].map(i => (
+          <Skeleton key={i} className="h-32 rounded-xl" />
+        ))}
+      </div>
+      <Skeleton className="h-64 rounded-xl" />
+    </div>
+  );
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+function Dashboard({
+  userId,
+  setPortal,
+}: {
+  userId: string;
+  setPortal: (p: string) => void;
+}) {
+  const [stats, setStats] = useState<SpendingStats | null>(null);
+  const [recentJourneys, setRecentJourneys] = useState<Journey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/journeys?customerId=${userId}`);
+        if (!res.ok) throw new Error('Failed to fetch dashboard data');
+        const data = await res.json();
+        setStats(data.spendingStats ?? {
+          totalSpending: 0,
+          totalTrips: 0,
+          plannedJourneys: 0,
+          completedJourneys: 0,
+        });
+        setRecentJourneys(
+          (data.journeys ?? []).filter(
+            (j: Journey) => j.status === 'planned'
+          ).slice(0, 5)
+        );
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Unknown error');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, [userId]);
+
+  if (loading) return <DashboardSkeleton />;
+  if (error) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="py-8 text-center text-red-600">
+          <p className="font-medium">Failed to load dashboard</p>
+          <p className="mt-1 text-sm">{error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const statCards = [
+    {
+      title: 'Total Spending',
+      value: formatCurrency(stats?.totalSpending),
+      icon: Wallet,
+      color: 'text-emerald-600',
+      bg: 'bg-emerald-50',
+    },
+    {
+      title: 'Total Trips',
+      value: String(stats?.totalTrips ?? 0),
+      icon: Bus,
+      color: 'text-sky-600',
+      bg: 'bg-sky-50',
+    },
+    {
+      title: 'Planned Journeys',
+      value: String(stats?.plannedJourneys ?? 0),
+      icon: CalendarClock,
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+    },
+    {
+      title: 'Completed Journeys',
+      value: String(stats?.completedJourneys ?? 0),
+      icon: CheckCircle2,
+      color: 'text-violet-600',
+      bg: 'bg-violet-50',
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Stat Cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {statCards.map(s => (
+          <Card key={s.title} className="hover:shadow-md transition-shadow">
+            <CardContent className="flex items-center gap-4">
+              <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${s.bg}`}>
+                <s.icon className={`size-6 ${s.color}`} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-muted-foreground">{s.title}</p>
+                <p className="text-xl font-bold tracking-tight">{s.value}</p>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Recent Planned Journeys */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="size-5 text-amber-500" />
+            Upcoming Journeys
+          </CardTitle>
+          <CardDescription>Your recently planned trips</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {recentJourneys.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 text-center">
+              <Bus className="mb-3 size-12 text-muted-foreground/30" />
+              <p className="text-muted-foreground">No planned journeys yet</p>
+              <Button
+                variant="outline"
+                className="mt-4"
+                onClick={() => setPortal('search')}
+              >
+                <Search className="size-4" />
+                Find Routes
+              </Button>
+            </div>
+          ) : (
+            <div className="max-h-80 overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Route</TableHead>
+                    <TableHead>From → To</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Time</TableHead>
+                    <TableHead className="text-right">Cost</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {recentJourneys.map(j => (
+                    <TableRow key={j.id}>
+                      <TableCell className="font-medium">{j.routeNumber ?? '—'}</TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">{j.startLocation ?? ''}</span>
+                        <ArrowRight className="mx-1 inline size-3 text-muted-foreground" />
+                        <span>{j.endLocation ?? ''}</span>
+                      </TableCell>
+                      <TableCell>{j.date ?? '—'}</TableCell>
+                      <TableCell>{j.time ?? '—'}</TableCell>
+                      <TableCell className="text-right">{formatCurrency(j.cost)}</TableCell>
+                      <TableCell>{statusBadge(j.status)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* CTA Buttons */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card
+          className="group cursor-pointer border-dashed border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
+          onClick={() => setPortal('search')}
+        >
+          <CardContent className="flex items-center justify-between py-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Search className="size-5 text-primary" />
+              </div>
+              <div>
+                <p className="font-semibold">Search Routes</p>
+                <p className="text-sm text-muted-foreground">Find available bus routes</p>
+              </div>
+            </div>
+            <ArrowRight className="size-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+          </CardContent>
+        </Card>
+
+        <Card
+          className="group cursor-pointer border-dashed border-2 hover:border-emerald-500/50 hover:bg-emerald-500/5 transition-all"
+          onClick={() => setPortal('map')}
+        >
+          <CardContent className="flex items-center justify-between py-6">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
+                <Map className="size-5 text-emerald-600" />
+              </div>
+              <div>
+                <p className="font-semibold">View Route Map</p>
+                <p className="text-sm text-muted-foreground">Explore routes on an interactive map</p>
+              </div>
+            </div>
+            <ArrowRight className="size-5 text-muted-foreground group-hover:translate-x-1 transition-transform" />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+// ─── Search Routes ───────────────────────────────────────────────────────────
+
+function SearchRoutes({
+  userId,
+}: {
+  userId: string;
+}) {
+  const [locations, setLocations] = useState<string[]>([]);
+  const [startLocation, setStartLocation] = useState('');
+  const [endLocation, setEndLocation] = useState('');
+  const [date, setDate] = useState(getTodayString());
+  const [city, setCity] = useState('all');
+  const [results, setResults] = useState<RouteResult[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [bookingId, setBookingId] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+
+  // Load locations
+  useEffect(() => {
+    async function fetchLocations() {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/routes');
+        if (!res.ok) throw new Error('Failed to fetch locations');
+        const data = await res.json();
+        const locs: string[] = data.locations ?? [];
+        setLocations(locs);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load locations');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchLocations();
+  }, []);
+
+  const handleSearch = useCallback(async () => {
+    if (!startLocation || !endLocation) {
+      setError('Please select both start and end locations');
+      return;
+    }
+    try {
+      setSearching(true);
+      setError('');
+      const params = new URLSearchParams({
+        startLocation,
+        endLocation,
+        city,
+      });
+      const res = await fetch(`/api/routes?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to search routes');
+      const data = await res.json();
+      setResults(data.routes ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Search failed');
+    } finally {
+      setSearching(false);
+    }
+  }, [startLocation, endLocation, city]);
+
+  const handleBook = useCallback(async (route: RouteResult) => {
+    try {
+      setBookingId(route.id);
+      // First find a schedule
+      const scheduleRes = await fetch(`/api/schedules?routeId=${route.id}&date=${date}`);
+      if (!scheduleRes.ok) throw new Error('Failed to find schedule');
+      const scheduleData = await scheduleRes.json();
+      const schedules: Schedule[] = scheduleData.schedules ?? [];
+      if (schedules.length === 0) {
+        setError(`No schedule available for route ${route.routeNumber} on ${date}`);
+        setBookingId(null);
+        return;
+      }
+      const schedule = schedules[0];
+
+      const bookRes = await fetch('/api/journeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'book',
+          customerId: userId,
+          routeId: route.id,
+          scheduleId: schedule.id,
+        }),
+      });
+      if (!bookRes.ok) throw new Error('Booking failed');
+      setToastMsg(`Successfully booked route ${route.routeNumber}!`);
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Booking failed');
+    } finally {
+      setBookingId(null);
+    }
+  }, [userId, date]);
+
+  const cityOptions = [
+    { value: 'all', label: 'All Cities' },
+    { value: 'BLR', label: 'Bengaluru (BLR)' },
+    { value: 'MUM', label: 'Mumbai (MUM)' },
+    { value: 'DEL', label: 'Delhi (DEL)' },
+    { value: 'CHN', label: 'Chennai (CHN)' },
+    { value: 'intercity', label: 'Intercity' },
+  ];
+
+  return (
+    <div className="space-y-6">
+      {/* Toast */}
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-50 rounded-lg border bg-emerald-50 px-4 py-3 text-emerald-700 shadow-lg animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="mr-2 inline size-4" />
+          {toastMsg}
+        </div>
+      )}
+
+      {/* Search Form */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Search className="size-5 text-primary" />
+            Search Bus Routes
+          </CardTitle>
+          <CardDescription>Find available routes between locations</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+              {[1, 2, 3, 4].map(i => (
+                <Skeleton key={i} className="h-10 rounded-md" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">From</label>
+                <Select value={startLocation} onValueChange={setStartLocation}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Start location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">To</label>
+                <Select value={endLocation} onValueChange={setEndLocation}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="End location" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {locations.map(loc => (
+                      <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Date</label>
+                <Input type="date" value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">City</label>
+                <Select value={city} onValueChange={setCity}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cityOptions.map(c => (
+                      <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="flex items-end">
+                <Button
+                  className="w-full"
+                  onClick={handleSearch}
+                  disabled={searching}
+                >
+                  {searching ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Search className="size-4" />
+                  )}
+                  Search
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Error */}
+      {error && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="flex items-center gap-2 py-3 text-sm text-red-600">
+            <XCircle className="size-4 shrink-0" />
+            {error}
+            <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+              &times;
+            </button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Results */}
+      {results.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Route className="size-5 text-primary" />
+              Search Results
+              <Badge variant="secondary" className="ml-2">{results.length} routes</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-[500px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Route #</TableHead>
+                    <TableHead>From → To</TableHead>
+                    <TableHead className="hidden md:table-cell">Distance</TableHead>
+                    <TableHead className="hidden sm:table-cell">Duration</TableHead>
+                    <TableHead>Fare</TableHead>
+                    <TableHead>Traffic</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {results.map(route => (
+                    <TableRow key={route.id}>
+                      <TableCell className="font-semibold">{route.routeNumber}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1">
+                          <MapPin className="size-3 text-emerald-500" />
+                          <span className="text-sm">{route.startLocation}</span>
+                          <ArrowRight className="mx-0.5 size-3 text-muted-foreground" />
+                          <span className="text-sm font-medium">{route.endLocation}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell className="hidden md:table-cell text-muted-foreground">
+                        {route.distance ? `${route.distance} km` : '—'}
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell text-muted-foreground">
+                        {route.duration ?? '—'}
+                      </TableCell>
+                      <TableCell className="font-semibold text-emerald-700">
+                        {formatCurrency(route.fare)}
+                      </TableCell>
+                      <TableCell>{trafficBadge(route.trafficLevel)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          disabled={bookingId === route.id}
+                          onClick={() => handleBook(route)}
+                        >
+                          {bookingId === route.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <CheckCircle2 className="size-3" />
+                          )}
+                          Book
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* No results */}
+      {!searching && !loading && results.length === 0 && startLocation && endLocation && !error && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Search className="mb-3 size-12 text-muted-foreground/30" />
+            <p className="text-muted-foreground">No routes found for this search</p>
+            <p className="mt-1 text-sm text-muted-foreground/70">Try different locations or filters</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── Route Map ───────────────────────────────────────────────────────────────
+
+function RouteMapView() {
+  const [routes, setRoutes] = useState<RouteResult[]>([]);
+  const [selectedRoute, setSelectedRoute] = useState<RouteResult | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [mapLoading, setMapLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [polylineCoords, setPolylineCoords] = useState<[number, number][]>([]);
+  const [fallbackCoords, setFallbackCoords] = useState<[number, number][]>([]);
+  const [useFallback, setUseFallback] = useState(false);
+  const [stops, setStops] = useState<{ name: string; lat: number; lng: number }[]>([]);
+  const [mapReady, setMapReady] = useState(false);
+
+  useEffect(() => {
+    async function fetchRoutes() {
+      try {
+        setLoading(true);
+        const res = await fetch('/api/routes?mapAvailable=true');
+        if (!res.ok) throw new Error('Failed to fetch routes');
+        const data = await res.json();
+        const routeList: RouteResult[] = data.routes ?? [];
+        setRoutes(routeList);
+        if (routeList.length > 0) {
+          setSelectedRoute(routeList[0]);
+        }
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load routes');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchRoutes();
+  }, []);
+
+  // Small delay for mapReady to let leaflet CSS initialize
+  useEffect(() => {
+    const timer = setTimeout(() => setMapReady(true), 200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Fetch OSRM route and parse stops
+  useEffect(() => {
+    if (!selectedRoute) return;
+
+    async function loadMapData() {
+      setMapLoading(true);
+      setPolylineCoords([]);
+      setFallbackCoords([]);
+      setUseFallback(false);
+
+      try {
+        // Parse stops
+        let parsedStops: { name: string; lat: number; lng: number }[] = [];
+        if (selectedRoute.stopsJson) {
+          parsedStops = JSON.parse(selectedRoute.stopsJson);
+        }
+        setStops(parsedStops);
+
+        if (parsedStops.length < 2) {
+          setMapLoading(false);
+          return;
+        }
+
+        // Build OSRM coordinates string
+        const coordsStr = parsedStops
+          .map(s => `${s.lng},${s.lat}`)
+          .join(';');
+
+        const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordsStr}?overview=full&geometries=geojson`;
+
+        try {
+          const osrmRes = await fetch(osrmUrl);
+          if (!osrmRes.ok) throw new Error('OSRM fetch failed');
+          const osrmData = await osrmRes.json();
+
+          if (osrmData.routes && osrmData.routes.length > 0) {
+            const geometry = osrmData.routes[0].geometry;
+            if (geometry && geometry.coordinates) {
+              // OSRM returns [lng, lat]; Leaflet needs [lat, lng]
+              const routeCoords: [number, number][] = geometry.coordinates.map(
+                (c: number[]) => [c[1], c[0]] as [number, number]
+              );
+              setPolylineCoords(routeCoords);
+            }
+          } else {
+            throw new Error('No route from OSRM');
+          }
+        } catch {
+          // Fallback to straight lines
+          const fb: [number, number][] = parsedStops.map(
+            s => [s.lat, s.lng] as [number, number]
+          );
+          setFallbackCoords(fb);
+          setUseFallback(true);
+        }
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load map data');
+      } finally {
+        setMapLoading(false);
+      }
+    }
+    loadMapData();
+  }, [selectedRoute]);
+
+  // Compute center and bounds
+  const getCenter = useCallback((): [number, number] => {
+    if (stops.length === 0) return [12.9716, 77.5946]; // Default: Bangalore
+    const avgLat = stops.reduce((a, s) => a + s.lat, 0) / stops.length;
+    const avgLng = stops.reduce((a, s) => a + s.lng, 0) / stops.length;
+    return [avgLat, avgLng];
+  }, [stops]);
+
+  const getBounds = useCallback((): [[number, number], [number, number]] | null => {
+    if (stops.length === 0) return null;
+    let minLat = Infinity, minLng = Infinity, maxLat = -Infinity, maxLng = -Infinity;
+    for (const s of stops) {
+      minLat = Math.min(minLat, s.lat);
+      minLng = Math.min(minLng, s.lng);
+      maxLat = Math.max(maxLat, s.lat);
+      maxLng = Math.max(maxLng, s.lng);
+    }
+    return [[minLat, minLng], [maxLat, maxLng]];
+  }, [stops]);
+
+  const greenIcon = L.divIcon({
+    className: '',
+    html: `<div style="background:#22c55e;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+
+  const redIcon = L.divIcon({
+    className: '',
+    html: `<div style="background:#ef4444;width:14px;height:14px;border-radius:50%;border:3px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7],
+  });
+
+  const blueIcon = L.divIcon({
+    className: '',
+    html: `<div style="background:#3b82f6;width:10px;height:10px;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,0.2)"></div>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+  });
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="space-y-4 py-6">
+          <Skeleton className="h-10 w-64 rounded-md" />
+          <Skeleton className="h-96 rounded-xl" />
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error && routes.length === 0) {
+    return (
+      <Card className="border-red-200 bg-red-50">
+        <CardContent className="py-8 text-center text-red-600">
+          <p className="font-medium">Failed to load route map</p>
+          <p className="mt-1 text-sm">{error}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Route selector */}
+      <Card>
+        <CardContent className="flex flex-col gap-4 py-4 sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <Navigation className="size-5 text-primary" />
+            <span className="text-sm font-medium">Select Route:</span>
+          </div>
+          <Select
+            value={selectedRoute?.id ?? ''}
+            onValueChange={v => {
+              const r = routes.find(r => r.id === v);
+              setSelectedRoute(r ?? null);
+              setError('');
+            }}
+          >
+            <SelectTrigger className="w-full sm:w-80">
+              <SelectValue placeholder="Choose a route..." />
+            </SelectTrigger>
+            <SelectContent>
+              {routes.map(r => (
+                <SelectItem key={r.id} value={r.id}>
+                  {r.routeNumber} — {r.startLocation} → {r.endLocation}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </CardContent>
+      </Card>
+
+      {/* Map */}
+      <Card className="overflow-hidden">
+        <CardContent className="p-0">
+          <div className="relative h-[450px] w-full md:h-[550px]">
+            {mapLoading && (
+              <div className="absolute inset-0 z-[1000] flex items-center justify-center bg-white/70 backdrop-blur-sm">
+                <div className="flex flex-col items-center gap-2">
+                  <Loader2 className="size-8 animate-spin text-primary" />
+                  <span className="text-sm text-muted-foreground">Loading route path...</span>
+                </div>
+              </div>
+            )}
+
+            {mapReady && selectedRoute && (
+              <MapContainer
+                center={getCenter()}
+                zoom={13}
+                className="h-full w-full"
+                bounds={getBounds() ?? undefined}
+                boundsOptions={{ padding: [40, 40] }}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+
+                {/* Markers */}
+                {stops.map((stop, idx) => {
+                  const isFirst = idx === 0;
+                  const isLast = idx === stops.length - 1;
+                  return (
+                    <Marker
+                      key={idx}
+                      position={[stop.lat, stop.lng]}
+                      icon={isFirst ? greenIcon : isLast ? redIcon : blueIcon}
+                    >
+                      <Popup>
+                        <div className="text-xs">
+                          <p className="font-semibold">{stop.name}</p>
+                          <p className="text-muted-foreground">
+                            {isFirst ? '🟢 Start' : isLast ? '🔴 End' : `Stop ${idx}`}
+                          </p>
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+                {/* OSRM Polyline */}
+                {!useFallback && polylineCoords.length > 0 && (
+                  <Polyline
+                    positions={polylineCoords}
+                    pathOptions={{
+                      color: '#6366f1',
+                      weight: 5,
+                      opacity: 0.8,
+                      smoothFactor: 1,
+                    }}
+                  />
+                )}
+
+                {/* Fallback straight lines */}
+                {useFallback && fallbackCoords.length > 0 && (
+                  <Polyline
+                    positions={fallbackCoords}
+                    pathOptions={{
+                      color: '#6366f1',
+                      weight: 4,
+                      opacity: 0.7,
+                      dashArray: '8, 8',
+                    }}
+                  />
+                )}
+              </MapContainer>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Route Info */}
+      {selectedRoute && (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100">
+                <Route className="size-4 text-violet-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Route</p>
+                <p className="font-semibold">{selectedRoute.routeNumber}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100">
+                <Navigation className="size-4 text-sky-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Distance</p>
+                <p className="font-semibold">{selectedRoute.distance ? `${selectedRoute.distance} km` : '—'}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100">
+                <Clock className="size-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Duration</p>
+                <p className="font-semibold">{selectedRoute.duration ?? '—'}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">
+                <IndianRupee className="size-4 text-emerald-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Fare</p>
+                <p className="font-semibold">{formatCurrency(selectedRoute.fare)}</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-4">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100">
+                <MapPin className="size-4 text-rose-600" />
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Stops</p>
+                <p className="font-semibold">{selectedRoute.stopsCount ?? stops.length}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {useFallback && selectedRoute && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex items-center gap-2 py-3 text-sm text-amber-700">
+            <TrendingUp className="size-4 shrink-0" />
+            Showing straight-line route (OSRM routing unavailable). The actual road path may differ.
+          </CardContent>
+        </Card>
+      )}
+
+      {routes.length === 0 && !loading && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+            <Map className="mb-3 size-12 text-muted-foreground/30" />
+            <p className="text-muted-foreground">No routes available for map display</p>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+// ─── My Bookings ─────────────────────────────────────────────────────────────
+
+function MyBookings({ userId }: { userId: string }) {
+  const [bookings, setBookings] = useState<Journey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [cancelling, setCancelling] = useState<string | null>(null);
+  const [error, setError] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+
+  useEffect(() => {
+    async function fetchBookings() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/journeys?customerId=${userId}&status=planned`);
+        if (!res.ok) throw new Error('Failed to fetch bookings');
+        const data = await res.json();
+        setBookings(data.journeys ?? []);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load bookings');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchBookings();
+  }, [userId]);
+
+  const handleCancel = useCallback(async (journey: Journey) => {
+    try {
+      setCancelling(journey.id);
+      const res = await fetch('/api/journeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'cancel', id: journey.id }),
+      });
+      if (!res.ok) throw new Error('Cancellation failed');
+      setBookings(prev => prev.filter(j => j.id !== journey.id));
+      setToastMsg('Booking cancelled successfully');
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Cancellation failed');
+    } finally {
+      setCancelling(null);
+    }
+  }, []);
+
+  return (
+    <div className="space-y-4">
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-50 rounded-lg border bg-emerald-50 px-4 py-3 text-emerald-700 shadow-lg animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="mr-2 inline size-4" />
+          {toastMsg}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CalendarClock className="size-5 text-sky-500" />
+            My Bookings
+            {!loading && <Badge variant="secondary" className="ml-2">{bookings.length}</Badge>}
+          </CardTitle>
+          <CardDescription>Manage your planned journeys</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              <XCircle className="size-4 shrink-0" />
+              {error}
+              <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+                &times;
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-12 rounded-md" />
+              ))}
+            </div>
+          ) : bookings.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <CalendarClock className="mb-3 size-12 text-muted-foreground/30" />
+              <p className="text-muted-foreground">No planned bookings</p>
+              <p className="mt-1 text-sm text-muted-foreground/70">
+                Search for routes and book your next trip
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[500px] overflow-y-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Route #</TableHead>
+                    <TableHead>From → To</TableHead>
+                    <TableHead className="hidden sm:table-cell">Date</TableHead>
+                    <TableHead className="hidden md:table-cell">Time</TableHead>
+                    <TableHead>Cost</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {bookings.map(j => (
+                    <TableRow key={j.id}>
+                      <TableCell className="font-medium">{j.routeNumber ?? '—'}</TableCell>
+                      <TableCell>
+                        <span className="text-muted-foreground">{j.startLocation ?? ''}</span>
+                        <ArrowRight className="mx-1 inline size-3 text-muted-foreground" />
+                        <span>{j.endLocation ?? ''}</span>
+                      </TableCell>
+                      <TableCell className="hidden sm:table-cell">{j.date ?? '—'}</TableCell>
+                      <TableCell className="hidden md:table-cell">{j.time ?? '—'}</TableCell>
+                      <TableCell className="font-semibold">{formatCurrency(j.cost)}</TableCell>
+                      <TableCell>{statusBadge(j.status)}</TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          disabled={cancelling === j.id}
+                          onClick={() => handleCancel(j)}
+                        >
+                          {cancelling === j.id ? (
+                            <Loader2 className="size-3 animate-spin" />
+                          ) : (
+                            <XCircle className="size-3" />
+                          )}
+                          Cancel
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Journey History ─────────────────────────────────────────────────────────
+
+function JourneyHistory({ userId }: { userId: string }) {
+  const [journeys, setJourneys] = useState<Journey[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [toastMsg, setToastMsg] = useState('');
+  const [ratings, setRatings] = useState<Record<string, number>>({});
+  const [feedbacks, setFeedbacks] = useState<Record<string, string>>({});
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        setLoading(true);
+        const res = await fetch(`/api/journeys?customerId=${userId}&status=completed`);
+        if (!res.ok) throw new Error('Failed to fetch history');
+        const data = await res.json();
+        const jList: Journey[] = data.journeys ?? [];
+        setJourneys(jList);
+        // Initialize ratings
+        const initRatings: Record<string, number> = {};
+        const initFeedbacks: Record<string, string> = {};
+        for (const j of jList) {
+          initRatings[j.id] = j.rating ?? 0;
+          initFeedbacks[j.id] = j.feedback ?? '';
+        }
+        setRatings(initRatings);
+        setFeedbacks(initFeedbacks);
+      } catch (e: unknown) {
+        setError(e instanceof Error ? e.message : 'Failed to load history');
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchHistory();
+  }, [userId]);
+
+  const handleSubmitRating = useCallback(async (journeyId: string) => {
+    const rating = ratings[journeyId];
+    if (!rating || rating < 1) {
+      setError('Please select a rating before submitting');
+      return;
+    }
+    try {
+      setSubmitting(journeyId);
+      const res = await fetch('/api/journeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'rate',
+          id: journeyId,
+          rating,
+          feedback: feedbacks[journeyId] ?? '',
+        }),
+      });
+      if (!res.ok) throw new Error('Rating submission failed');
+      setJourneys(prev =>
+        prev.map(j =>
+          j.id === journeyId
+            ? { ...j, rating, feedback: feedbacks[journeyId] ?? '' }
+            : j
+        )
+      );
+      setToastMsg('Rating submitted successfully!');
+      setTimeout(() => setToastMsg(''), 3000);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Rating submission failed');
+    } finally {
+      setSubmitting(null);
+    }
+  }, [ratings, feedbacks]);
+
+  return (
+    <div className="space-y-4">
+      {toastMsg && (
+        <div className="fixed top-4 right-4 z-50 rounded-lg border bg-emerald-50 px-4 py-3 text-emerald-700 shadow-lg animate-in fade-in slide-in-from-top-2">
+          <CheckCircle2 className="mr-2 inline size-4" />
+          {toastMsg}
+        </div>
+      )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CheckCircle2 className="size-5 text-emerald-500" />
+            Journey History
+            {!loading && <Badge variant="secondary" className="ml-2">{journeys.length}</Badge>}
+          </CardTitle>
+          <CardDescription>Your completed trips and ratings</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {error && (
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+              <XCircle className="size-4 shrink-0" />
+              {error}
+              <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+                &times;
+              </button>
+            </div>
+          )}
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-24 rounded-lg" />
+              ))}
+            </div>
+          ) : journeys.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <CheckCircle2 className="mb-3 size-12 text-muted-foreground/30" />
+              <p className="text-muted-foreground">No completed journeys yet</p>
+              <p className="mt-1 text-sm text-muted-foreground/70">
+                Your completed trips will appear here
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-[600px] space-y-3 overflow-y-auto">
+              {journeys.map(j => {
+                const isRated = (j.rating ?? 0) > 0;
+                const isSubmitting = submitting === j.id;
+                return (
+                  <Card key={j.id} className={isRated ? 'opacity-80' : ''}>
+                    <CardContent className="py-4">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm">{j.routeNumber ?? '—'}</span>
+                            <Badge variant="outline" className="text-emerald-600 bg-emerald-50 border-emerald-200">
+                              Completed
+                            </Badge>
+                          </div>
+                          <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                            <MapPin className="size-3" />
+                            <span>{j.startLocation ?? ''}</span>
+                            <ArrowRight className="size-3" />
+                            <span>{j.endLocation ?? ''}</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span>{j.date ?? ''}</span>
+                            <span>•</span>
+                            <span className="font-medium text-foreground">{formatCurrency(j.cost)}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col items-end gap-2 sm:min-w-[200px]">
+                          {/* Existing rating */}
+                          {isRated && (
+                            <div className="space-y-1">
+                              <StarRating rating={j.rating!} />
+                              {j.feedback && (
+                                <p className="text-xs text-muted-foreground italic">"{j.feedback}"</p>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Rating form for unrated */}
+                          {!isRated && (
+                            <div className="w-full space-y-2">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-muted-foreground">Rate:</span>
+                                <StarRating
+                                  rating={ratings[j.id] ?? 0}
+                                  onChange={r =>
+                                    setRatings(prev => ({ ...prev, [j.id]: r }))
+                                  }
+                                />
+                              </div>
+                              <Textarea
+                                placeholder="Share your feedback (optional)..."
+                                className="min-h-16 text-xs"
+                                value={feedbacks[j.id] ?? ''}
+                                onChange={e =>
+                                  setFeedbacks(prev => ({
+                                    ...prev,
+                                    [j.id]: e.target.value,
+                                  }))
+                                }
+                              />
+                              <Button
+                                size="sm"
+                                className="w-full"
+                                disabled={isSubmitting || !ratings[j.id]}
+                                onClick={() => handleSubmitRating(j.id)}
+                              >
+                                {isSubmitting ? (
+                                  <Loader2 className="size-3 animate-spin" />
+                                ) : (
+                                  <Star className="size-3" />
+                                )}
+                                Submit Rating
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Main Component ──────────────────────────────────────────────────────────
+
+export default function CustomerContent({ portal, userId, token, setPortal }: Props) {
+  // token is available if needed for authorized requests
+  const _token = token;
+
+  void _token;
+
+  return (
+    <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6 lg:p-8">
+      {/* Page Header */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight md:text-3xl">
+          {portal === 'dashboard' && 'Dashboard'}
+          {portal === 'search' && 'Search Routes'}
+          {portal === 'map' && 'Route Map'}
+          {portal === 'bookings' && 'My Bookings'}
+          {portal === 'history' && 'Journey History'}
+        </h1>
+        <p className="mt-1 text-muted-foreground">
+          {portal === 'dashboard' && 'Welcome back! Here is your travel overview.'}
+          {portal === 'search' && 'Find and book available bus routes.'}
+          {portal === 'map' && 'Explore routes on an interactive map.'}
+          {portal === 'bookings' && 'View and manage your planned trips.'}
+          {portal === 'history' && 'Review your completed journeys and rate them.'}
+        </p>
+      </div>
+
+      {/* Content */}
+      {portal === 'dashboard' && <Dashboard userId={userId} setPortal={setPortal} />}
+      {portal === 'search' && <SearchRoutes userId={userId} />}
+      {portal === 'map' && <RouteMapView />}
+      {portal === 'bookings' && <MyBookings userId={userId} />}
+      {portal === 'history' && <JourneyHistory userId={userId} />}
+    </div>
+  );
+}
