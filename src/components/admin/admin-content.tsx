@@ -1648,6 +1648,7 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
     status: string;
   }>>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [sending, setSending] = useState(false);
   const [title, setTitle] = useState('');
   const [message, setMessage] = useState('');
   const [priority, setPriority] = useState('Normal');
@@ -1673,6 +1674,8 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
       showToast('Please fill in both title and message.', 'error');
       return;
     }
+    if (sending) return;
+    setSending(true);
     const newBroadcast = {
       id: ++idRef.current,
       title: title.trim(),
@@ -1707,7 +1710,7 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
             </CardTitle>
             <CardDescription>Send notifications to users, crew, or all</CardDescription>
           </div>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (open) setSending(false); }}>
             <DialogTrigger asChild>
               <Button size="sm">
                 <Send className="size-4 mr-1.5" />
@@ -1759,8 +1762,12 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                <Button onClick={handleSend}>
-                  <Send className="size-4 mr-1.5" />
+                <Button onClick={handleSend} disabled={sending}>
+                  {sending ? (
+                    <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Send className="size-4 mr-1.5" />
+                  )}
                   Send Broadcast
                 </Button>
               </DialogFooter>
@@ -2512,6 +2519,7 @@ function TrafficPage({ token }: { token: string }) {
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [resolving, setResolving] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     routeId: '',
@@ -2546,6 +2554,7 @@ function TrafficPage({ token }: { token: string }) {
       showToast('Please fill in all required fields', 'error');
       return;
     }
+    setCreating(true);
     try {
       await apiFetch('/api/traffic', {
         method: 'POST',
@@ -2563,6 +2572,8 @@ function TrafficPage({ token }: { token: string }) {
       fetchData();
     } catch (err: unknown) {
       showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+    } finally {
+      setCreating(false);
     }
   };
 
@@ -2758,8 +2769,12 @@ function TrafficPage({ token }: { token: string }) {
                   <Button variant="outline" onClick={() => setDialogOpen(false)}>
                     Cancel
                   </Button>
-                  <Button onClick={handleCreate} className="gap-1.5">
-                    <Send className="size-4" />
+                  <Button onClick={handleCreate} disabled={creating} className="gap-1.5">
+                    {creating ? (
+                      <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                    ) : (
+                      <Send className="size-4" />
+                    )}
                     Create Alert
                   </Button>
                 </DialogFooter>
@@ -3743,8 +3758,11 @@ function SettingsPage() {
   };
 
   const [lastExport, setLastExport] = useState<Record<string, string>>({});
+  const [exporting, setExporting] = useState<string | null>(null);
 
   const handleExportData = async (type: string, label: string) => {
+    if (exporting) return;
+    setExporting(type);
     try {
       const res = await fetch(`/api/export?type=${type}`);
       if (!res.ok) throw new Error('Export failed');
@@ -3759,6 +3777,8 @@ function SettingsPage() {
       showToast(`${label} exported successfully!`, 'success');
     } catch {
       showToast(`Failed to export ${label}.`, 'error');
+    } finally {
+      setExporting(null);
     }
   };
 
@@ -4005,10 +4025,15 @@ function SettingsPage() {
               <button
                 key={exp.type}
                 onClick={() => handleExportData(exp.type, exp.label)}
-                className="card-lift flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:border-emerald-300 dark:hover:border-emerald-700"
+                disabled={!!exporting}
+                className="card-lift flex flex-col items-center gap-2 rounded-xl border p-4 text-center transition-all hover:border-emerald-300 dark:hover:border-emerald-700 disabled:opacity-60 disabled:cursor-not-allowed"
               >
                 <div className={`rounded-lg p-2.5 ${exp.color}`}>
-                  <IconComp className="size-5" />
+                  {exporting === exp.type ? (
+                    <span className="size-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <IconComp className="size-5" />
+                  )}
                 </div>
                 <span className="text-xs font-medium">{exp.label}</span>
                 {lastExport[exp.type] && (

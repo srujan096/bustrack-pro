@@ -839,6 +839,11 @@ function BreakTimer() {
       intervalRef.current = setInterval(() => {
         setRemainingSeconds((prev) => {
           if (prev <= 1) {
+            // Clear interval immediately to prevent double-increment on next tick
+            if (intervalRef.current) {
+              clearInterval(intervalRef.current);
+              intervalRef.current = null;
+            }
             setBreakState('ended');
             setBreaksTaken((b) => b + 1);
             toast({ title: 'Break Over!', description: 'Break over! Time to get back to work.' });
@@ -4857,8 +4862,13 @@ export default function CrewContent({ portal, userId, token }: Props) {
     }
   };
 
+  // Guard against rapid toggle availability clicks
+  const toggleAvailRef = useRef(false);
+
   // Toggle availability from dashboard
   const handleToggleAvailability = async (available: boolean) => {
+    if (toggleAvailRef.current) return;
+    toggleAvailRef.current = true;
     try {
       const res = await fetch('/api/auth', {
         method: 'POST',
@@ -4872,10 +4882,16 @@ export default function CrewContent({ portal, userId, token }: Props) {
       });
 
       if (res.ok) {
+        toast({ title: 'Availability Updated', description: `You are now ${available ? 'available' : 'unavailable'}.` });
         fetchCrewProfile();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        toast({ title: 'Update Failed', description: data.error || 'Failed to update availability.', variant: 'destructive' });
       }
     } catch {
-      // silently fail
+      toast({ title: 'Error', description: 'Failed to update availability. Please try again.', variant: 'destructive' });
+    } finally {
+      toggleAvailRef.current = false;
     }
   };
 

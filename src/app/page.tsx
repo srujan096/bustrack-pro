@@ -1274,21 +1274,8 @@ function SidebarSection({ title, pages, portal, setPortal, configColor, collapse
 export default function Home() {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [portal, setPortal] = useState<string>('dashboard');
-
-  useEffect(() => {
-    const init = () => {
-      const savedToken = localStorage.getItem('busToken');
-      const savedUser = localStorage.getItem('busUser');
-      if (savedToken && savedUser) {
-        setToken(savedToken);
-        setUser(JSON.parse(savedUser));
-      }
-      setLoading(false);
-    };
-    init();
-  }, []);
 
   const handleLogin = (loggedInUser: UserProfile, loginToken: string) => {
     setUser(loggedInUser);
@@ -1988,6 +1975,17 @@ function AppShell({
             <WeatherWidget />
             <ThemeToggle />
             <NotificationBell userId={user.id} token={token} />
+            {/* Sign Out Button — always visible in header */}
+            <button
+              onClick={onLogout}
+              title="Sign Out"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-all duration-200 border border-transparent hover:border-red-200 dark:hover:border-red-800/40"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span className="hidden sm:inline">Sign Out</span>
+            </button>
             {/* User avatar with online status */}
             <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 dark:bg-gray-800 rounded-full">
               {/* Online Status Indicator - pulsing green dot */}

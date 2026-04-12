@@ -2798,11 +2798,7 @@ function SearchRoutes({
                         <RouteDetailPanel
                           route={route}
                           onBook={(seats) => {
-                            if (seats && seats.length > 0) {
-                              handleBook(route, seats);
-                            } else {
-                              setSeatSelectionRoute(route);
-                            }
+                            handleBook(route, seats);
                           }}
                           isBooking={bookingId === route.id}
                         />
