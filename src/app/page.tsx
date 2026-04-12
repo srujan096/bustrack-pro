@@ -132,11 +132,14 @@ function NotificationTicker() {
   const [events, setEvents] = useState<{ id: number; type: string; message: string; severity: string }[]>([]);
   const wsRef = useRef<WebSocket | null>(null);
   const idRef = useRef(0);
+  const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
 
   useEffect(() => {
+    if (!wsUrl) return;
+
     const connect = () => {
       try {
-        const ws = new WebSocket(`ws://localhost:3005/?XTransformPort=3005`);
+        const ws = new WebSocket(`${wsUrl}/?XTransformPort=3005`);
         wsRef.current = ws;
 
         ws.onmessage = (e) => {
@@ -162,15 +165,14 @@ function NotificationTicker() {
           ws.close();
         };
       } catch {
-        // WebSocket not available, use fallback events
-        setTimeout(connect, 10000);
+        // silent failure
       }
     };
     connect();
     return () => {
       wsRef.current?.close();
     };
-  }, []);
+  }, [wsUrl]);
 
   const severityColors: Record<string, string> = {
     warning: 'text-amber-500',
@@ -187,7 +189,7 @@ function NotificationTicker() {
     weather: '🌤',
   };
 
-  if (events.length === 0) return null;
+  if (!wsUrl || events.length === 0) return null;
 
   // Duplicate events for seamless marquee loop
   const displayEvents = [...events, ...events];
@@ -636,6 +638,19 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
   const [isOpen, setIsOpen] = useState(false);
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
+  const bellRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bellRef.current && !bellRef.current.contains(e.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -735,7 +750,7 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
   );
 
   return (
-    <div className="relative">
+    <div className="relative" ref={bellRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
         className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
@@ -1599,7 +1614,13 @@ function AppShell({
   const [isMobile, setIsMobile] = useState(false);
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [paletteKey, setPaletteKey] = useState(0);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('busSidebarCollapsed') === 'true';
+    }
+    return false;
+  });
+  const [errorNotifs, setErrorNotifs] = useState<any[]>([]);
   const [showNotifBar, setShowNotifBar] = useState(true);
   const [recentPages, setRecentPages] = useState<{ id: string; label: string; icon: string }[]>([]);
 
@@ -1607,6 +1628,28 @@ function AppShell({
     setPaletteKey(k => k + 1);
     setCommandPaletteOpen(true);
   }, []);
+
+  // Persist sidebar collapsed state to localStorage
+  useEffect(() => {
+    localStorage.setItem('busSidebarCollapsed', String(sidebarCollapsed));
+  }, [sidebarCollapsed]);
+
+  // Fetch unresolved error notifications for critical bar
+  useEffect(() => {
+    const fetchErrorNotifs = async () => {
+      try {
+        const res = await fetch(`/api/notifications?userId=${user.id}`);
+        const data = await res.json();
+        const errors = (data.notifications || []).filter(
+          (n: any) => n.type === 'error' && !n.isRead
+        );
+        setErrorNotifs(errors);
+      } catch {
+        // silent
+      }
+    };
+    fetchErrorNotifs();
+  }, [user.id]);
 
   // Detect mobile with resize listener
   useEffect(() => {
@@ -1943,11 +1986,11 @@ function AppShell({
       {/* Main */}
       <main className="flex-1 flex flex-col overflow-hidden">
         {/* Critical notification bar */}
-        {showNotifBar && (
+        {showNotifBar && errorNotifs.length > 0 && (
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-1.5 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2 min-w-0 overflow-hidden">
               <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0" />
-              <span className="truncate">⚠ 3 unread critical notifications — Route R-101 delayed, Maintenance alert on Bus KA-01-1234, Crew schedule update pending</span>
+              <span className="truncate">⚠ {errorNotifs.length} unread critical notification{errorNotifs.length !== 1 ? 's' : ''} — {errorNotifs[0].message}</span>
             </div>
             <button onClick={() => setShowNotifBar(false)} className="ml-3 flex-shrink-0 hover:bg-white/20 rounded px-1.5 py-0.5 transition-colors" aria-label="Dismiss">
               <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>

@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { toast } from '@/hooks/use-toast';
 import {
   Card,
   CardContent,
@@ -107,48 +108,8 @@ interface Props {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Toast system                                                       */
+/*  Toast system (using shadcn @/hooks/use-toast)                       */
 /* ------------------------------------------------------------------ */
-interface Toast {
-  id: number;
-  message: string;
-  type: 'success' | 'error';
-}
-
-interface ToastContextType {
-  showToast: (message: string, type?: 'success' | 'error') => void;
-}
-
-const ToastContext = createContext<ToastContextType>({ showToast: () => {} });
-
-function useToast() {
-  return useContext(ToastContext);
-}
-
-function ToastContainer({ toasts }: { toasts: Toast[] }) {
-  if (toasts.length === 0) return null;
-  return (
-    <div className="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm">
-      {toasts.map((t) => (
-        <div
-          key={t.id}
-          className={`flex items-center gap-3 rounded-lg border px-4 py-3 shadow-lg transition-all animate-in slide-in-from-right-full duration-300 ${
-            t.type === 'success'
-              ? 'border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/90 dark:text-emerald-200'
-              : 'border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/90 dark:text-rose-200'
-          }`}
-        >
-          {t.type === 'success' ? (
-            <CheckCircle2 className="size-5 shrink-0" />
-          ) : (
-            <XCircle className="size-5 shrink-0" />
-          )}
-          <p className="text-sm font-medium flex-1">{t.message}</p>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /*  Helper: fetch wrapper                                              */
@@ -865,7 +826,7 @@ function CrewFatigueMonitor() {
 /* ------------------------------------------------------------------ */
 /*  Route Optimization Insights                                        */
 /* ------------------------------------------------------------------ */
-function OptimizationInsights({ showToast }: { showToast: (msg: string, type?: 'success' | 'error') => void }) {
+function OptimizationInsights() {
   const suggestions = [
     {
       id: 1,
@@ -920,7 +881,7 @@ function OptimizationInsights({ showToast }: { showToast: (msg: string, type?: '
   ];
 
   const handleApply = (title: string) => {
-    showToast(`Optimization applied: ${title}`, 'success');
+    toast({ title: 'Success', description: `Optimization applied: ${title}` });
   };
 
   return (
@@ -1223,6 +1184,207 @@ function ScheduleStatusBadge({ status }: { status?: string }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  useCountUp hook — animates a number from 0 to target              */
+/* ------------------------------------------------------------------ */
+function useCountUp(target: number, duration = 1500, enabled = true) {
+  const [value, setValue] = useState(0);
+  const frameRef = useRef<number>(0);
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    if (!enabled || target === 0) {
+      return;
+    }
+    const startTime = performance.now();
+    const animate = (now: number) => {
+      if (!mountedRef.current) return;
+      const elapsed = now - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      // ease-out cubic
+      const eased = 1 - Math.pow(1 - progress, 3);
+      setValue(Math.round(eased * target));
+      if (progress < 1) {
+        frameRef.current = requestAnimationFrame(animate);
+      }
+    };
+    frameRef.current = requestAnimationFrame(animate);
+    return () => {
+      mountedRef.current = false;
+      cancelAnimationFrame(frameRef.current);
+    };
+  }, [target, duration, enabled]);
+
+  return value;
+}
+
+/* ------------------------------------------------------------------ */
+/*  AnimatedStatNumber — displays a number with count-up animation    */
+/* ------------------------------------------------------------------ */
+function AnimatedStatNumber({ value, duration = 1500 }: { value: number; duration?: number }) {
+  const animatedValue = useCountUp(value, duration, value > 0);
+  return <>{animatedValue.toLocaleString()}</>;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Skeleton Table Rows with Shimmer                                   */
+/* ------------------------------------------------------------------ */
+function TableSkeletonShimmer({ rows = 5, cols = 5 }: { rows?: number; cols?: number }) {
+  const colWidths = ['w-28', 'flex-1', 'w-20', 'w-16', 'w-24', 'w-20', 'w-20'];
+  return (
+    <div className="space-y-0 rounded-md border overflow-hidden">
+      {/* Header shimmer */}
+      <div className="flex gap-2 bg-muted/40 p-3">
+        {Array.from({ length: cols }).map((_, j) => (
+          <div key={`h-${j}`} className={`${colWidths[j % colWidths.length]} skeleton-shimmer h-4 rounded`}>
+            <span className="invisible">placeholder</span>
+          </div>
+        ))}
+      </div>
+      {/* Body shimmer rows */}
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          className={`flex gap-2 p-3 border-t ${i % 2 === 0 ? 'bg-background' : 'bg-muted/20'}`}
+        >
+          {Array.from({ length: cols }).map((_, j) => (
+            <div key={j} className={`${colWidths[j % colWidths.length]} skeleton-shimmer h-4 rounded`}>
+              <span className="invisible">placeholder</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Table Footer: Row Count + View All                                 */
+/* ------------------------------------------------------------------ */
+function TableFooter({
+  showing,
+  total,
+  viewAllAction,
+}: {
+  showing: number;
+  total: number;
+  viewAllAction?: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between mt-3 px-1">
+      <p className="text-xs text-muted-foreground">
+        Showing <span className="font-semibold text-foreground">{showing}</span> of{' '}
+        <span className="font-semibold text-foreground">{total}</span> results
+      </p>
+      {viewAllAction && total > showing && (
+        <button
+          onClick={viewAllAction}
+          className="animated-underline text-xs font-medium text-primary hover:text-primary/80 transition-colors"
+        >
+          View All →
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Activity Timeline Component                                        */
+/* ------------------------------------------------------------------ */
+interface TimelineEvent {
+  icon: React.ElementType;
+  text: string;
+  time: string;
+  color: string;
+  dotColor: 'green' | 'amber' | 'red' | 'blue';
+  timestamp: Date;
+}
+
+function ActivityTimeline({ events }: { events: TimelineEvent[] }) {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today.getTime() - 86400000);
+
+  const groups = useMemo(() => {
+    const grouped: { label: string; items: TimelineEvent[] }[] = [
+      { label: 'Today', items: [] },
+      { label: 'Yesterday', items: [] },
+      { label: 'Earlier', items: [] },
+    ];
+    events.forEach((event) => {
+      if (event.timestamp >= today) {
+        grouped[0].items.push(event);
+      } else if (event.timestamp >= yesterday) {
+        grouped[1].items.push(event);
+      } else {
+        grouped[2].items.push(event);
+      }
+    });
+    return grouped.filter((g) => g.items.length > 0);
+  }, [events]);
+
+  const dotColorMap: Record<string, string> = {
+    green: 'bg-emerald-500 shadow-emerald-500/40',
+    amber: 'bg-amber-500 shadow-amber-500/40',
+    red: 'bg-rose-500 shadow-rose-500/40',
+    blue: 'bg-sky-500 shadow-sky-500/40',
+  };
+
+  let globalIndex = 0;
+
+  return (
+    <div className="relative">
+      {/* Vertical gradient line */}
+      {groups.length > 0 && (
+        <div
+          className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-emerald-500/40 via-amber-500/30 to-muted-foreground/20"
+        />
+      )}
+      <div className="space-y-6">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 ml-10">
+              {group.label}
+            </p>
+            <div className="space-y-3 stagger-entry">
+              {group.items.map((event) => {
+                globalIndex++;
+                const idx = globalIndex;
+                const IconComp = event.icon;
+                return (
+                  <div
+                    key={idx}
+                    className="animate-fade-in-up relative flex items-start gap-3 opacity-0"
+                    style={{ animationDelay: `${idx * 0.08}s` }}
+                  >
+                    {/* Colored dot with glow */}
+                    <div className="relative z-10 mt-1.5 shrink-0">
+                      <div
+                        className={`size-[9px] rounded-full ${dotColorMap[event.dotColor]} shadow-[0_0_8px] transition-all`}
+                      />
+                    </div>
+                    {/* Icon + content */}
+                    <div className="flex items-start gap-3 flex-1 min-w-0 bg-background rounded-lg p-2.5 transition-colors hover:bg-muted/40">
+                      <div className={`mt-0.5 rounded-lg p-1.5 bg-muted ${event.color}`}>
+                        <IconComp className="size-3.5" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium leading-tight">{event.text}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{event.time}</p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
@@ -1233,7 +1395,6 @@ function DashboardPage({
   token: string;
   setPortal: (p: string) => void;
 }) {
-  const { showToast } = useToast();
   const [analytics, setAnalytics] = useState<any>(null);
   const [alerts, setAlerts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -1287,16 +1448,16 @@ function DashboardPage({
           method: 'POST',
           body: JSON.stringify({ action: 'generate', date: todayStr() }),
         });
-        showToast('Schedules generated successfully!', 'success');
+        toast({ title: 'Success', description: 'Schedules generated successfully!' });
       } else if (action === 'autoAssign') {
         await apiFetch('/api/crew', {
           method: 'POST',
           body: JSON.stringify({ action: 'autoAssign', date: todayStr() }),
         });
-        showToast('Crew auto-assigned successfully!', 'success');
+        toast({ title: 'Success', description: 'Crew auto-assigned successfully!' });
       }
     } catch (err: unknown) {
-      showToast(`Action failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Action failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setActionLoading('');
     }
@@ -1351,12 +1512,13 @@ function DashboardPage({
     { id: 'viewTraffic', label: 'Traffic Alerts', desc: 'Monitor live traffic incidents', icon: AlertTriangle, gradient: 'from-rose-500 to-red-600' },
   ];
 
-  const recentActivity = [
-    { icon: Calendar, text: 'Schedule generation completed', time: '2 min ago', color: 'text-amber-500' },
-    { icon: UserCheck, text: 'Crew auto-assigned for 12 routes', time: '15 min ago', color: 'text-violet-500' },
-    { icon: AlertTriangle, text: 'Traffic alert on Route 42 resolved', time: '1 hour ago', color: 'text-rose-500' },
-    { icon: CheckCircle2, text: '3 holiday requests approved', time: '2 hours ago', color: 'text-emerald-500' },
-    { icon: Wrench, text: 'Maintenance record updated for KA-01-1234', time: '3 hours ago', color: 'text-sky-500' },
+  const now = new Date();
+  const timelineEvents: TimelineEvent[] = [
+    { icon: Calendar, text: 'Schedule generation completed', time: '2 min ago', color: 'text-amber-500', dotColor: 'amber', timestamp: new Date(now.getTime() - 2 * 60000) },
+    { icon: UserCheck, text: 'Crew auto-assigned for 12 routes', time: '15 min ago', color: 'text-violet-500', dotColor: 'blue', timestamp: new Date(now.getTime() - 15 * 60000) },
+    { icon: CheckCircle2, text: '3 holiday requests approved', time: '2 hours ago', color: 'text-emerald-500', dotColor: 'green', timestamp: new Date(now.getTime() - 2 * 3600000) },
+    { icon: AlertTriangle, text: 'Traffic alert on Route 42 resolved', time: 'Yesterday, 4:30 PM', color: 'text-rose-500', dotColor: 'red', timestamp: new Date(now.getTime() - 22 * 3600000) },
+    { icon: Wrench, text: 'Maintenance record updated for KA-01-1234', time: 'Yesterday, 11:00 AM', color: 'text-sky-500', dotColor: 'blue', timestamp: new Date(now.getTime() - 26 * 3600000) },
   ];
 
   const healthItems = [
@@ -1401,19 +1563,19 @@ function DashboardPage({
           </>
         ) : (
           stats.map((s) => (
-            <Card key={s.label} className="transition-shadow hover:shadow-md">
+            <Card key={s.label} className="stat-card-premium transition-shadow hover:shadow-md group">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground">{s.label}</p>
-                    <p className="mt-1 text-3xl font-bold tracking-tight">
+                    <p className="mt-1 text-3xl font-bold tracking-tight tabular-nums">
                       {typeof s.value === 'number'
-                        ? s.value.toLocaleString()
+                        ? <AnimatedStatNumber value={s.value as number} />
                         : s.value}
                     </p>
                     <MiniSparkline data={fakeSparkline(s.value as number)} color={s.sparkColor} />
                   </div>
-                  <div className={`rounded-xl p-3 ${s.color}`}>
+                  <div className={`rounded-xl p-3 transition-shadow group-hover:animate-pulse-glow ${s.color}`}>
                     <s.icon className="size-6" />
                   </div>
                 </div>
@@ -1534,34 +1696,22 @@ function DashboardPage({
 
       {/* Broadcast Messaging */}
       <div className="page-section">
-      <BroadcastMessaging showToast={showToast} />
+      <BroadcastMessaging />
       </div>
 
       {/* Recent Activity + Traffic Alerts side by side on desktop */}
       <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* STYLE: Recent Activity */}
+        {/* Activity Timeline */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Activity className="size-5" /> Recent Activity
+              <Activity className="size-5" /> Activity Timeline
             </CardTitle>
-            <CardDescription>Latest system events</CardDescription>
+            <CardDescription>Recent system events</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {recentActivity.map((item, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <div className={`mt-0.5 rounded-lg p-1.5 bg-muted ${item.color}`}>
-                    <item.icon className="size-3.5" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium leading-tight">{item.text}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{item.time}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <ActivityTimeline events={timelineEvents} />
           </CardContent>
         </Card>
 
@@ -1584,7 +1734,7 @@ function DashboardPage({
           </CardHeader>
           <CardContent>
             {loading ? (
-              <TableSkeleton rows={4} cols={4} />
+              <TableSkeletonShimmer rows={4} cols={4} />
             ) : alerts.length === 0 ? (
               <EmptyState
                 icon={CheckCircle2}
@@ -1637,7 +1787,7 @@ function DashboardPage({
 /* ================================================================== */
 /*  Broadcast Messaging Component                                      */
 /* ================================================================== */
-function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'success' | 'error') => void }) {
+function BroadcastMessaging() {
   const [broadcasts, setBroadcasts] = useState<Array<{
     id: number;
     title: string;
@@ -1671,7 +1821,7 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
 
   const handleSend = () => {
     if (!title.trim() || !message.trim()) {
-      showToast('Please fill in both title and message.', 'error');
+      toast({ title: 'Error', description: 'Please fill in both title and message.', variant: 'destructive' });
       return;
     }
     if (sending) return;
@@ -1686,7 +1836,7 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
       status: 'Sent',
     };
     setBroadcasts((prev) => [newBroadcast, ...prev]);
-    showToast(`Broadcast sent to ${audience}: "${title}"`, 'success');
+    toast({ title: 'Success', description: `Broadcast sent to ${audience}: "${title}"` });
     setTitle('');
     setMessage('');
     setPriority('Normal');
@@ -1811,7 +1961,6 @@ function BroadcastMessaging({ showToast }: { showToast: (msg: string, type?: 'su
 /*  Page: Routes                                                       */
 /* ================================================================== */
 function RoutesPage({ token }: { token: string }) {
-  const { showToast } = useToast();
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [city, setCity] = useState('');
@@ -1866,9 +2015,9 @@ function RoutesPage({ token }: { token: string }) {
             : r
         )
       );
-      showToast(`Auto-schedule ${enabled ? 'enabled' : 'disabled'} successfully`, 'success');
+      toast({ title: 'Success', description: `Auto-schedule ${enabled ? 'enabled' : 'disabled'} successfully` });
     } catch (err: unknown) {
-      showToast(`Failed to update: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed to update: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setToggling(null);
     }
@@ -1924,11 +2073,7 @@ function RoutesPage({ token }: { token: string }) {
 
           {/* Table */}
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton-shimmer h-12 rounded-lg" />
-              ))}
-            </div>
+            <TableSkeletonShimmer rows={5} cols={7} />
           ) : filteredRoutes.length === 0 ? (
             <EmptyState
               icon={Search}
@@ -2000,11 +2145,17 @@ function RoutesPage({ token }: { token: string }) {
                 </Table>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">
-                  Page {page} of {totalPages}
-                </p>
+              {/* Row Count + Pagination */}
+              <div className="flex items-center justify-between mt-3">
+                <div className="flex items-center gap-3">
+                  <p className="text-xs text-muted-foreground">
+                    Showing <span className="font-semibold text-foreground">{filteredRoutes.length}</span> of{' '}
+                    <span className="font-semibold text-foreground">{routes.length}</span> routes
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Page {page} of {totalPages}
+                  </p>
+                </div>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
@@ -2032,7 +2183,7 @@ function RoutesPage({ token }: { token: string }) {
       </Card>
 
       {/* Route Optimization Insights */}
-      <OptimizationInsights showToast={showToast} />
+      <OptimizationInsights />
 
       {/* NEW: Route Details Dialog */}
       <RouteDetailsDialog route={selectedRoute} open={detailOpen} onOpenChange={setDetailOpen} />
@@ -2055,7 +2206,6 @@ function ScheduleStatusDot({ status }: { status?: string }) {
 }
 
 function SchedulesPage({ token }: { token: string }) {
-  const { showToast } = useToast();
   const [schedules, setSchedules] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);
@@ -2088,10 +2238,10 @@ function SchedulesPage({ token }: { token: string }) {
         method: 'POST',
         body: JSON.stringify({ action: 'generate', date: selectedDate }),
       });
-      showToast(`Schedules generated for ${formatDate(selectedDate)}!`, 'success');
+      toast({ title: 'Success', description: `Schedules generated for ${formatDate(selectedDate)}!` });
       fetchSchedules();
     } catch (err: unknown) {
-      showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setGenerating(false);
     }
@@ -2174,14 +2324,16 @@ function SchedulesPage({ token }: { token: string }) {
           </div>
 
           {loading ? (
-            <TableSkeleton rows={8} cols={4} />
+            <TableSkeletonShimmer rows={5} cols={4} />
           ) : filteredSchedules.length === 0 ? (
             <EmptyState
               icon={Calendar}
               title={statusFilter === 'all' ? 'No Schedules Yet' : `No ${statusLabel[statusFilter]} Schedules`}
               description={statusFilter === 'all' ? 'Click &quot;Generate&quot; to auto-create bus schedules based on route configurations.' : `No ${statusLabel[statusFilter].toLowerCase()} schedules found for ${formatDate(selectedDate)}.`}
             />
-          ) : timelineView ? (
+          ) : (
+            <>
+            {timelineView ? (
             <div className="overflow-x-auto">
               <div className="min-w-[700px]">
                 {/* Timeline header: hours */}
@@ -2219,6 +2371,7 @@ function SchedulesPage({ token }: { token: string }) {
               </div>
             </div>
           ) : (
+            <>
             <div className="max-h-[500px] overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -2255,6 +2408,10 @@ function SchedulesPage({ token }: { token: string }) {
                 </TableBody>
               </Table>
             </div>
+            <TableFooter showing={filteredSchedules.length} total={schedules.length} />
+            </>
+          )}
+            </>
           )}
         </CardContent>
       </Card>
@@ -2266,7 +2423,6 @@ function SchedulesPage({ token }: { token: string }) {
 /*  Page: Crew                                                         */
 /* ================================================================== */
 function CrewPage({ token }: { token: string }) {
-  const { showToast } = useToast();
   const [crew, setCrew] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [assigning, setAssigning] = useState(false);
@@ -2319,10 +2475,10 @@ function CrewPage({ token }: { token: string }) {
         body: JSON.stringify({ action: 'autoAssign', date: today }),
       });
       setAssignResult(result);
-      showToast('Crew auto-assigned successfully!', 'success');
+      toast({ title: 'Success', description: 'Crew auto-assigned successfully!' });
       fetchCrew();
     } catch (err: unknown) {
-      showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setAssigning(false);
     }
@@ -2425,11 +2581,7 @@ function CrewPage({ token }: { token: string }) {
           )}
 
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 4 }).map((_, i) => (
-                <div key={i} className="skeleton-shimmer h-12 rounded-lg" />
-              ))}
-            </div>
+            <TableSkeletonShimmer rows={5} cols={5} />
           ) : filteredCrew.length === 0 ? (
             <EmptyState
               icon={Users}
@@ -2439,6 +2591,7 @@ function CrewPage({ token }: { token: string }) {
                 : 'No crew members have been registered yet. Add drivers and conductors to get started.'}
             />
           ) : (
+            <>
             <div className="max-h-[500px] overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
@@ -2497,6 +2650,8 @@ function CrewPage({ token }: { token: string }) {
                 </TableBody>
               </Table>
             </div>
+            <TableFooter showing={filteredCrew.length} total={crew.length} />
+            </>
           )}
         </CardContent>
       </Card>
@@ -2514,7 +2669,6 @@ function CrewPage({ token }: { token: string }) {
 /*  Page: Traffic                                                      */
 /* ================================================================== */
 function TrafficPage({ token }: { token: string }) {
-  const { showToast } = useToast();
   const [alerts, setAlerts] = useState<any[]>([]);
   const [routes, setRoutes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -2551,7 +2705,7 @@ function TrafficPage({ token }: { token: string }) {
 
   const handleCreate = async () => {
     if (!formData.routeId || !formData.type || !formData.severity) {
-      showToast('Please fill in all required fields', 'error');
+      toast({ title: 'Error', description: 'Please fill in all required fields', variant: 'destructive' });
       return;
     }
     setCreating(true);
@@ -2566,12 +2720,12 @@ function TrafficPage({ token }: { token: string }) {
           delayMinutes: Number(formData.delayMinutes) || 0,
         }),
       });
-      showToast('Alert created successfully!', 'success');
+      toast({ title: 'Success', description: 'Alert created successfully!' });
       setDialogOpen(false);
       setFormData({ routeId: '', type: '', severity: '', delayMinutes: '' });
       fetchData();
     } catch (err: unknown) {
-      showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setCreating(false);
     }
@@ -2589,9 +2743,9 @@ function TrafficPage({ token }: { token: string }) {
           (a.id ?? a._id) === id ? { ...a, status: 'resolved' } : a
         )
       );
-      showToast('Alert resolved successfully!', 'success');
+      toast({ title: 'Success', description: 'Alert resolved successfully!' });
     } catch (err: unknown) {
-      showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setResolving(null);
     }
@@ -2882,7 +3036,6 @@ function TrafficPage({ token }: { token: string }) {
 /*  Page: Holidays                                                     */
 /* ================================================================== */
 function HolidaysPage({ token, userId }: { token: string; userId: string }) {
-  const { showToast } = useToast();
   const [holidays, setHolidays] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [reviewing, setReviewing] = useState<string | null>(null);
@@ -2925,13 +3078,13 @@ function HolidaysPage({ token, userId }: { token: string; userId: string }) {
           (h.id ?? h._id) === id ? { ...h, status } : h
         )
       );
-      showToast(`Holiday request ${status} successfully!`, 'success');
+      toast({ title: 'Success', description: `Holiday request ${status} successfully!` });
       // Remove from list after short delay
       setTimeout(() => {
         setHolidays((prev) => prev.filter((h) => (h.id ?? h._id) !== id));
       }, 500);
     } catch (err: unknown) {
-      showToast(`Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, 'error');
+      toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
     } finally {
       setReviewing(null);
     }
@@ -3502,7 +3655,6 @@ function AnalyticsPage({ token }: { token: string }) {
 /*  Page: Maintenance                                                  */
 /* ================================================================== */
 function MaintenancePage({ token }: { token: string }) {
-  const { showToast } = useToast();
   const [records, setRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -3554,7 +3706,7 @@ function MaintenancePage({ token }: { token: string }) {
 
   const handleMarkComplete = (r: any) => {
     const reg = r.busRegistration ?? r.registration ?? 'Unknown';
-    showToast(`Maintenance marked as complete for ${reg}`, 'success');
+    toast({ title: 'Success', description: `Maintenance marked as complete for ${reg}` });
     setRecords((prev) => prev.filter((rec) => (rec.id ?? rec._id) !== (r.id ?? r._id)));
   };
 
@@ -3693,7 +3845,6 @@ function MaintenancePage({ token }: { token: string }) {
 /*  Page: System Settings                                              */
 /* ================================================================== */
 function SettingsPage() {
-  const { showToast } = useToast();
   const [appName, setAppName] = useState(() => localStorage.getItem('bt_appName') || 'BusTrack Pro');
   const [timezone, setTimezone] = useState(() => localStorage.getItem('bt_timezone') || 'IST');
   const [language, setLanguage] = useState(() => localStorage.getItem('bt_language') || 'English');
@@ -3736,7 +3887,7 @@ function SettingsPage() {
     setAutoRefresh(30);
     setWebhookUrl('');
     setResetDialogOpen(false);
-    showToast('All settings reset to defaults.', 'success');
+    toast({ title: 'Success', description: 'All settings reset to defaults.' });
   };
 
   const handleExportDb = () => {
@@ -3754,7 +3905,7 @@ function SettingsPage() {
     a.download = 'bustrack-settings-export.json';
     a.click();
     URL.revokeObjectURL(url);
-    showToast('Settings exported successfully.', 'success');
+    toast({ title: 'Success', description: 'Settings exported successfully.' });
   };
 
   const [lastExport, setLastExport] = useState<Record<string, string>>({});
@@ -3774,9 +3925,9 @@ function SettingsPage() {
       a.click();
       URL.revokeObjectURL(url);
       setLastExport((prev) => ({ ...prev, [type]: new Date().toLocaleString() }));
-      showToast(`${label} exported successfully!`, 'success');
+      toast({ title: 'Success', description: `${label} exported successfully!` });
     } catch {
-      showToast(`Failed to export ${label}.`, 'error');
+      toast({ title: 'Error', description: `Failed to export ${label}.`, variant: 'destructive' });
     } finally {
       setExporting(null);
     }
@@ -4067,20 +4218,6 @@ function AdminFooter() {
 /*  Main Export                                                        */
 /* ================================================================== */
 export default function AdminContent({ portal, userId, token, setPortal }: Props) {
-  // Toast state
-  const [toasts, setToasts] = useState<Toast[]>([]);
-  const toastIdRef = useRef(0);
-
-  const showToast = useCallback((message: string, type: 'success' | 'error' = 'success') => {
-    const id = ++toastIdRef.current;
-    setToasts((prev) => [...prev, { id, message, type }]);
-    setTimeout(() => {
-      setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 4000);
-  }, []);
-
-  const toastContextValue = useMemo(() => ({ showToast }), [showToast]);
-
   // Scroll to top on page change
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -4159,30 +4296,27 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
   }, []);
 
   return (
-    <ToastContext.Provider value={toastContextValue}>
-      <div ref={portalRef} className="flex min-h-full flex-col">
-        {/* Scroll Progress Indicator */}
-        <div className="scroll-progress" style={{ width: `${scrollPercent}%` }} />
-        {/* Keyboard Shortcut Hints Banner */}
-        <div className="hidden lg:block px-4 pb-2">
-          <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
-            <span className="font-semibold uppercase tracking-wider mr-1 opacity-50">Shortcuts:</span>
-            {Object.entries(pageMap).map(([key, page]) => (
-              <span key={key} className="flex items-center gap-1">
-                <kbd className="inline-flex items-center justify-center size-4 rounded border bg-muted/50 font-mono text-[9px] font-bold text-foreground/70 dark:text-foreground/50">{key}</kbd>
-                <span className="capitalize">{page}</span>
-              </span>
-            ))}
-          </div>
+    <div ref={portalRef} className="flex min-h-full flex-col">
+      {/* Scroll Progress Indicator */}
+      <div className="scroll-progress" style={{ width: `${scrollPercent}%` }} />
+      {/* Keyboard Shortcut Hints Banner */}
+      <div className="hidden lg:block px-4 pb-2">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 text-[10px] text-muted-foreground">
+          <span className="font-semibold uppercase tracking-wider mr-1 opacity-50">Shortcuts:</span>
+          {Object.entries(pageMap).map(([key, page]) => (
+            <span key={key} className="flex items-center gap-1">
+              <kbd className="inline-flex items-center justify-center size-4 rounded border bg-muted/50 font-mono text-[9px] font-bold text-foreground/70 dark:text-foreground/50">{key}</kbd>
+              <span className="capitalize">{page}</span>
+            </span>
+          ))}
         </div>
-        <div className="flex-1">
-          <QuickStatsRibbon />
-          {pageContent}
-        </div>
-        {/* STYLE: Footer */}
-        <AdminFooter />
       </div>
-      <ToastContainer toasts={toasts} />
-    </ToastContext.Provider>
+      <div className="flex-1">
+        <QuickStatsRibbon />
+        {pageContent}
+      </div>
+      {/* STYLE: Footer */}
+      <AdminFooter />
+    </div>
   );
 }

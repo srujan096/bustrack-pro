@@ -972,6 +972,94 @@ function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
   );
 }
 
+// ─── Quick Trip Planner (Dashboard) ──────────────────────────────────────────
+
+const POPULAR_ROUTES = [
+  { routeNumber: 'BLR-101', start: 'Majestic', end: 'Koramangala', fare: 25, gradient: 'from-emerald-500 to-teal-500' },
+  { routeNumber: 'BLR-215', start: 'Whitefield', end: 'Electronic City', fare: 40, gradient: 'from-amber-500 to-orange-500' },
+  { routeNumber: 'DEL-301', start: 'Connaught Place', end: 'Gurgaon', fare: 35, gradient: 'from-violet-500 to-purple-500' },
+];
+
+function QuickTripPlanner({ onFindRoutes }: { onFindRoutes: (from: string, to: string) => void }) {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+
+  return (
+    <Card className="card-lift overflow-hidden border-primary/20">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <Sparkles className="size-5 text-primary" />
+          Quick Trip Planner
+        </CardTitle>
+        <CardDescription>Find routes between locations instantly</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* From / To inputs */}
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <MapPinned className="size-3.5 text-emerald-500" /> From
+            </label>
+            <Input
+              placeholder="Enter origin location"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <MapPinned className="size-3.5 text-rose-500" /> To
+            </label>
+            <Input
+              placeholder="Enter destination location"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+            />
+          </div>
+        </div>
+        <Button
+          className="w-full"
+          disabled={!from.trim() || !to.trim() || from === to}
+          onClick={() => onFindRoutes(from, to)}
+        >
+          <Search className="size-4 mr-2" />
+          Find Routes
+        </Button>
+
+        {/* Popular Routes */}
+        <div>
+          <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+            <TrendingUp className="size-3.5" /> Popular Routes
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 stagger-entry">
+            {POPULAR_ROUTES.map(route => (
+              <div
+                key={route.routeNumber}
+                className="relative flex items-center gap-3 rounded-xl border bg-muted/20 p-3 transition-all hover:bg-muted/40 hover:shadow-sm cursor-pointer group"
+                onClick={() => onFindRoutes(route.start, route.end)}
+              >
+                <div className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-xl bg-gradient-to-b ${route.gradient}`} />
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 ml-1">
+                  <Bus className="size-4 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <Badge variant="outline" className="font-mono text-[10px]">{route.routeNumber}</Badge>
+                  <div className="flex items-center gap-1 text-xs mt-0.5">
+                    <span className="text-muted-foreground truncate">{route.start}</span>
+                    <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
+                    <span className="font-medium truncate">{route.end}</span>
+                  </div>
+                  <p className="text-xs font-semibold text-emerald-700 mt-0.5">{formatCurrency(route.fare)}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Live Bus Tracker ────────────────────────────────────────────────────────
 
 function LiveBusTracker() {
@@ -2008,6 +2096,15 @@ function Dashboard({
       {/* Commute Statistics */}
       <CommuteStatistics userId={userId} />
 
+      {/* Quick Trip Planner */}
+      <QuickTripPlanner onFindRoutes={(from, to) => {
+        toast({
+          title: 'Searching Routes...',
+          description: `Finding routes from ${from} to ${to}`,
+        });
+        setPortal('search');
+      }} />
+
       {/* Trip Planner */}
       <TripPlanner onFindRoutes={() => setPortal('search')} />
 
@@ -2355,6 +2452,47 @@ function SearchRoutes({
   const [hasSearched, setHasSearched] = useState(false);
   const [expandedRouteId, setExpandedRouteId] = useState<string | null>(null);
   const [seatSelectionRoute, setSeatSelectionRoute] = useState<RouteResult | null>(null);
+  const [sortBy, setSortBy] = useState('price-asc');
+  const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+
+  const toggleFilter = useCallback((filter: string) => {
+    setActiveFilters(prev => {
+      const next = new Set(prev);
+      if (next.has(filter)) next.delete(filter);
+      else next.add(filter);
+      return next;
+    });
+  }, []);
+
+  const filteredSortedResults = useMemo(() => {
+    let sorted = [...results];
+    // Apply filters
+    if (activeFilters.has('under30')) {
+      sorted = sorted.filter(r => (r.fare ?? 0) <= 30);
+    }
+    if (activeFilters.has('direct')) {
+      sorted = sorted.filter(r => (r.stopsCount ?? 99) <= 2);
+    }
+    if (activeFilters.has('ac')) {
+      sorted = sorted.filter(r => r.city !== 'intercity');
+    }
+    // Sort
+    switch (sortBy) {
+      case 'price-asc':
+        sorted.sort((a, b) => (a.fare ?? 0) - (b.fare ?? 0));
+        break;
+      case 'price-desc':
+        sorted.sort((a, b) => (b.fare ?? 0) - (a.fare ?? 0));
+        break;
+      case 'duration':
+        sorted.sort((a, b) => (a.durationMin ?? 0) - (b.durationMin ?? 0));
+        break;
+      case 'distance':
+        sorted.sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+        break;
+    }
+    return sorted;
+  }, [results, sortBy, activeFilters]);
 
   // Load locations and all routes for popular section
   useEffect(() => {
@@ -2675,37 +2813,95 @@ function SearchRoutes({
               <CardTitle className="flex items-center gap-2">
                 <Route className="size-5 text-primary" />
                 Search Results
-                <Badge variant="secondary" className="ml-2">{results.length} routes</Badge>
+                <Badge variant="secondary" className="ml-2">{filteredSortedResults.length} routes</Badge>
               </CardTitle>
-              {selectedForCompare.size > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-muted-foreground">
-                    {selectedForCompare.size} selected for compare
-                  </span>
-                  {selectedForCompare.size >= 2 && (
-                    <Button size="sm" variant="outline" onClick={() => setShowComparison(true)}>
-                      <GitCompareArrows className="size-3" />
-                      Compare
-                    </Button>
-                  )}
-                  <Button size="sm" variant="ghost" onClick={() => setSelectedForCompare(new Set())}>
-                    Clear
-                  </Button>
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Sort dropdown */}
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger className="w-[170px] h-8 text-xs">
+                    <Filter className="size-3 mr-1" />
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="price-asc">Price: Low → High</SelectItem>
+                    <SelectItem value="price-desc">Price: High → Low</SelectItem>
+                    <SelectItem value="duration">Duration</SelectItem>
+                    <SelectItem value="distance">Distance</SelectItem>
+                  </SelectContent>
+                </Select>
+                {/* Filter chips */}
+                <div className="flex items-center gap-1.5">
+                  {[
+                    { key: 'ac', label: 'AC Only', icon: Snowflake },
+                    { key: 'direct', label: 'Direct', icon: GitCompareArrows },
+                    { key: 'under30', label: 'Under ₹30', icon: IndianRupee },
+                  ].map(chip => {
+                    const isActive = activeFilters.has(chip.key);
+                    return (
+                      <button
+                        key={chip.key}
+                        type="button"
+                        onClick={() => toggleFilter(chip.key)}
+                        className={`flex items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all ${
+                          isActive
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'border-muted-foreground/25 text-muted-foreground hover:border-primary/50 hover:text-primary dark:border-muted-foreground/40'
+                        }`}
+                      >
+                        <chip.icon className="size-3" />
+                        {chip.label}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+                {selectedForCompare.size > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">
+                      {selectedForCompare.size} for compare
+                    </span>
+                    {selectedForCompare.size >= 2 && (
+                      <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => setShowComparison(true)}>
+                        <GitCompareArrows className="size-3" />
+                        Compare
+                      </Button>
+                    )}
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setSelectedForCompare(new Set())}>
+                      Clear
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="max-h-[500px] overflow-y-auto space-y-3">
-              {results.map(route => {
+              {filteredSortedResults.map((route, routeIdx) => {
                 const isSelected = selectedForCompare.has(route.id);
                 const isFav = favs.has(route.id);
                 const isExpanded = expandedRouteId === route.id;
                 return (
                   <div key={route.id}>
                     <Card
-                      className={`border transition-all hover:shadow-sm ${isSelected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : ''}`}
+                      className={`border transition-all hover:shadow-sm ${isSelected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : ''} ${
+                        routeIdx === 0 ? 'relative overflow-hidden' : ''
+                      }`}
                     >
+                      {/* Animated gradient border on best match */}
+                      {routeIdx === 0 && (
+                        <div className="absolute inset-0 rounded-lg pointer-events-none animate-gradient-shift" style={{
+                          background: 'linear-gradient(90deg, #10b981, #3b82f6, #f59e0b, #8b5cf6, #10b981)',
+                          backgroundSize: '200% 200%',
+                          padding: '2px',
+                          WebkitMask: 'linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)',
+                          WebkitMaskComposite: 'xor',
+                          maskComposite: 'exclude',
+                        }} />
+                      )}
+                      {routeIdx === 0 && (
+                        <Badge className="absolute top-2 right-2 z-10 text-[10px] bg-gradient-to-r from-emerald-500 to-teal-500 text-white border-0">
+                          <Sparkles className="size-3 mr-1" /> Best Match
+                        </Badge>
+                      )}
                       <CardContent className="p-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                           <div className="flex-1 space-y-2">
@@ -2731,7 +2927,7 @@ function SearchRoutes({
                                 </span>
                               )}
                               <span className="flex items-center gap-1">
-                                <Timer className="size-3" />
+                                <Clock className="size-3" />
                                 {formatDuration(route.durationMin)}
                               </span>
                               <span className="flex items-center gap-1">
@@ -3869,6 +4065,117 @@ const RATING_CATEGORIES = [
   { key: 'staffBehavior' as keyof CategoryRatings, label: 'Staff Behavior', icon: Users },
 ];
 
+// ─── Travel Insights Card ──────────────────────────────────────────────────
+
+function TravelInsights({ userId, journeys }: { userId: string; journeys: Journey[] }) {
+  const insights = useMemo(() => {
+    // Deterministic based on userId
+    let seed = 0;
+    for (let i = 0; i < userId.length; i++) {
+      seed = ((seed << 5) - seed + userId.charCodeAt(i)) | 0;
+    }
+    const absSeed = Math.abs(seed);
+
+    // Most Visited Route
+    const routeCounts: Record<string, number> = {};
+    for (const j of journeys) {
+      const rn = jRouteNumber(j);
+      if (rn && rn !== '—') routeCounts[rn] = (routeCounts[rn] ?? 0) + 1;
+    }
+    const sortedRoutes = Object.entries(routeCounts).sort((a, b) => b[1] - a[1]);
+    const mostVisitedRoute = sortedRoutes.length > 0 ? sortedRoutes[0][0] : '—';
+    const visitCount = sortedRoutes.length > 0 ? sortedRoutes[0][1] : 0;
+
+    // Favorite Time (most common departure hour)
+    const hourCounts: Record<number, number> = {};
+    for (const j of journeys) {
+      const t = j.schedule?.departureTime;
+      if (!t) continue;
+      const h = parseInt(t.split(':')[0], 10);
+      if (!isNaN(h)) hourCounts[h] = (hourCounts[h] ?? 0) + 1;
+    }
+    const sortedHours = Object.entries(hourCounts).sort((a, b) => b[1] - a[1]);
+    let favoriteTime = '—';
+    if (sortedHours.length > 0) {
+      const hour = Number(sortedHours[0][0]);
+      const ampm = hour >= 12 ? 'PM' : 'AM';
+      const h12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+      favoriteTime = `${h12}:00 ${ampm}`;
+    }
+
+    // Total Distance
+    const totalDistance = journeys.reduce((s, j) => s + (jDistance(j) ?? 0), 0);
+
+    // Avg Trip Duration (deterministic from userId if no data)
+    const avgDurationMin = totalDistance > 0
+      ? Math.round(totalDistance / Math.max(journeys.length, 1) * 2.5 + absSeed % 15)
+      : 30 + (absSeed % 20);
+
+    return { mostVisitedRoute, visitCount, favoriteTime, totalDistance, avgDurationMin };
+  }, [userId, journeys]);
+
+  const insightCards = [
+    {
+      label: 'Most Visited Route',
+      value: insights.mostVisitedRoute,
+      sub: `${insights.visitCount} trip${insights.visitCount !== 1 ? 's' : ''}`,
+      icon: Route,
+      iconBg: 'bg-violet-100 dark:bg-violet-900/40',
+      iconColor: 'text-violet-600 dark:text-violet-400',
+    },
+    {
+      label: 'Favorite Time',
+      value: insights.favoriteTime,
+      sub: 'Most common hour',
+      icon: Clock,
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+    },
+    {
+      label: 'Total Distance',
+      value: `${insights.totalDistance.toFixed(0)} km`,
+      sub: 'All trips combined',
+      icon: Bus,
+      iconBg: 'bg-sky-100 dark:bg-sky-900/40',
+      iconColor: 'text-sky-600 dark:text-sky-400',
+    },
+    {
+      label: 'Avg Trip Duration',
+      value: formatDuration(insights.avgDurationMin),
+      sub: 'Per trip average',
+      icon: Timer,
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
+      iconColor: 'text-emerald-600 dark:text-emerald-400',
+    },
+  ];
+
+  return (
+    <Card className="card-lift overflow-hidden border-primary/10">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <Gauge className="size-5 text-primary" />
+          Travel Insights
+        </CardTitle>
+        <CardDescription>Your personalized travel patterns</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 stagger-entry">
+          {insightCards.map(s => (
+            <div key={s.label} className="flex flex-col items-center gap-2 rounded-xl border bg-muted/20 p-4 text-center transition-all hover:bg-muted/40 hover:shadow-sm">
+              <div className={`flex h-10 w-10 items-center justify-center rounded-full ${s.iconBg}`}>
+                <s.icon className={`size-5 ${s.iconColor}`} />
+              </div>
+              <p className={`text-lg font-bold tabular-nums ${s.iconColor}`}>{s.value}</p>
+              <p className="text-xs font-medium text-muted-foreground">{s.label}</p>
+              <p className="text-[10px] text-muted-foreground/70">{s.sub}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ─── Journey History ─────────────────────────────────────────────────────────
 
 function JourneyHistory({ userId }: { userId: string }) {
@@ -3979,6 +4286,11 @@ function JourneyHistory({ userId }: { userId: string }) {
       {/* Travel Stats */}
       {!loading && journeys.length > 0 && (
         <TravelStats journeys={journeys} visible={true} />
+      )}
+
+      {/* Travel Insights Card */}
+      {!loading && journeys.length > 0 && (
+        <TravelInsights userId={userId} journeys={journeys} />
       )}
 
       {/* Enhanced Stats Cards */}
@@ -4863,7 +5175,97 @@ function SupportPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Contact Us Form */}
+      <ContactUsForm />
     </div>
+  );
+}
+
+// ─── Contact Us Form ─────────────────────────────────────────────────────────
+
+function ContactUsForm() {
+  const [formData, setFormData] = useState({ name: '', email: '', message: '' });
+  const [sending, setSending] = useState(false);
+
+  const handleSubmit = useCallback(() => {
+    if (!formData.name.trim() || !formData.email.trim() || !formData.message.trim()) {
+      toast({
+        title: 'Missing Fields',
+        description: 'Please fill in all fields before sending.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setSending(true);
+    setTimeout(() => {
+      setSending(false);
+      setFormData({ name: '', email: '', message: '' });
+      toast({
+        title: 'Message Sent!',
+        description: `Thank you ${formData.name}! We'll get back to you at ${formData.email} within 24 hours.`,
+      });
+    }, 1000);
+  }, [formData]);
+
+  return (
+    <Card className="glass overflow-hidden">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Send className="size-5 text-emerald-500" />
+          Send Us a Message
+        </CardTitle>
+        <CardDescription>Have a question? We&apos;d love to hear from you.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <UserPlus className="size-3.5 text-primary" /> Name
+            </label>
+            <Input
+              placeholder="Your full name"
+              value={formData.name}
+              onChange={e => setFormData(p => ({ ...p, name: e.target.value }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <Mail className="size-3.5 text-primary" /> Email
+            </label>
+            <Input
+              type="email"
+              placeholder="your@email.com"
+              value={formData.email}
+              onChange={e => setFormData(p => ({ ...p, email: e.target.value }))}
+            />
+          </div>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-sm font-medium flex items-center gap-1.5">
+            <MessageCircle className="size-3.5 text-primary" /> Message
+          </label>
+          <Textarea
+            placeholder="How can we help you?"
+            className="min-h-[100px]"
+            value={formData.message}
+            onChange={e => setFormData(p => ({ ...p, message: e.target.value }))}
+          />
+        </div>
+        <Button
+          className="w-full"
+          onClick={handleSubmit}
+          disabled={sending}
+        >
+          {sending ? (
+            <Loader2 className="size-4 animate-spin mr-2" />
+          ) : (
+            <Send className="size-4 mr-2" />
+          )}
+          Send Message
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

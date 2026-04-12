@@ -2366,6 +2366,31 @@ function DashboardPage({
               />
             </div>
           </div>
+          {/* Gradient Line Separator */}
+          <div className="h-px bg-gradient-to-r from-emerald-300 via-teal-400 to-emerald-300 mt-1 opacity-60" />
+          {/* Today's Summary Badges */}
+          <div className="mt-4 flex flex-wrap gap-2 sm:gap-3">
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 shadow-sm">
+              <Clock className="h-3.5 w-3.5 text-emerald-600" />
+              <span className="text-[11px] text-gray-500 hidden sm:inline">Shift:</span>
+              <span className="text-xs font-bold text-gray-800">06:00 AM</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-teal-200 dark:border-teal-700 px-3 py-1.5 shadow-sm">
+              <MapPin className="h-3.5 w-3.5 text-teal-600" />
+              <span className="text-[11px] text-gray-500 hidden sm:inline">Route:</span>
+              <span className="text-xs font-bold text-gray-800">{todayAssignments[0]?.schedule.route?.routeNumber || 'BLR-101'}</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-sky-200 dark:border-sky-700 px-3 py-1.5 shadow-sm">
+              <Users className="h-3.5 w-3.5 text-sky-600" />
+              <span className="text-[11px] text-gray-500 hidden sm:inline">Pax:</span>
+              <span className="text-xs font-bold text-gray-800">156</span>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-amber-200 dark:border-amber-700 px-3 py-1.5 shadow-sm">
+              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-400" />
+              <span className="text-[11px] text-gray-500 hidden sm:inline">Rating:</span>
+              <span className="text-xs font-bold text-gray-800">{crewProfile?.performanceRating?.toFixed(1) || '4.8'}</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -2822,6 +2847,7 @@ function AssignmentsPage({
   );
 
   const AssignmentCard = ({ assignment }: { assignment: AssignmentData }) => {
+    const [expanded, setExpanded] = useState(false);
     const statusBadgeClass = (status: string) => {
       if (status === 'accepted') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -2829,14 +2855,44 @@ function AssignmentsPage({
       if (status === 'completed') return 'bg-sky-100 text-sky-700 border-sky-200';
       return 'bg-gray-100 text-gray-700 border-gray-200';
     };
+    const statusBorderColor = (status: string) => {
+      if (status === 'accepted' || status === 'active') return 'border-l-4 border-l-emerald-400';
+      if (status === 'completed') return 'border-l-4 border-l-sky-400';
+      if (status === 'pending') return 'border-l-4 border-l-amber-400';
+      return 'border-l-4 border-l-gray-300';
+    };
     const dist = assignment.schedule.route?.distanceKm || (10 + getSeededValue(assignment.id, 5, 45));
     const travelTime = Math.round(dist / 30 * 60); // approximate minutes
     const travelHrs = Math.floor(travelTime / 60);
     const travelMins = travelTime % 60;
     const travelStr = travelHrs > 0 ? `${travelHrs}h ${travelMins}m` : `${travelMins}m`;
 
+    // Route completion percentage (deterministic)
+    const routeCompletion = (() => {
+      if (assignment.status === 'completed') return 100;
+      if (assignment.status === 'accepted' && isToday(assignment.schedule.date)) return 40 + getSeededValue(assignment.id + 'prog', 0, 50);
+      if (assignment.status === 'pending') return 0;
+      return getSeededValue(assignment.id + 'prog2', 0, 20);
+    })();
+
+    // Estimated arrival time
+    const depParts = assignment.schedule.departureTime.split(':');
+    const depH = parseInt(depParts[0], 10) || 8;
+    const depM = parseInt(depParts[1], 10) || 0;
+    const arrivalTotalMin = depH * 60 + depM + travelTime;
+    const arrH = Math.floor(arrivalTotalMin / 60) % 24;
+    const arrM = arrivalTotalMin % 60;
+    const estimatedArrival = `${String(arrH).padStart(2, '0')}:${String(arrM).padStart(2, '0')}`;
+
+    // Route stops for the detail view
+    const stops = getStopsForRoute(assignment.id + assignment.schedule.route?.routeNumber || 'route');
+
+    const progressColor = routeCompletion >= 100 ? 'bg-sky-500'
+      : routeCompletion >= 40 ? 'bg-emerald-500'
+      : 'bg-gray-300';
+
     return (
-    <div className="rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600">
+    <div className={`rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600 animate-fade-in-up ${statusBorderColor(assignment.status)}`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <Badge className={`${statusBadgeClass(assignment.status)} text-[10px] border`}>
@@ -2866,6 +2922,10 @@ function AssignmentsPage({
             <Gauge className="h-3 w-3" />
             {dist} km
           </span>
+          <span className="flex items-center gap-1 text-gray-400">
+            <Clock className="h-3 w-3" />
+            ETA {estimatedArrival}
+          </span>
         </div>
         {assignment.schedule.route?.busRegistration && (
           <div className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400">
@@ -2873,6 +2933,19 @@ function AssignmentsPage({
             {assignment.schedule.route.busRegistration}
           </div>
         )}
+        {/* Route Completion Progress Bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1">
+            <span className="text-[10px] text-gray-400 uppercase tracking-wider">Route Completion</span>
+            <span className="text-[10px] font-bold text-gray-600">{routeCompletion}%</span>
+          </div>
+          <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-700 ${progressColor}`}
+              style={{ width: `${routeCompletion}%` }}
+            />
+          </div>
+        </div>
         <div className="flex items-center gap-3 text-xs text-gray-400">
           <span className="flex items-center gap-1">
             <CalendarIcon className="h-3 w-3" />
@@ -2902,7 +2975,53 @@ function AssignmentsPage({
             </div>
           )}
           {assignment.status !== 'pending' && <span />}
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 px-2 text-[10px] gap-1 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50"
+            onClick={() => setExpanded(!expanded)}
+          >
+            <ChevronDown className={`h-3 w-3 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+            {expanded ? 'Hide Details' : 'View Details'}
+          </Button>
         </div>
+        {/* Expanded Route Stops */}
+        {expanded && (
+          <div className="mt-1 animate-fade-in-up">
+            <div className="rounded-lg bg-gray-50 dark:bg-gray-900/30 border border-gray-100 dark:border-gray-700 p-3">
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Route Stops</p>
+              <div className="relative space-y-0">
+                {stops.map((stop, i) => (
+                  <div key={stop.name} className="flex items-start gap-3 relative">
+                    {/* Timeline line */}
+                    {i < stops.length - 1 && (
+                      <div className="absolute left-[7px] top-[18px] bottom-0 w-px bg-gray-200 dark:bg-gray-700" />
+                    )}
+                    {/* Dot */}
+                    <div className={`mt-1 h-[15px] w-[15px] rounded-full border-2 shrink-0 z-10 ${
+                      stop.passed
+                        ? 'bg-emerald-500 border-emerald-300'
+                        : stop.isCurrent
+                          ? 'bg-amber-400 border-amber-300 animate-pulse-glow'
+                          : 'bg-gray-100 border-gray-300 dark:bg-gray-700 dark:border-gray-600'
+                    }`} />
+                    <div className="pb-3 min-w-0">
+                      <p className={`text-xs font-medium ${
+                        stop.passed ? 'text-emerald-700 dark:text-emerald-300' : stop.isCurrent ? 'text-amber-700 dark:text-amber-300' : 'text-gray-600 dark:text-gray-400'
+                      }`}>{stop.name}</p>
+                      {stop.isCurrent && (
+                        <span className="text-[10px] text-amber-500 font-medium">Current stop</span>
+                      )}
+                      {stop.passed && (
+                        <span className="text-[10px] text-emerald-500 font-medium">Passed</span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -3215,6 +3334,28 @@ function CalendarPage({
 
   const selectedAssignments = selectedDate ? assignmentMap.get(selectedDate) || [] : [];
 
+  // Calculate week number for a given day of month (1-based)
+  const getWeekNumber = (day: number): number => {
+    const dayOfWeek = (firstDayOfMonth + day - 1) % 7; // 0=Sun
+    return Math.floor((firstDayOfMonth + day - 1) / 7) + 1;
+  };
+
+  // Get total hours for a week
+  const getWeekHours = (weekNum: number): number => {
+    const weekStart = (weekNum - 1) * 7 - firstDayOfMonth + 1;
+    const weekEnd = Math.min(weekStart + 6, daysInMonth);
+    let total = 0;
+    for (let d = Math.max(weekStart, 1); d <= weekEnd; d++) {
+      const ds = getDateStr(d);
+      const dayAsgn = assignmentMap.get(ds) || [];
+      total += dayAsgn.length * (4 + getSeededValue(ds + (crewProfile?.profile?.name || ''), 2, 5));
+    }
+    return total;
+  };
+
+  // Check if a day-of-week index is a weekend (0=Sun, 6=Sat)
+  const isWeekendDay = (dayIndex: number): boolean => dayIndex === 0 || dayIndex === 6;
+
   if (loading) return <CalendarSkeleton />;
 
   return (
@@ -3230,9 +3371,16 @@ function CalendarPage({
         <CardContent className="p-4 sm:p-6">
           {/* Month Navigation */}
           <div className="mb-5 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-              {monthNames[currentMonth]} {currentYear}
-            </h2>
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+                {monthNames[currentMonth]} {currentYear}
+              </h2>
+              {selectedDate && (
+                <span className="text-xs text-emerald-600 bg-emerald-50 border border-emerald-200 rounded-full px-2.5 py-0.5 font-medium">
+                  Week {getWeekNumber(parseInt(selectedDate.split('-')[2], 10))} — {getWeekHours(getWeekNumber(parseInt(selectedDate.split('-')[2], 10)))}h scheduled
+                </span>
+              )}
+            </div>
             <div className="flex gap-2">
               <Button variant="outline" size="sm" className="h-8 px-3 text-xs" onClick={() => { setCurrentMonth(new Date().getMonth()); setCurrentYear(new Date().getFullYear()); setSelectedDate(null); }}>
                 Today
@@ -3246,13 +3394,14 @@ function CalendarPage({
             </div>
           </div>
 
-          {/* Calendar Grid */}
-          <div className="grid grid-cols-7 gap-1">
+          {/* Calendar Grid — 8 columns (week label + 7 days) */}
+          <div className="grid grid-cols-8 gap-1">
             {/* Day Headers */}
-            {dayNames.map((name) => (
+            <div className="py-2" />
+            {dayNames.map((name, i) => (
               <div
                 key={name}
-                className="py-2 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider"
+                className={`py-2 text-center text-xs font-semibold uppercase tracking-wider ${isWeekendDay(i) ? 'text-amber-500 dark:text-amber-400' : 'text-gray-500'}`}
               >
                 {name}
               </div>
@@ -3263,7 +3412,7 @@ function CalendarPage({
               <div key={`empty-${i}`} className="aspect-square" />
             ))}
 
-            {/* Day cells */}
+            {/* Day cells with week labels */}
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const dateStr = getDateStr(day);
@@ -3271,24 +3420,38 @@ function CalendarPage({
               const count = dayAssignments.length;
               const isTodayCell = dateStr === todayStr;
               const isSelected = dateStr === selectedDate;
+              const dayOfWeek = (firstDayOfMonth + i) % 7;
+              const weekend = isWeekendDay(dayOfWeek);
+              const weekNum = getWeekNumber(day);
+              const showWeekLabel = dayOfWeek === 0 || i === 0;
 
               return (
-                <button
-                  key={day}
-                  onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
-                  className={`
-                    aspect-square relative flex flex-col items-center justify-center rounded-lg text-sm transition-all cursor-pointer
-                    ${isSelected
-                      ? 'ring-2 ring-emerald-500 bg-emerald-50 text-emerald-700 font-bold'
-                      : isTodayCell
-                        ? 'bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300'
-                        : count > 0
-                          ? 'bg-gray-50 text-gray-700 font-medium hover:bg-gray-100'
-                          : 'text-gray-600 hover:bg-gray-50'
-                    }
-                  `}
-                >
-                  <span className="leading-none">{day}</span>
+                <React.Fragment key={day}>
+                  {/* Week label at the start of each row */}
+                  {showWeekLabel && (
+                    <div className="flex items-center justify-center self-stretch">
+                      <span className="text-[9px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">
+                        W{weekNum}
+                      </span>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setSelectedDate(dateStr === selectedDate ? null : dateStr)}
+                    className={`
+                      aspect-square relative flex flex-col items-center justify-center rounded-lg text-sm transition-all cursor-pointer
+                      ${isSelected
+                        ? 'ring-2 ring-emerald-500 bg-emerald-50 text-emerald-700 font-bold'
+                        : isTodayCell
+                          ? 'bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300'
+                          : count > 0
+                            ? 'bg-gray-50 text-gray-700 font-medium hover:bg-gray-100'
+                            : weekend
+                              ? 'bg-amber-50/50 text-gray-500 hover:bg-amber-50'
+                              : 'text-gray-600 hover:bg-gray-50'
+                      }
+                    `}
+                  >
+                    <span className="leading-none">{day}</span>
                   {count > 0 && (
                     <span className={`mt-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold leading-none px-1 ${
                       isSelected || isTodayCell
@@ -3299,6 +3462,7 @@ function CalendarPage({
                     </span>
                   )}
                 </button>
+                </React.Fragment>
               );
             })}
           </div>
@@ -4627,6 +4791,52 @@ function ProfilePage({
                 <span className="text-[10px] font-medium text-gray-500">{day.label}</span>
               </div>
             ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Activity Feed */}
+      <Card className="rounded-xl shadow-sm bg-white">
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Flame className="h-5 w-5 text-amber-500" />
+            Activity Feed
+          </CardTitle>
+          <CardDescription>Your recent activities and updates</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="relative">
+            {/* Timeline vertical line */}
+            <div className="absolute left-[15px] top-2 bottom-2 w-px bg-gradient-to-b from-emerald-300 via-amber-300 to-gray-200 dark:from-emerald-700 dark:via-amber-700 dark:to-gray-700" />
+            <div className="space-y-0">
+              {[
+                { icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/40', desc: 'Completed trip on Route BLR-101', time: '2h ago', detail: 'Majestic → Electronic City' },
+                { icon: Star, color: 'text-amber-500 bg-amber-100 dark:bg-amber-900/40', desc: 'Received 5-star rating from passenger', time: '4h ago', detail: 'Route BLR-101 morning shift' },
+                { icon: CheckCircle2, color: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/40', desc: 'Leave request approved', time: '1d ago', detail: 'Aug 15-16, 2025 — Personal' },
+                { icon: Fuel, color: 'text-sky-500 bg-sky-100 dark:bg-sky-900/40', desc: 'Fuel log submitted — 42L diesel', time: '1d ago', detail: 'Bus KA-01-F-4821' },
+                { icon: AlertTriangle, color: 'text-amber-500 bg-amber-100 dark:bg-amber-900/40', desc: 'Reported 10-min delay on Route BLR-205', time: '2d ago', detail: 'Traffic congestion at Silk Board' },
+                { icon: Award, color: 'text-violet-500 bg-violet-100 dark:bg-violet-900/40', desc: 'Achieved 50 trips milestone this month', time: '3d ago', detail: 'Weekly performance: 94% on-time' },
+                { icon: GraduationCap, color: 'text-emerald-500 bg-emerald-100 dark:bg-emerald-900/40', desc: 'Completed Defensive Driving refresher', time: '5d ago', detail: 'Certificate renewed until Mar 2027' },
+                { icon: MessageSquare, color: 'text-rose-500 bg-rose-100 dark:bg-rose-900/40', desc: 'Submitted daily shift report', time: '5d ago', detail: '8h 15m, 145 km, 6 trips' },
+              ].map((item, i) => {
+                const Icon = item.icon;
+                return (
+                  <div key={i} className="flex items-start gap-4 relative py-3">
+                    {/* Icon dot */}
+                    <div className={`flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full border-2 border-white dark:border-gray-800 z-10 shadow-sm ${item.color}`}>
+                      <Icon className="h-3.5 w-3.5" />
+                    </div>
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{item.desc}</p>
+                      <p className="text-[11px] text-gray-400 mt-0.5">{item.detail}</p>
+                    </div>
+                    {/* Timestamp */}
+                    <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{item.time}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </CardContent>
       </Card>
