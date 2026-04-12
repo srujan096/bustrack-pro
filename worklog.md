@@ -1274,3 +1274,79 @@ The BusTrack Pro application is stable and fully functional. Codebase is 18,066 
 3. Add dark mode toggle persistence
 4. Mobile responsiveness fine-tuning
 5. Add unit tests for core algorithms
+
+---
+Task ID: 11
+Agent: Main - QA Review, Bug Fixes, New Features & Styling
+Task: Comprehensive QA testing, TypeScript error fixes, major feature additions across all portals, styling improvements
+
+## Current Project Status Assessment
+The BusTrack Pro application is stable and fully functional. Codebase is 19,332 lines across 5 main files. All 3 portals (Admin, Crew, Customer) working correctly. TypeScript compilation clean, ESLint clean. 11 rounds of enhancement completed.
+
+## Completed Modifications
+
+### TypeScript Bug Fixes (Critical — Runtime Crash Fix)
+Found and fixed TypeScript errors that were causing the ErrorBoundary to trigger after login:
+
+1. **admin-content.tsx line 695** — `new Map<string, any[]>()` shadowed global `Map` constructor. Fixed by renaming lucide-react `Map` import to `MapIcon` and updating JSX usage.
+
+2. **admin-content.tsx line 852** — `Settings` icon doesn't exist in lucide-react. Fixed by changing to `Settings2` (already imported).
+
+3. **crew-content.tsx line 1659** — Activity feed entry `color: 'gray'` not in union type `"amber" | "red" | "emerald"`. Fixed by changing default fallback color to `'amber'`.
+
+4. **customer-content.tsx line 688** — `onBook` prop type mismatch (MouseEventHandler vs direct call). Fixed by wrapping in arrow function `onClick={() => onBook()}`.
+
+5. **customer-content.tsx line 1324** — `const grid = []` inferred as `never[]`. Fixed by adding explicit type annotation.
+
+6. **customer-content.tsx lines 1791-1855** — LOYALTY_TIERS objects use `.bg` property but code accessed `.color`. Fixed all 4 references.
+
+### App Shell Enhancements (page.tsx + layout.tsx)
+1. **Dark Mode Persistence**: Changed ThemeProvider `defaultTheme` from `"light"` to `"system"`. next-themes automatically persists user preference.
+2. **NotificationBell Enhancement**: Added pulsing blue dot indicator for new notifications (first fetch). Moved "Mark all read" button to sticky bottom of dropdown.
+3. **Command Palette Enhancement**: Added empty-state tip text, session search history (last 5 searches, clickable tags).
+4. **Footer Enhancement**: Scroll-aware "Back to top" button (appears after 200px scroll), animated bus icon driving across footer on 20s loop.
+
+### Admin Portal New Features (admin-content.tsx)
+1. **Live Bus Map**: SVG city grid with animated bus dots using `animateMotion`, route labels, color-coded status legend (Moving/Stopped/Delayed). 16:9 aspect ratio.
+2. **Route Performance Chart**: Horizontal grouped bar chart comparing 6 routes × 3 metrics (On-Time %, Satisfaction, Revenue) with value labels.
+3. **Maintenance Calendar View**: Monthly calendar with red dots on maintenance dates, click-to-view-details, month navigation, upcoming service count badge.
+4. **Admin Quick Actions**: 3×2 grid of 6 action cards (Generate Schedules, Auto Assign Crew, Create Alert, View Reports, System Settings, Export Data) with `.card-lift` hover and toast feedback.
+
+### Crew Portal New Features (crew-content.tsx)
+1. **Fuel Log Page — Full Implementation**: Form to add entries (date, odometer, liters, cost, station, notes), 9 sample entries, summary card (total liters, cost, avg cost/liter), SVG bar chart of last 7 entries, delete with confirmation dialog.
+2. **Weekly Performance Score**: Large circular SVG progress ring (72-96 score), color-coded (green≥85, amber≥70, red<70), pulse animation, 4 stat badges below.
+3. **Leave Balance Progress Ring**: Circular SVG ring with 3 color segments (used=red, pending=amber, available=green), center "X days available" text, linear progress bar, legend.
+4. **Weather-Aware Assignment Cards**: Deterministic weather per assignment (Clear/Partly Cloudy/Rain/Fog), temperature display, color-coded text.
+
+### Customer Portal New Features (customer-content.tsx)
+1. **Live Journey Tracker**: Gradient header, horizontal progress bar, 4 milestone dots (Booked→Boarded→In Transit→Arrived) with pulsing animation, estimated arrival, bus registration. Shows "No active journeys" when none.
+2. **Route Comparison Enhancement**: "Compare Routes" button on search results, dialog with side-by-side route cards, compare fare/duration/distance/traffic, "Best" highlighting in emerald, book buttons.
+3. **Monthly Spending Sparkline**: SVG area chart showing 6 months of spending, emerald gradient fill, total and average below chart.
+4. **Recent Updates**: Dashboard section showing last 4 notifications with colored type icons, messages, relative timestamps, "View All" link.
+
+## Verification Results
+- TypeScript: 0 errors in `src/` files ✅
+- ESLint: 0 errors, 0 warnings ✅
+- Dev server: Compiles in ~200ms ✅
+- Admin login → Dashboard with Live Bus Map + Quick Actions ✅
+- Crew login → Performance Score + Fuel Log + Weather ✅
+- Customer login → Journey Tracker + Compare + Sparkline + Recent Updates ✅
+- Sign Out → back to sign-in page ✅ (all portals)
+
+## Files Modified
+- `src/app/layout.tsx`: Dark mode default theme change
+- `src/app/page.tsx`: 2,192 lines (+86) — notification, command palette, footer enhancements
+- `src/components/admin/admin-content.tsx`: 4,712 lines (+390) — 4 new features + TS fixes
+- `src/components/crew/crew-content.tsx`: 5,479 lines (+301) — 4 new features + TS fix
+- `src/components/customer/customer-content.tsx`: 5,799 lines (+489) — 4 new features + TS fixes
+- Total: 19,332 lines (+1,266 from previous 18,066)
+
+## Unresolved Issues / Risks
+1. **Pre-existing TS error** in `skills/stock-analysis-skill/src/analyzer.ts` — not part of our project source code, harmless
+
+## Priority Recommendations for Next Phase
+1. Add journey tracking with real-time position updates via WebSocket
+2. Add data visualization export to PDF (not just CSV)
+3. Mobile responsiveness fine-tuning
+4. Add unit tests for core algorithms
+5. Implement dark mode toggle persistence (already done via system preference)

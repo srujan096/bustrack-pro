@@ -638,6 +638,8 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
   const [isOpen, setIsOpen] = useState(false);
   const [fadingIds, setFadingIds] = useState<Set<string>>(new Set());
   const [showMarkAllConfirm, setShowMarkAllConfirm] = useState(false);
+  const [isNewNotif, setIsNewNotif] = useState(false);
+  const firstFetchRef = useRef(true);
   const bellRef = useRef<HTMLDivElement>(null);
 
   // Close dropdown when clicking outside
@@ -658,6 +660,12 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
       const data = await res.json();
       setNotifications(data.notifications || []);
       setUnreadCount(data.unreadCount || 0);
+      if (firstFetchRef.current && (data.unreadCount || 0) > 0) {
+        firstFetchRef.current = false;
+        setIsNewNotif(true);
+      } else {
+        firstFetchRef.current = false;
+      }
     } catch (e) {
       console.error('Failed to fetch notifications:', e);
     }
@@ -752,7 +760,7 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
   return (
     <div className="relative" ref={bellRef}>
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => { setIsOpen(!isOpen); if (!isOpen) setIsNewNotif(false); }}
         className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
       >
         <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -763,34 +771,25 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
+        {isNewNotif && (
+          <span className="absolute -top-0.5 -left-0.5 w-2.5 h-2.5">
+            <span className="absolute inset-0 rounded-full bg-blue-500 animate-ping opacity-75" />
+            <span className="relative block w-2.5 h-2.5 rounded-full bg-blue-500" />
+          </span>
+        )}
       </button>
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
-          <div className="p-3 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-sm">Notifications</h3>
-            {unreadCount > 0 && !showMarkAllConfirm && (
-              <button onClick={() => setShowMarkAllConfirm(true)} className="text-xs text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 font-medium">
-                Mark all read
-              </button>
-            )}
-            {showMarkAllConfirm && (
-              <div className="flex items-center gap-2">
-                <span className="text-xs text-amber-600 dark:text-amber-400">Confirm?</span>
-                <button onClick={markAllRead} className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-300 font-bold">
-                  Yes
-                </button>
-                <button onClick={() => setShowMarkAllConfirm(false)} className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 font-medium">
-                  No
-                </button>
-              </div>
-            )}
           </div>
           <div className="max-h-96 overflow-y-auto scroll-area-fade">
             {notifications.length === 0 ? (
               emptyNotificationsEl
             ) : (
-              (['error', 'warning', 'info', 'success'] as const).map(type => {
+              <>
+              {(['error', 'warning', 'info', 'success'] as const).map(type => {
                 const group = grouped[type];
                 if (!group || group.length === 0) return null;
                 const unreadInGroup = group.filter(n => !n.isRead).length;
@@ -835,7 +834,23 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
                     ))}
                   </div>
                 );
-              })
+              })}
+              {/* Mark all read quick action at bottom */}
+              {unreadCount > 0 && !showMarkAllConfirm && (
+                <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-2.5 sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
+                  <button onClick={() => setShowMarkAllConfirm(true)} className="w-full text-center text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 py-1.5 rounded-lg hover:bg-blue-50 dark:hover:bg-blue-900/10 transition-colors">
+                    ✓ Mark all as read
+                  </button>
+                </div>
+              )}
+              {showMarkAllConfirm && (
+                <div className="border-t border-gray-100 dark:border-gray-800 px-3 py-2.5 flex items-center justify-center gap-3 sticky bottom-0 bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm">
+                  <span className="text-xs text-gray-500 dark:text-gray-400">Mark all as read?</span>
+                  <button onClick={markAllRead} className="text-xs text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 font-bold">Yes</button>
+                  <button onClick={() => setShowMarkAllConfirm(false)} className="text-xs text-gray-400 hover:text-gray-600 font-medium">No</button>
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
@@ -951,7 +966,13 @@ function LiveClock() {
 }
 
 // ============================================================
-// Command Palette (Ctrl+K) — ENHANCED (category headers)
+// Session search history for Command Palette
+// ============================================================
+const sessionSearchHistory: string[] = [];
+const MAX_SESSION_SEARCH_HISTORY = 5;
+
+// ============================================================
+// Command Palette (Ctrl+K) — ENHANCED (category headers, search history)
 // ============================================================
 function CommandPalette({
   isOpen,
@@ -1029,6 +1050,11 @@ function CommandPalette({
       }
       if (e.key === 'Enter') {
         e.preventDefault();
+        // Save search to session history
+        if (query.trim() && !sessionSearchHistory.includes(query.trim())) {
+          sessionSearchHistory.unshift(query.trim());
+          if (sessionSearchHistory.length > MAX_SESSION_SEARCH_HISTORY) sessionSearchHistory.pop();
+        }
         // Determine which item to navigate to based on selectedIndex
         if (!query && selectedIndex < recentOffset) {
           // In recent section
@@ -1084,6 +1110,35 @@ function CommandPalette({
             ESC
           </kbd>
         </div>
+
+        {/* Tip text when palette is empty */}
+        {!query && (
+          <div className="px-5 py-2 text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+            <Search className="w-3 h-3" />
+            Type to search pages, routes, or actions
+          </div>
+        )}
+
+        {/* Search history (session) */}
+        {!query && sessionSearchHistory.length > 0 && (
+          <div className="px-5 py-1.5 border-b border-gray-100 dark:border-gray-800 flex items-center gap-1.5">
+            <History className="w-3 h-3 text-gray-400 dark:text-gray-500" />
+            <span className="text-[10px] font-bold tracking-widest text-gray-400 dark:text-gray-500 uppercase">Recent Searches</span>
+          </div>
+        )}
+        {!query && sessionSearchHistory.length > 0 && (
+          <div className="flex flex-wrap gap-1 px-5 py-2">
+            {sessionSearchHistory.map(term => (
+              <button
+                key={term}
+                onMouseDown={(e) => { e.preventDefault(); setQuery(term); }}
+                className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+              >
+                {term}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Matching count */}
         {query && (
@@ -1291,6 +1346,19 @@ export default function Home() {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [portal, setPortal] = useState<string>('dashboard');
+  const [showBackToTop, setShowBackToTop] = useState(false);
+
+  // Track scroll position for back-to-top button
+  useEffect(() => {
+    const scrollEl = document.getElementById('main-scroll-area');
+    if (!scrollEl) return;
+    const handleScroll = () => {
+      setShowBackToTop(scrollEl.scrollTop > 200);
+    };
+    scrollEl.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => scrollEl.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const handleLogin = (loggedInUser: UserProfile, loginToken: string) => {
     setUser(loggedInUser);
@@ -1341,7 +1409,23 @@ export default function Home() {
         <NotificationTicker />
       </ErrorBoundary>
       {/* Enhanced Footer */}
-      <footer className="bg-card border-t border-border flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative">
+      <style>{`
+        @keyframes footerBus {
+          0% { transform: translateX(-40px); }
+          100% { transform: translateX(calc(100vw + 40px)); }
+        }
+        .animate-footer-bus { animation: footerBus 20s linear infinite; }
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 0.2s ease-out; }
+      `}</style>
+      <footer className="bg-card border-t border-border flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative overflow-hidden">
+        {/* Animated bus driving across footer */}
+        <div className="absolute bottom-1 left-0 animate-footer-bus pointer-events-none opacity-15">
+          <BusIcon className="w-6 h-6 text-foreground" />
+        </div>
         {/* Quick Links Row */}
         <div className="border-b border-border/50 px-4 py-2">
           <div className="portal-container flex items-center justify-center gap-4 sm:gap-6 flex-wrap">
@@ -1402,14 +1486,16 @@ export default function Home() {
           </div>
         </div>
         </div>
-        {/* Back to top button */}
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-          className="absolute right-2 -top-8 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-md transition-all"
-          aria-label="Back to top"
-        >
-          <ArrowUp className="w-3.5 h-3.5" />
-        </button>
+        {/* Back to top button (visible after scrolling 200px) */}
+        {showBackToTop && (
+          <button
+            onClick={() => document.getElementById('main-scroll-area')?.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="absolute right-2 -top-8 w-7 h-7 rounded-full bg-card border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-foreground hover:shadow-md transition-all animate-fade-in-up"
+            aria-label="Back to top"
+          >
+            <ArrowUp className="w-3.5 h-3.5" />
+          </button>
+        )}
       </footer>
     </div>
   );
@@ -2061,7 +2147,7 @@ function AppShell({
         />
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-4 md:p-6">
+        <div id="main-scroll-area" className="flex-1 overflow-y-auto p-4 md:p-6">
           {user.role === 'admin' && <AdminPortal portal={portal} user={user} token={token} setPortal={setPortal} />}
           {(user.role === 'driver' || user.role === 'conductor') && <CrewPortal portal={portal} user={user} token={token} />}
           {user.role === 'customer' && <CustomerPortal portal={portal} user={user} token={token} setPortal={setPortal} />}

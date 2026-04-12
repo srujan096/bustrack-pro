@@ -1656,7 +1656,7 @@ function ShiftLogbook({ crewName }: { crewName: string }) {
   const getIconForType = (type: string) => {
     const found = activityTypeDefs.find((a) => a.type === type);
     if (found) return { icon: found.icon, color: found.color };
-    return { icon: FileText, color: 'gray' as const };
+    return { icon: FileText, color: 'amber' as const };
   };
 
   const getColorClasses = (color: string) => {
@@ -2284,6 +2284,100 @@ function ProfileSkeleton() {
   );
 }
 
+// ──────────────────────────── Weekly Performance Score ────────────────────────────
+
+function WeeklyPerformanceScore({ crewName }: { crewName: string }) {
+  const data = useMemo(() => {
+    const score = 72 + getSeededValue(crewName + 'weeklyPerfScore', 0, 24); // 72-96
+    const trips = 18 + getSeededValue(crewName + 'wpsTrips', 0, 12);
+    const onTimePct = 78 + getSeededValue(crewName + 'wpsOnTime', 0, 22);
+    const rating = (3.5 + getSeededValue(crewName + 'wpsRating', 0, 15) / 10).toFixed(1);
+    const feedback = 4 + getSeededValue(crewName + 'wpsFeedback', 0, 18);
+    return { score, trips, onTimePct, rating, feedback };
+  }, [crewName]);
+
+  const scoreColor = data.score >= 85 ? '#10b981' : data.score >= 70 ? '#f59e0b' : '#ef4444';
+  const scoreBg = data.score >= 85 ? '#d1fae5' : data.score >= 70 ? '#fef3c7' : '#fee2e2';
+  const labelColor = data.score >= 85 ? 'text-emerald-600' : data.score >= 70 ? 'text-amber-600' : 'text-red-600';
+  const badgeBg = data.score >= 85 ? 'bg-emerald-50 border-emerald-200' : data.score >= 70 ? 'bg-amber-50 border-amber-200' : 'bg-red-50 border-red-200';
+
+  const radius = 62;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (data.score / 100) * circumference;
+
+  const miniStats = [
+    { label: 'Trips', value: `${data.trips}`, icon: Navigation },
+    { label: 'On-Time %', value: `${data.onTimePct}%`, icon: Clock },
+    { label: 'Rating', value: `${data.rating}`, icon: Star },
+    { label: 'Feedback', value: `${data.feedback}`, icon: MessageSquare },
+  ];
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white animate-fade-in-up">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Trophy className="h-5 w-5 text-amber-500" />
+          Weekly Performance Score
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-col items-center gap-4">
+          {/* Circular Progress Ring with pulse */}
+          <div className="relative">
+            <svg width="150" height="150" className="-rotate-90">
+              <circle cx="75" cy="75" r={radius} fill="none" strokeWidth="10" stroke={scoreBg} />
+              <circle
+                cx="75" cy="75" r={radius} fill="none" strokeWidth="10"
+                strokeLinecap="round" stroke={scoreColor}
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                style={{ transition: 'stroke-dashoffset 1.5s ease, stroke 0.5s ease' }}
+              />
+              {/* Pulse animation ring */}
+              <circle
+                cx="75" cy="75" r={radius + 8} fill="none" strokeWidth="2" stroke={scoreColor} strokeOpacity="0.3"
+                className="origin-center"
+                style={{ animation: 'pulse-ring 2.5s ease-in-out infinite', transformOrigin: '75px 75px' }}
+              />
+            </svg>
+            {/* Inline keyframe style injected */}
+            <style>{`
+              @keyframes pulse-ring {
+                0%, 100% { r: ${radius + 8}; stroke-opacity: 0.15; }
+                50% { r: ${radius + 14}; stroke-opacity: 0.05; }
+              }
+            `}</style>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold text-gray-900">{data.score}</span>
+              <span className="text-[10px] text-gray-400 mt-0.5">Performance Score</span>
+            </div>
+          </div>
+
+          {/* Color-coded badge */}
+          <Badge className={`${badgeBg} border ${labelColor} text-xs font-semibold`}>
+            {data.score >= 85 ? 'Excellent' : data.score >= 70 ? 'Good' : 'Needs Improvement'}
+          </Badge>
+
+          {/* Mini stat badges */}
+          <div className="grid grid-cols-2 gap-2 w-full">
+            {miniStats.map((stat) => {
+              const Icon = stat.icon;
+              return (
+                <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 bg-gray-50/50">
+                  <Icon className="h-4 w-4 text-gray-400 shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-[9px] text-gray-400">{stat.label}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ──────────────────────────── Dashboard Page ────────────────────────────
 
 function DashboardPage({
@@ -2517,6 +2611,11 @@ function DashboardPage({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Weekly Performance Score */}
+      {crewProfile && (
+        <WeeklyPerformanceScore crewName={crewProfile.profile?.name || ''} />
       )}
 
       {/* Today's Weather Widget */}
@@ -2848,6 +2947,21 @@ function AssignmentsPage({
 
   const AssignmentCard = ({ assignment }: { assignment: AssignmentData }) => {
     const [expanded, setExpanded] = useState(false);
+
+    // Deterministic weather for this assignment
+    const weatherData = useMemo(() => {
+      const weatherTypes = [
+        { label: 'Clear', icon: '☀️', tempRange: [28, 38] as const, textColor: 'text-amber-600' },
+        { label: 'Partly Cloudy', icon: '⛅', tempRange: [24, 33] as const, textColor: 'text-amber-500' },
+        { label: 'Rain', icon: '🌧️', tempRange: [20, 28] as const, textColor: 'text-sky-600' },
+        { label: 'Fog', icon: '🌫️', tempRange: [18, 25] as const, textColor: 'text-gray-500' },
+      ];
+      const idx = getSeededValue(assignment.id + assignment.schedule.date + 'weather', 0, 3);
+      const w = weatherTypes[idx];
+      const temp = w.tempRange[0] + getSeededValue(assignment.id + 'temp', 0, w.tempRange[1] - w.tempRange[0]);
+      return { ...w, temp };
+    }, [assignment.id, assignment.schedule.date]);
+
     const statusBadgeClass = (status: string) => {
       if (status === 'accepted') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
       if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200';
@@ -2895,9 +3009,17 @@ function AssignmentsPage({
     <div className={`rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600 animate-fade-in-up ${statusBorderColor(assignment.status)}`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <Badge className={`${statusBadgeClass(assignment.status)} text-[10px] border`}>
-            {capitalize(assignment.status)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge className={`${statusBadgeClass(assignment.status)} text-[10px] border`}>
+              {capitalize(assignment.status)}
+            </Badge>
+            {/* Weather indicator */}
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 ${weatherData.textColor}`}>
+              <span>{weatherData.icon}</span>
+              <span>{weatherData.label}</span>
+              <span>{weatherData.temp}°C</span>
+            </span>
+          </div>
           {assignment.status !== 'declined' && assignment.status !== 'completed' && (
             <Button size="sm" variant="outline" className="h-6 px-2 text-[10px] gap-1 border-amber-200 text-amber-600 hover:bg-amber-50 dark:border-amber-800 dark:text-amber-400" onClick={() => handleReportDelay(assignment.id)}>
               <AlertTriangle className="h-3 w-3" /> Report Delay
@@ -3801,6 +3923,102 @@ function LeaveRequestsPage({
         </Button>
       </div>
 
+      {/* Leave Balance Progress Ring */}
+      <Card className="rounded-xl shadow-sm bg-white glass animate-fade-in-up">
+        <CardContent className="p-6">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
+            {/* Circular progress ring */}
+            <div className="relative shrink-0">
+              <svg width="160" height="160" className="-rotate-90">
+                {/* Background track */}
+                <circle cx="80" cy="80" r={60} fill="none" strokeWidth="14" stroke="#f3f4f6" />
+                {/* Used segment (red) */}
+                {(() => {
+                  const usedPct = (usedDays / totalAllowance) * 100;
+                  const usedCircum = 60 * 2 * Math.PI;
+                  return (
+                    <circle cx="80" cy="80" r={60} fill="none" strokeWidth="14" stroke="#ef4444" strokeOpacity="0.6"
+                      strokeDasharray={`${(usedPct / 100) * usedCircum} ${usedCircum}`}
+                      strokeLinecap="round"
+                    />
+                  );
+                })()}
+                {/* Pending segment (amber) */}
+                {(() => {
+                  const usedPct = (usedDays / totalAllowance) * 100;
+                  const pendingPct = (pendingDays / totalAllowance) * 100;
+                  const pendingCircum = 60 * 2 * Math.PI;
+                  const pendingOffset = -(usedPct / 100) * pendingCircum;
+                  return (
+                    <circle cx="80" cy="80" r={60} fill="none" strokeWidth="14" stroke="#f59e0b" strokeOpacity="0.7"
+                      strokeDasharray={`${(pendingPct / 100) * pendingCircum} ${pendingCircum}`}
+                      strokeDashoffset={pendingOffset}
+                      strokeLinecap="round"
+                    />
+                  );
+                })()}
+                {/* Available segment (green) */}
+                {(() => {
+                  const usedPct = (usedDays / totalAllowance) * 100;
+                  const pendingPct = (pendingDays / totalAllowance) * 100;
+                  const availPct = Math.max(0, 100 - usedPct - pendingPct);
+                  const availCircum = 60 * 2 * Math.PI;
+                  const availOffset = -((usedPct + pendingPct) / 100) * availCircum;
+                  return (
+                    <circle cx="80" cy="80" r={60} fill="none" strokeWidth="14" stroke="#10b981"
+                      strokeDasharray={`${(availPct / 100) * availCircum} ${availCircum}`}
+                      strokeDashoffset={availOffset}
+                      strokeLinecap="round"
+                    />
+                  );
+                })()}
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-bold text-gray-900">{availableDays}</span>
+                <span className="text-[10px] text-gray-400">days available</span>
+              </div>
+            </div>
+
+            {/* Legend + details */}
+            <div className="flex-1 space-y-4 w-full">
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Leave Balance</h3>
+                <p className="text-xs text-gray-400 mt-0.5">{totalAllowance} total days allowance</p>
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-sm bg-emerald-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{availableDays}</p>
+                    <p className="text-[10px] text-gray-400">Available</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-sm bg-amber-500 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{pendingDays}</p>
+                    <p className="text-[10px] text-gray-400">Pending</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-sm bg-red-400 shrink-0" />
+                  <div>
+                    <p className="text-sm font-bold text-gray-900">{usedDays}</p>
+                    <p className="text-[10px] text-gray-400">Used</p>
+                  </div>
+                </div>
+              </div>
+              {/* Linear progress bar */}
+              <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
+                <div className="bg-red-400 h-full transition-all" style={{ width: `${(usedDays / totalAllowance) * 100}%` }} />
+                <div className="bg-amber-500 h-full transition-all" style={{ width: `${(pendingDays / totalAllowance) * 100}%` }} />
+                <div className="bg-emerald-500 h-full transition-all" style={{ width: `${(availableDays / totalAllowance) * 100}%` }} />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Leave Balance Card */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
@@ -4178,13 +4396,14 @@ function FuelLogPage({ crewName }: { crewName: string }) {
     const seed = simpleHash(crewName);
     const stations = ['HP Petrol Bunk, Indiranagar', 'Indian Oil, Silk Board', 'BPCL, Koramangala', 'Shell, Whitefield', 'IOC, Hebbal', 'HPCL, Electronic City', 'BP, Marathahalli'];
     const fuelTypes = ['Diesel', 'CNG', 'Electric'];
-    return Array.from({ length: 7 }, (_, i) => {
+    return Array.from({ length: 9 }, (_, i) => {
       const d = new Date(now);
       d.setDate(d.getDate() - (i * 3 + (seed % 2)));
       const odo = 45000 + i * 350 + (seed % 100);
       const lit = 30 + ((seed + i * 7) % 30);
       const fType = fuelTypes[(seed + i) % 3];
       const cpl = fType === 'Diesel' ? 80 + ((seed + i * 3) % 10) : fType === 'CNG' ? 55 + ((seed + i * 3) % 5) : 15 + ((seed + i * 3) % 3);
+      const notes = ['Regular refuel', 'After long trip', 'Before shift start', 'Night refuel', 'Full tank refill', 'Route refuel', 'Emergency top-up', 'Scheduled maintenance', 'End of day fill-up'];
       return {
         id: `fuel-${crewName}-${i}`,
         date: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`,
@@ -4193,7 +4412,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
         costPerLiter: parseFloat(cpl.toFixed(2)),
         station: stations[(seed + i) % stations.length],
         fuelType: fType,
-        notes: i % 3 === 0 ? 'Regular refuel' : i % 3 === 1 ? 'After long trip' : '',
+        notes: notes[i % notes.length],
       };
     });
   });
@@ -4208,6 +4427,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
   const [sortField, setSortField] = useState<keyof FuelEntry>('date');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showForm, setShowForm] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
   const now = new Date();
   const thisMonth = now.getMonth();
@@ -4277,7 +4497,12 @@ function FuelLogPage({ crewName }: { crewName: string }) {
 
   const handleDeleteEntry = (id: string) => {
     setEntries((prev) => prev.filter((e) => e.id !== id));
+    setDeleteConfirmId(null);
     toast({ title: 'Entry Deleted', description: 'Fuel entry has been removed.' });
+  };
+
+  const handleDeleteClick = (id: string) => {
+    setDeleteConfirmId(id);
   };
 
   const handleExportCSV = () => {
@@ -4387,6 +4612,62 @@ function FuelLogPage({ crewName }: { crewName: string }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Total Fuel Summary Card */}
+      <Card className="rounded-xl shadow-sm bg-white glass animate-fade-in-up">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Fuel className="h-5 w-5 text-emerald-600" />
+            Total Fuel — This Month
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 p-3 text-center">
+              <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{thisMonthEntries.reduce((s, e) => s + e.liters, 0).toFixed(1)} L</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">Total Liters</p>
+            </div>
+            <div className="rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 p-3 text-center">
+              <p className="text-lg font-bold text-sky-700 dark:text-sky-300">₹{totalCostThisMonth.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">Total Cost</p>
+            </div>
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 p-3 text-center">
+              <p className="text-lg font-bold text-amber-700 dark:text-amber-300">₹{(thisMonthEntries.length > 0 ? (totalCostThisMonth / thisMonthEntries.reduce((s, e) => s + e.liters, 0)) : 0).toFixed(2)}</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400">Avg Cost/Liter</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SVG Bar Chart — Last 7 entries fuel amounts */}
+      <Card className="rounded-xl shadow-sm bg-white animate-fade-in-up">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Gauge className="h-5 w-5 text-violet-600" />
+            Fuel Amounts (Last {Math.min(7, entries.length)} Entries)
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-end gap-2 h-40">
+            {entries.slice(0, 7).reverse().map((entry, i) => {
+              const maxLit = Math.max(...entries.slice(0, 7).map((e) => e.liters));
+              const pct = maxLit > 0 ? (entry.liters / maxLit) * 100 : 0;
+              const barColor = entry.liters >= 45 ? 'bg-emerald-500' : entry.liters >= 35 ? 'bg-amber-500' : 'bg-red-400';
+              const d = new Date(entry.date + 'T00:00:00');
+              const label = `${d.getDate()}/${d.getMonth() + 1}`;
+              return (
+                <div key={entry.id} className="flex flex-col items-center gap-1 flex-1">
+                  <span className="text-[10px] text-gray-500 font-semibold">{entry.liters}L</span>
+                  <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '100px' }}>
+                    <div className={`absolute bottom-0 left-0 right-0 rounded-t-md transition-all ${barColor}`} style={{ height: `${Math.max(pct, 5)}%` }} />
+                  </div>
+                  <span className="text-[10px] text-gray-400 font-medium">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -4511,7 +4792,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                       </TableCell>
                       <TableCell className="text-xs py-2 font-mono">{eff !== null ? <span className={effColor} title={eff >= 8 ? 'Good efficiency' : eff >= 6 ? 'Fair efficiency' : 'Poor efficiency'}>{eff} km/L</span> : '—'}</TableCell>
                       <TableCell className="text-xs py-2">
-                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteEntry(entry.id)}>
+                        <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-gray-400 hover:text-red-500" onClick={() => handleDeleteClick(entry.id)}>
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
                       </TableCell>
@@ -4530,6 +4811,26 @@ function FuelLogPage({ crewName }: { crewName: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteConfirmId !== null} onOpenChange={() => setDeleteConfirmId(null)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 className="h-5 w-5 text-red-500" />
+              Delete Fuel Entry
+            </DialogTitle>
+            <DialogDescription>Are you sure you want to delete this fuel entry? This action cannot be undone.</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteConfirmId(null)}>Cancel</Button>
+            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={() => deleteConfirmId && handleDeleteEntry(deleteConfirmId)}>
+              <Trash2 className="mr-1.5 h-4 w-4" />
+              Delete
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -4592,7 +4893,7 @@ function ProfilePage({
     const baseSkills = crewProfile?.specialization === 'driver'
       ? ['Heavy Vehicle', 'Defensive Driving']
       : ['Ticketing', 'Passenger Relations'];
-    const extraSkills = crewProfile?.experienceYears >= 5 ? ['Senior Crew', 'Night Routes'] : [];
+    const extraSkills = (crewProfile?.experienceYears ?? 0) >= 5 ? ['Senior Crew', 'Night Routes'] : [];
     const busSkills = crewProfile?.specialization === 'driver' ? ['AC Bus', 'City Routes', 'Highway Routes'] : ['Fare Collection', 'Multi-Language'];
     return [...baseSkills, ...busSkills.slice(0, 2), ...extraSkills];
   };

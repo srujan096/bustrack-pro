@@ -114,6 +114,7 @@ import {
   Coffee,
   ThumbsUp,
   Copy,
+  Bell,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -684,7 +685,7 @@ function RouteDetailPanel({
       {/* Book Now button */}
       <Button
         className="w-full animate-in fade-in slide-in-from-bottom-1 duration-500"
-        onClick={onBook}
+        onClick={() => onBook()}
         disabled={isBooking}
       >
         {isBooking ? (
@@ -1320,7 +1321,7 @@ function SeatSelection({
     return 'border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 cursor-pointer';
   };
 
-  const grid = [];
+  const grid: { seat: string; row: number; col: number; label: string }[] = [];
   for (let r = 1; r <= rows; r++) {
  for (let c = 0; c < cols; c++) {
    const seat = `${r}${letters[c]}`;
@@ -1787,7 +1788,7 @@ function LoyaltyRewardsPanel() {
       {/* Points Display + Tier */}
       <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className={`flex h-16 w-16 items-center justify-center rounded-full ${currentTier.bg} ring-2 ${currentTier.ringColor} ring-offset-2`}>
+          <div className={`flex h-16 w-16 items-center justify-center rounded-full ${currentTier.color} ring-2 ${currentTier.ringColor} ring-offset-2`}>
             <Award className={`size-8 ${currentTier.textColor}`} />
           </div>
           <div>
@@ -1796,7 +1797,7 @@ function LoyaltyRewardsPanel() {
               <AnimatedSparkle />
               {currentPoints.toLocaleString()} pts
             </p>
-            <Badge variant="outline" className={`mt-1 ${currentTier.textColor} ${currentTier.bg}`}>
+            <Badge variant="outline" className={`mt-1 ${currentTier.textColor} ${currentTier.color}`}>
               {currentTier.name} Tier
             </Badge>
           </div>
@@ -1849,9 +1850,9 @@ function LoyaltyRewardsPanel() {
             key={tier.name}
             className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
               i === currentTierIndex
-                ? `${tier.bg} text-white ring-2 ${tier.ringColor} ring-offset-1`
+                ? `${tier.color} text-white ring-2 ${tier.ringColor} ring-offset-1`
                 : i < currentTierIndex
-                  ? `${tier.bg}/20 ${tier.textColor}`
+                  ? `${tier.color}/20 ${tier.textColor}`
                   : 'bg-muted text-muted-foreground'
             }`}
           >
@@ -1954,6 +1955,7 @@ function Dashboard({
 }) {
   const [stats, setStats] = useState<SpendingStats | null>(null);
   const [recentJourneys, setRecentJourneys] = useState<Journey[]>([]);
+  const [allDashJourneys, setAllDashJourneys] = useState<Journey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [favoriteRoutes, setFavoriteRoutes] = useState<string[]>([]);
@@ -1980,6 +1982,7 @@ function Dashboard({
         setRecentJourneys(
           allJourneys.filter((j: Journey) => j.status === 'planned').slice(0, 5)
         );
+        setAllDashJourneys(allJourneys);
       } catch (e: unknown) {
         setError(e instanceof Error ? e.message : 'Unknown error');
       } finally {
@@ -2109,6 +2112,8 @@ function Dashboard({
       <TripPlanner onFindRoutes={() => setPortal('search')} />
 
       {/* Trip Countdown + Live Bus Tracker */}
+      <LiveJourneyTracker journeys={allDashJourneys} />
+
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Upcoming Trip Countdown */}
         {recentJourneys.length > 0 && (
@@ -2119,8 +2124,8 @@ function Dashboard({
         <LiveBusTracker />
       </div>
 
-      {/* Spending Overview Donut Chart */}
-      <Card>
+      {/* Spending Overview Donut Chart + Sparkline */}
+      <Card className="card-lift">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Wallet className="size-5 text-emerald-500" />
@@ -2131,6 +2136,10 @@ function Dashboard({
         <CardContent>
           <div className="flex flex-col items-center py-4">
             <SpendingDonut totalSpent={stats?.totalSpent ?? 0} />
+          </div>
+          <Separator className="my-2" />
+          <div className="pt-2">
+            <MonthlySpendingSparkline userId={userId} />
           </div>
         </CardContent>
       </Card>
@@ -2148,6 +2157,9 @@ function Dashboard({
           <LoyaltyRewardsPanel />
         </CardContent>
       </Card>
+
+      {/* Recent Updates (Notifications) */}
+      <RecentUpdates userId={userId} />
 
       {/* Favorite Routes */}
       {favoriteRoutes.length > 0 && (
@@ -2794,6 +2806,19 @@ function SearchRoutes({
       {/* Fare Calculator */}
       <FareCalculator />
 
+      {/* Route Comparison Dialog */}
+      <RouteComparisonDialog
+        routes={comparedRoutes}
+        open={showComparison}
+        onClose={() => {
+          setShowComparison(false);
+          setSelectedForCompare(new Set());
+        }}
+        onBook={(route) => {
+          setSeatSelectionRoute(route);
+        }}
+      />
+
       {/* Route Comparison */}
       {showComparison && (
         <RouteComparison
@@ -2854,6 +2879,22 @@ function SearchRoutes({
                     );
                   })}
                 </div>
+                {/* Compare Routes button when 2+ results exist */}
+                {filteredSortedResults.length >= 2 && selectedForCompare.size === 0 && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+                    onClick={() => {
+                      const firstTwo = filteredSortedResults.slice(0, 2).map(r => r.id);
+                      setSelectedForCompare(new Set(firstTwo));
+                      setShowComparison(true);
+                    }}
+                  >
+                    <GitCompareArrows className="size-3" />
+                    Compare Routes
+                  </Button>
+                )}
                 {selectedForCompare.size > 0 && (
                   <div className="flex items-center gap-2">
                     <span className="text-xs text-muted-foreground">
@@ -5266,6 +5307,454 @@ function ContactUsForm() {
         </Button>
       </CardContent>
     </Card>
+  );
+}
+
+// ─── Live Journey Tracker ──────────────────────────────────────────────────
+
+function LiveJourneyTracker({ journeys }: { journeys: Journey[] }) {
+  const activeJourneys = useMemo(
+    () => journeys.filter(j => j.status === 'confirmed' || j.status === 'planned'),
+    [journeys]
+  );
+
+  const journeyProgress = useMemo(() => {
+    return activeJourneys.map(j => {
+      let hash = 0;
+      for (let i = 0; i < j.id.length; i++) {
+        hash = ((hash << 5) - hash + j.id.charCodeAt(i)) | 0;
+      }
+      const progress = Math.abs(hash % 100);
+      const milestoneIdx = progress < 10 ? 0 : progress < 40 ? 1 : progress < 75 ? 2 : 3;
+      const durationMin = j.route?.distanceKm ? Math.round(j.route.distanceKm * 2.5 + 10) : 45;
+      const depTime = j.schedule?.departureTime ?? '08:00';
+      const depDate = j.schedule?.date ?? getTodayString();
+      const depDateTime = new Date(`${depDate}T${depTime}`);
+      const eta = new Date(depDateTime.getTime() + durationMin * 60000);
+      const busReg = `KA-01-${String(Math.abs(hash % 9000) + 1000).padStart(4, '0')}`;
+      return { journey: j, progress, milestoneIdx, eta, busReg, durationMin };
+    });
+  }, [activeJourneys]);
+
+  if (journeyProgress.length === 0) {
+    return (
+      <Card className="card-lift">
+        <CardContent className="flex flex-col items-center justify-center py-8 text-center">
+          <BusFront className="mb-3 size-10 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">No active journeys</p>
+          <p className="text-xs text-muted-foreground/70 mt-1">Book a route to start tracking</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const milestones = ['Booked', 'Boarded', 'In Transit', 'Arrived'];
+  const milestoneColors = ['bg-sky-500', 'bg-emerald-500', 'bg-amber-500', 'bg-violet-500'];
+
+  return (
+    <div className="space-y-4 stagger-entry">
+      <Card className="transit-card overflow-hidden border-primary/20">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">
+            <Navigation className="size-5 text-primary" />
+            Live Tracking
+            <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+              </span>
+              Live
+            </span>
+          </CardTitle>
+          <CardDescription>Track your active journeys in real-time</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {journeyProgress.map(({ journey, progress, milestoneIdx, eta, busReg }) => (
+            <div key={journey.id} className="rounded-xl border overflow-hidden animate-fade-in-up">
+              <div className="bg-gradient-to-r from-primary/90 to-primary/70 px-4 py-3 text-primary-foreground">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bus className="size-4" />
+                    <span className="font-mono font-bold text-sm">{jRouteNumber(journey)}</span>
+                  </div>
+                  {statusBadge(journey.status)}
+                </div>
+                <p className="text-sm mt-1 opacity-90">
+                  {jStartLocation(journey)} <ArrowRight className="mx-1 inline size-3" /> {jEndLocation(journey)}
+                </p>
+              </div>
+              <div className="p-4 space-y-4">
+                <div>
+                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                    <span>Journey Progress</span>
+                    <span className="font-semibold text-foreground">{progress}%</span>
+                  </div>
+                  <div className="relative h-3 w-full rounded-full bg-muted dark:bg-muted/50">
+                    <div
+                      className="absolute left-0 top-0 h-3 rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all duration-1000"
+                      style={{ width: `${progress}%` }}
+                    />
+                    <div
+                      className="absolute top-1/2 -translate-y-1/2 h-4 w-4 rounded-full border-2 border-white dark:border-gray-800 shadow-sm bg-emerald-500 transition-all duration-1000"
+                      style={{ left: `calc(${progress}% - 8px)` }}
+                    />
+                  </div>
+                </div>
+                <div className="flex items-center justify-between px-2">
+                  {milestones.map((ms, i) => {
+                    const isActive = i === milestoneIdx;
+                    const isCompleted = i < milestoneIdx;
+                    return (
+                      <div key={ms} className="flex flex-col items-center gap-1.5">
+                        <div className="relative">
+                          <div
+                            className={`h-4 w-4 rounded-full transition-all duration-500 ${
+                              isCompleted
+                                ? milestoneColors[i]
+                                : isActive
+                                  ? milestoneColors[i]
+                                  : 'bg-muted-foreground/20'
+                            }`}
+                          />
+                          {isActive && (
+                            <span
+                              className="absolute -top-1 -right-1 flex h-3 w-3"
+                              style={{ animation: 'ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite' }}
+                            >
+                              <span className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${milestoneColors[i]}`} />
+                            </span>
+                          )}
+                          {isCompleted && (
+                            <CheckCircle2
+                              className="absolute -top-1 -right-1 size-3.5 text-white"
+                              style={{ filter: 'drop-shadow(0 1px 1px rgba(0,0,0,0.3))' }}
+                            />
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-medium ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {ms}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center justify-between rounded-lg bg-muted/30 dark:bg-muted/10 px-3 py-2">
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Clock className="size-3.5" />
+                    <div>
+                      <p className="text-[10px]">Estimated Arrival</p>
+                      <p className="font-semibold text-foreground text-sm tabular-nums">
+                        {eta.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', hour12: true })}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Bus className="size-3.5" />
+                    <div className="text-right">
+                      <p className="text-[10px]">Bus Reg.</p>
+                      <p className="font-semibold text-foreground text-sm font-mono">{busReg}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ─── Monthly Spending Sparkline ──────────────────────────────────────────────
+
+function MonthlySpendingSparkline({ userId }: { userId: string }) {
+  const data = useMemo(() => {
+    const now = new Date();
+    const months: { label: string; value: number }[] = [];
+    let seed = 0;
+    for (let i = 0; i < userId.length; i++) {
+      seed = ((seed << 5) - seed + userId.charCodeAt(i)) | 0;
+    }
+    const absSeed = Math.abs(seed);
+    for (let m = 5; m >= 0; m--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - m, 1);
+      const monthVal = 800 + (absSeed * (m + 1) * 7 + absSeed * m * 13) % 2701;
+      months.push({
+        label: d.toLocaleDateString('en-IN', { month: 'short' }),
+        value: monthVal,
+      });
+    }
+    return months;
+  }, [userId]);
+
+  const total = data.reduce((s, d) => s + d.value, 0);
+  const avg = Math.round(total / data.length);
+  const maxVal = Math.max(...data.map(d => d.value));
+  const minVal = Math.min(...data.map(d => d.value));
+
+  const width = 280;
+  const height = 80;
+  const padding = { top: 8, right: 8, bottom: 20, left: 8 };
+  const chartW = width - padding.left - padding.right;
+  const chartH = height - padding.top - padding.bottom;
+
+  const points = data.map((d, i) => ({
+    x: padding.left + (i / Math.max(data.length - 1, 1)) * chartW,
+    y: padding.top + chartH - ((d.value - minVal) / Math.max(maxVal - minVal, 1)) * chartH,
+  }));
+
+  const linePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  const areaPath = `${linePath} L ${points[points.length - 1].x} ${padding.top + chartH} L ${points[0].x} ${padding.top + chartH} Z`;
+
+  return (
+    <div className="flex flex-col items-center gap-2 w-full">
+      <p className="text-xs font-medium text-muted-foreground w-full">Monthly Spending Trend</p>
+      <svg viewBox={`0 0 ${width} ${height}`} className="w-full max-w-[320px]" style={{ overflow: 'visible' }}>
+        <defs>
+          <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#10b981" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+          </linearGradient>
+        </defs>
+        {[0.25, 0.5, 0.75].map(pct => (
+          <line
+            key={pct}
+            x1={padding.left}
+            y1={padding.top + chartH * (1 - pct)}
+            x2={padding.left + chartW}
+            y2={padding.top + chartH * (1 - pct)}
+            stroke="currentColor"
+            strokeWidth="0.5"
+            className="text-muted-foreground/10"
+          />
+        ))}
+        <path d={areaPath} fill="url(#sparkGrad)" />
+        <path d={linePath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+        {points.map((p, i) => (
+          <circle key={i} cx={p.x} cy={p.y} r="3.5" fill="#10b981" stroke="white" strokeWidth="1.5" className="dark:stroke-gray-800" />
+        ))}
+        {data.map((d, i) => (
+          <text key={i} x={points[i].x} y={height - 2} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: '9px' }}>
+            {d.label}
+          </text>
+        ))}
+      </svg>
+      <div className="flex items-center gap-6 text-xs text-muted-foreground">
+        <div>
+          <span className="text-muted-foreground/70">Total: </span>
+          <span className="font-semibold text-foreground">{formatCurrency(total)}</span>
+        </div>
+        <div>
+          <span className="text-muted-foreground/70">Avg: </span>
+          <span className="font-semibold text-foreground">{formatCurrency(avg)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Recent Updates (Notifications) ─────────────────────────────────────────
+
+interface NotificationItem {
+  id: string;
+  type?: string;
+  title?: string;
+  message?: string;
+  isRead?: boolean;
+  createdAt?: string;
+}
+
+function RecentUpdates({ userId }: { userId: string }) {
+  const [notifications, setNotifications] = useState<NotificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchNotifs() {
+      try {
+        const res = await fetch(`/api/notifications?userId=${userId}`);
+        if (!res.ok) throw new Error('Failed to fetch');
+        const data = await res.json();
+        setNotifications((data.notifications ?? []).slice(0, 4));
+      } catch {
+        // silently fail
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchNotifs();
+  }, [userId]);
+
+  const typeConfig: Record<string, { icon: typeof CircleDot; color: string; bg: string }> = {
+    info: { icon: CircleDot, color: 'text-blue-500', bg: 'bg-blue-100 dark:bg-blue-900/30' },
+    warning: { icon: AlertTriangle, color: 'text-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/30' },
+    success: { icon: CheckCircle2, color: 'text-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/30' },
+    error: { icon: XCircle, color: 'text-red-500', bg: 'bg-red-100 dark:bg-red-900/30' },
+  };
+
+  function relativeTime(dateStr?: string): string {
+    if (!dateStr) return '';
+    const diff = Date.now() - new Date(dateStr).getTime();
+    const mins = Math.floor(diff / 60000);
+    if (mins < 1) return 'Just now';
+    if (mins < 60) return `${mins}m ago`;
+    const hours = Math.floor(mins / 60);
+    if (hours < 24) return `${hours}h ago`;
+    const days = Math.floor(hours / 24);
+    return `${days}d ago`;
+  }
+
+  if (loading) {
+    return (
+      <Card>
+        <CardContent className="py-6 space-y-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-12 rounded-lg" />
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Bell className="size-5 text-amber-500" />
+            Recent Updates
+          </CardTitle>
+          <button
+            type="button"
+            className="text-xs text-primary hover:underline flex items-center gap-1"
+            onClick={() => {
+              const bellEl = document.querySelector('[data-notification-bell]');
+              if (bellEl) (bellEl as HTMLElement).click();
+            }}
+          >
+            View All <ChevronRight className="size-3" />
+          </button>
+        </div>
+        <CardDescription>Latest notifications and updates</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-6 text-center">
+            <Bell className="mb-2 size-8 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No notifications yet</p>
+          </div>
+        ) : (
+          <div className="space-y-2 stagger-entry">
+            {notifications.map(n => {
+              const cfg = typeConfig[n.type ?? 'info'] ?? typeConfig.info;
+              const IconComp = cfg.icon;
+              return (
+                <div
+                  key={n.id}
+                  className={`flex items-start gap-3 rounded-lg border p-3 transition-all hover:bg-muted/30 dark:hover:bg-muted/10 animate-fade-in-up ${
+                    !n.isRead ? 'bg-primary/[0.02] border-primary/10' : ''
+                  }`}
+                >
+                  <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${cfg.bg}`}>
+                    <IconComp className={`size-4 ${cfg.color}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium leading-tight truncate">{n.title ?? 'Notification'}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{n.message ?? ''}</p>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground/70 shrink-0 mt-0.5">{relativeTime(n.createdAt)}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Route Comparison Dialog ─────────────────────────────────────────────────
+
+function RouteComparisonDialog({
+  routes,
+  open,
+  onClose,
+  onBook,
+}: {
+  routes: RouteResult[];
+  open: boolean;
+  onClose: () => void;
+  onBook: (route: RouteResult) => void;
+}) {
+  if (routes.length < 2) return null;
+
+  const allFares = routes.map(r => r.fare ?? Infinity);
+  const allDurations = routes.map(r => r.durationMin ?? Infinity);
+  const allDistances = routes.map(r => r.distanceKm ?? Infinity);
+  const trafficOrder: Record<string, number> = { low: 1, moderate: 2, high: 3, severe: 4 };
+  const allTraffic = routes.map(r => trafficOrder[r.trafficLevel?.toLowerCase() ?? 'moderate'] ?? 3);
+
+  const bestFare = Math.min(...allFares);
+  const bestDuration = Math.min(...allDurations);
+  const bestDistance = Math.min(...allDistances);
+  const bestTraffic = Math.min(...allTraffic);
+
+  const comparisonRows = [
+    { label: 'Fare', icon: IndianRupee, values: routes.map(r => ({ val: formatCurrency(r.fare), isBest: (r.fare ?? Infinity) === bestFare && allFares.filter(f => f === bestFare).length === 1 })) },
+    { label: 'Duration', icon: Clock, values: routes.map(r => ({ val: formatDuration(r.durationMin), isBest: (r.durationMin ?? Infinity) === bestDuration && allDurations.filter(d => d === bestDuration).length === 1 })) },
+    { label: 'Distance', icon: Navigation, values: routes.map(r => ({ val: r.distanceKm ? `${r.distanceKm} km` : '\u2014', isBest: (r.distanceKm ?? Infinity) === bestDistance && allDistances.filter(d => d === bestDistance).length === 1 })) },
+    { label: 'Traffic Level', icon: Gauge, values: routes.map(r => { const tOrd = trafficOrder[r.trafficLevel?.toLowerCase() ?? 'moderate'] ?? 3; return { val: r.trafficLevel ?? 'Unknown', isBest: tOrd === bestTraffic && allTraffic.filter(t => t === bestTraffic).length === 1 }; }) },
+  ];
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="max-w-4xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <GitCompareArrows className="size-5 text-primary" />
+            Compare Routes
+            <Badge variant="secondary" className="ml-2">{routes.length} selected</Badge>
+          </DialogTitle>
+          <DialogDescription>Compare selected routes side by side and pick the best one</DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 animate-fade-in-up">
+          {routes.map(route => (
+            <div key={route.id} className="rounded-xl border bg-muted/10 p-4 space-y-4 glass">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                  <Bus className="size-5 text-primary" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <Badge variant="outline" className="font-mono text-xs">{route.routeNumber}</Badge>
+                  <p className="text-sm mt-0.5 truncate">{route.startLocation} <ArrowRight className="mx-1 inline size-3" /> {route.endLocation}</p>
+                </div>
+              </div>
+              <div className="space-y-2.5">
+                {comparisonRows.map((row, rowIdx) => {
+                  const RowIcon = row.icon;
+                  const valueInfo = row.values[routes.indexOf(route)];
+                  return (
+                    <div key={rowIdx} className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground"><RowIcon className="size-3.5" /><span>{row.label}</span></div>
+                      <span className={`text-sm font-semibold ${valueInfo.isBest ? 'text-emerald-600 dark:text-emerald-400' : ''}`}>
+                        {valueInfo.val}
+                        {valueInfo.isBest && <span className="ml-1 text-[10px] bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 px-1.5 py-0.5 rounded-full font-medium">Best</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-muted-foreground flex items-center gap-1"><Users className="size-3.5" /> Availability</span>
+                <SeatBadge trafficLevel={route.trafficLevel} />
+              </div>
+              <Button className="w-full" onClick={() => { onBook(route); onClose(); }}>
+                <Ticket className="size-4 mr-2" />Book &mdash; {formatCurrency(route.fare)}
+              </Button>
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 

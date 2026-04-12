@@ -66,7 +66,7 @@ import {
   Zap,
   Settings2,
   Activity,
-  Map,
+  Map as MapIcon,
   Phone,
   Server,
   Database,
@@ -463,6 +463,423 @@ function LiveFleetTracker() {
           {routes.map((r) => (
             <div key={r.id} className="flex items-center gap-1"><div className="size-2 rounded-full" style={{ backgroundColor: r.color }} /><span className="text-muted-foreground">{r.id}</span></div>
           ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Live Bus Map — SVG city grid with animated bus routes               */
+/* ------------------------------------------------------------------ */
+function LiveBusMap() {
+  const busRoutes = [
+    { route: 'R-101', path: 'M40,60 L120,60 L120,180 L280,180 L280,60 L360,60', color: '#10b981', status: 'moving', dur: '12s' },
+    { route: 'R-215', path: 'M60,100 L160,100 L160,220 L320,220 L320,100 L400,100', color: '#10b981', status: 'moving', dur: '15s' },
+    { route: 'R-342', path: 'M80,140 L240,140 L240,260 L160,260', color: '#f59e0b', status: 'delayed', dur: '18s' },
+    { route: 'R-418', path: 'M100,40 L100,120 L300,120 L300,200 L420,200', color: '#10b981', status: 'moving', dur: '14s' },
+    { route: 'R-523', path: 'M20,200 L140,200 L140,280 L340,280', color: '#ef4444', status: 'stopped', dur: '20s' },
+    { route: 'R-607', path: 'M200,40 L200,100 L380,100 L380,240', color: '#10b981', status: 'moving', dur: '16s' },
+    { route: 'R-712', path: 'M50,240 L180,240 L180,160 L350,160 L350,280 L420,280', color: '#f59e0b', status: 'delayed', dur: '13s' },
+    { route: 'R-830', path: 'M140,40 L140,100 L260,100 L260,200 L420,200', color: '#ef4444', status: 'stopped', dur: '17s' },
+  ];
+
+  const statusColor = (s: string) => s === 'moving' ? '#10b981' : s === 'delayed' ? '#f59e0b' : '#ef4444';
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <MapIcon className="size-5" /> Live Bus Map
+        </CardTitle>
+        <CardDescription>City grid with real-time bus positions</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+          <svg viewBox="0 0 460 310" className="absolute inset-0 w-full h-full" preserveAspectRatio="xMidYMid meet">
+            {/* Background */}
+            <rect x="0" y="0" width="460" height="310" rx="8" fill="#0f172a" />
+
+            {/* Grid streets */}
+            {[60, 120, 180, 240, 300].map((y) => (
+              <line key={`h${y}`} x1="20" y1={y} x2="440" y2={y} stroke="#1e293b" strokeWidth="1" />
+            ))}
+            {[80, 160, 240, 320, 400].map((x) => (
+              <line key={`v${x}`} x1={x} y1="20" x2={x} y2="290" stroke="#1e293b" strokeWidth="1" />
+            ))}
+
+            {/* Main roads (wider) */}
+            <line x1="20" y1="140" x2="440" y2="140" stroke="#334155" strokeWidth="3" />
+            <line x1="20" y1="220" x2="440" y2="220" stroke="#334155" strokeWidth="3" />
+            <line x1="160" y1="20" x2="160" y2="290" stroke="#334155" strokeWidth="3" />
+            <line x1="300" y1="20" x2="300" y2="290" stroke="#334155" strokeWidth="3" />
+
+            {/* Route paths */}
+            {busRoutes.map((br) => (
+              <path key={br.route} d={br.path} fill="none" stroke={br.color} strokeWidth="1.5" opacity="0.2" strokeDasharray="4 3" />
+            ))}
+
+            {/* Animated buses */}
+            {busRoutes.map((br) => (
+              <g key={`bus-${br.route}`}>
+                <circle r="6" fill={statusColor(br.status)}>
+                  <animateMotion dur={br.dur} repeatCount="indefinite" path={br.path} />
+                </circle>
+                <circle r="12" fill={statusColor(br.status)} opacity="0.15">
+                  <animate attributeName="r" values="10;15;10" dur="1.5s" repeatCount="indefinite" />
+                  <animateMotion dur={br.dur} repeatCount="indefinite" path={br.path} />
+                </circle>
+                <text fontSize="7" fontWeight="bold" fill="white" textAnchor="middle" dominantBaseline="middle">
+                  <animateMotion dur={br.dur} repeatCount="indefinite" path={br.path} />
+                  {br.route.replace('R-', '')}
+                </text>
+              </g>
+            ))}
+
+            {/* Intersection dots */}
+            {[60, 120, 180, 240, 300].flatMap((y) =>
+              [80, 160, 240, 320, 400].map((x) => ({ x, y }))
+            ).map((pt, i) => (
+              <circle key={`ix${i}`} cx={pt.x} cy={pt.y} r="2" fill="#334155" />
+            ))}
+
+            {/* Compass */}
+            <g transform="translate(425, 30)">
+              <circle r="14" fill="#1e293b" stroke="#334155" strokeWidth="1" />
+              <text y="-3" textAnchor="middle" fill="#94a3b8" fontSize="8" fontWeight="bold">N</text>
+              <polygon points="0,2 -3,8 3,8" fill="#94a3b8" />
+            </g>
+          </svg>
+        </div>
+        <div className="flex flex-wrap gap-x-4 gap-y-1 mt-3 justify-center text-xs">
+          {[{ s: 'Moving', c: '#10b981' }, { s: 'Stopped', c: '#ef4444' }, { s: 'Delayed', c: '#f59e0b' }].map((l) => (
+            <div key={l.s} className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-full" style={{ backgroundColor: l.c }} />
+              <span className="text-muted-foreground">{l.s}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Route Performance Comparison Chart (horizontal bar)                */
+/* ------------------------------------------------------------------ */
+function RoutePerformanceChart() {
+  const routes = ['BLR-001', 'MUM-012', 'DEL-005', 'BLR-025', 'CHN-008', 'HYD-003'];
+  const metrics = [
+    { label: 'On-Time %', key: 'onTime', color: '#10b981' },
+    { label: 'Satisfaction', key: 'satisfaction', color: '#38bdf8' },
+    { label: 'Revenue', key: 'revenue', color: '#f59e0b' },
+  ];
+
+  const seed = 42;
+  const data = routes.map((route, ri) => ({
+    route,
+    onTime: 65 + ((seed + ri * 17) % 30),
+    satisfaction: 60 + ((seed + ri * 23) % 35),
+    revenue: 55 + ((seed + ri * 31) % 40),
+  }));
+
+  const W = 520;
+  const rowH = 44;
+  const padL = 72;
+  const padR = 80;
+  const padT = 8;
+  const padB = 8;
+  const H = padT + routes.length * rowH + padB;
+  const barH = 10;
+  const barGap = 3;
+  const maxW = W - padL - padR;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <BarChart3 className="size-5" /> Route Performance
+        </CardTitle>
+        <CardDescription>Comparing On-Time %, Customer Satisfaction, and Revenue across routes</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+          {data.map((d, ri) => {
+            const groupY = padT + ri * rowH;
+            return (
+              <g key={d.route}>
+                {/* Route label */}
+                <text x={padL - 8} y={groupY + rowH / 2 + 4} textAnchor="end" className="fill-foreground text-[11px] font-semibold">
+                  {d.route}
+                </text>
+                {/* Metric bars */}
+                {metrics.map((m, mi) => {
+                  const val = d[m.key as keyof typeof d] as number;
+                  const barY = groupY + 4 + mi * (barH + barGap);
+                  const barW = Math.max((val / 100) * maxW, 4);
+                  const labelX = padL + barW + 6;
+                  return (
+                    <g key={m.key}>
+                      <rect
+                        x={padL}
+                        y={barY}
+                        width={barW}
+                        height={barH}
+                        rx="3"
+                        fill={m.color}
+                        opacity="0.85"
+                        className="transition-all duration-500"
+                      />
+                      <text
+                        x={labelX}
+                        y={barY + barH / 2 + 3.5}
+                        className="fill-muted-foreground text-[9px] font-medium"
+                      >
+                        {val}%
+                      </text>
+                    </g>
+                  );
+                })}
+                {/* Separator line */}
+                {ri < routes.length - 1 && (
+                  <line
+                    x1={padL}
+                    y1={padT + (ri + 1) * rowH - 2}
+                    x2={W - padR}
+                    y2={padT + (ri + 1) * rowH - 2}
+                    stroke="currentColor"
+                    className="text-muted/20"
+                    strokeWidth="0.5"
+                  />
+                )}
+              </g>
+            );
+          })}
+        </svg>
+        <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs">
+          {metrics.map((m) => (
+            <div key={m.key} className="flex items-center gap-1.5">
+              <div className="size-2.5 rounded-sm" style={{ backgroundColor: m.color }} />
+              <span className="text-muted-foreground">{m.label}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Maintenance Calendar View                                           */
+/* ------------------------------------------------------------------ */
+function MaintenanceCalendarView({ records }: { records: any[] }) {
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+
+  const year = currentMonth.getFullYear();
+  const month = currentMonth.getMonth();
+
+  const monthLabel = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+
+  const firstDayOfMonth = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  const prevMonth = () => setCurrentMonth(new Date(year, month - 1, 1));
+  const nextMonth = () => setCurrentMonth(new Date(year, month + 1, 1));
+
+  // Build map of dates with records
+  const recordsByDate = useMemo(() => {
+    const map = new Map<string, any[]>();
+    records.forEach((r) => {
+      let dateStr = '';
+      if (r.serviceDate) dateStr = r.serviceDate.slice(0, 10);
+      else if (r.nextServiceDate) dateStr = r.nextServiceDate.slice(0, 10);
+      else if (r.date) dateStr = r.date.slice(0, 10);
+      else if (r.createdAt) dateStr = r.createdAt.slice(0, 10);
+      if (dateStr) {
+        const existing = map.get(dateStr) ?? [];
+        existing.push(r);
+        map.set(dateStr, existing);
+      }
+    });
+    return map;
+  }, [records]);
+
+  // Upcoming services count
+  const upcomingCount = useMemo(() => {
+    const now = new Date();
+    let count = 0;
+    records.forEach((r) => {
+      const dateStr = r.nextServiceDate ?? r.serviceDate ?? r.date;
+      if (dateStr) {
+        const d = new Date(dateStr);
+        if (d >= now) count++;
+      }
+    });
+    return count;
+  }, [records]);
+
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const calendarDays: (number | null)[] = [];
+  for (let i = 0; i < firstDayOfMonth; i++) calendarDays.push(null);
+  for (let d = 1; d <= daysInMonth; d++) calendarDays.push(d);
+
+  const getRecordsForDay = (day: number) => {
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+    return recordsByDate.get(dateStr) ?? [];
+  };
+
+  const selectedDayRecords = selectedDate ? getRecordsForDay(selectedDate.getDate()) : [];
+
+  const isToday = (day: number) => {
+    const now = new Date();
+    return now.getFullYear() === year && now.getMonth() === month && now.getDate() === day;
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Calendar className="size-5" /> Maintenance Calendar
+            </CardTitle>
+            <CardDescription>Visual schedule of upcoming maintenance services</CardDescription>
+          </div>
+          {upcomingCount > 0 && (
+            <Badge className="bg-rose-600 text-white">
+              {upcomingCount} upcoming service{upcomingCount !== 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Month Navigation */}
+        <div className="flex items-center justify-between mb-4">
+          <Button variant="outline" size="sm" onClick={prevMonth}>
+            <ChevronLeft className="size-4 mr-1" /> Prev
+          </Button>
+          <span className="text-sm font-semibold">{monthLabel}</span>
+          <Button variant="outline" size="sm" onClick={nextMonth}>
+            Next <ChevronRight className="size-4 ml-1" />
+          </Button>
+        </div>
+
+        {/* Calendar Grid */}
+        <div className="grid grid-cols-7 gap-1">
+          {dayNames.map((dn) => (
+            <div key={dn} className="text-center text-[10px] font-semibold text-muted-foreground py-1">
+              {dn}
+            </div>
+          ))}
+          {calendarDays.map((day, i) => {
+            if (day === null) {
+              return <div key={`empty-${i}`} />;
+            }
+            const dayRecords = getRecordsForDay(day);
+            const hasRecords = dayRecords.length > 0;
+            const isSelected = selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === month;
+            const today = isToday(day);
+            return (
+              <button
+                key={day}
+                onClick={() => {
+                  if (hasRecords) setSelectedDate(new Date(year, month, day));
+                }}
+                className={`relative flex flex-col items-center justify-center rounded-lg py-1.5 text-sm transition-all ${
+                  isSelected
+                    ? 'bg-primary text-primary-foreground ring-2 ring-primary/30'
+                    : today
+                      ? 'bg-primary/10 text-primary font-bold'
+                      : 'hover:bg-muted'
+                } ${!hasRecords ? 'opacity-60' : 'cursor-pointer'}`}
+              >
+                {day}
+                {hasRecords && (
+                  <span className="absolute top-0.5 right-0.5 size-2 rounded-full bg-red-500">
+                    <span className="absolute inset-0 rounded-full bg-red-500 animate-ping opacity-50" />
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Selected Date Details */}
+        {selectedDayRecords.length > 0 && selectedDate && (
+          <div className="mt-4 space-y-2 animate-fade-in-up">
+            <p className="text-xs font-semibold text-muted-foreground">
+              Records for {selectedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+            </p>
+            {selectedDayRecords.map((r: any, i: number) => {
+              const reg = r.busRegistration ?? r.registration ?? 'Unknown Bus';
+              const type = r.serviceType ?? r.type ?? 'Service';
+              const desc = r.description ?? r.notes ?? 'Scheduled maintenance';
+              return (
+                <div key={i} className="rounded-lg border p-3 flex items-start gap-3">
+                  <div className="shrink-0 mt-0.5 rounded-md bg-rose-100 dark:bg-rose-950/40 p-1.5">
+                    <Wrench className="size-3.5 text-rose-600" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{reg}</p>
+                    <Badge variant="outline" className="text-[10px] mt-1 bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300">
+                      {type}
+                    </Badge>
+                    <p className="text-xs text-muted-foreground mt-1">{desc}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Admin Quick Actions Dashboard Widget                                */
+/* ------------------------------------------------------------------ */
+function AdminQuickActions() {
+  const actions = [
+    { title: 'Generate Schedules', icon: Calendar, description: 'Auto-create daily bus timetables', color: 'bg-emerald-500' },
+    { title: 'Auto Assign Crew', icon: Users, description: 'Smart crew-to-route assignment', color: 'bg-sky-500' },
+    { title: 'Create Alert', icon: AlertTriangle, description: 'Broadcast alerts to passengers', color: 'bg-amber-500' },
+    { title: 'View Reports', icon: BarChart3, description: 'Analytics and performance insights', color: 'bg-violet-500' },
+    { title: 'System Settings', icon: Settings2, description: 'Configure platform preferences', color: 'bg-gray-500' },
+    { title: 'Export Data', icon: Download, description: 'Download reports and datasets', color: 'bg-teal-500' },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Zap className="size-5" /> Quick Actions
+        </CardTitle>
+        <CardDescription>Common administrative tasks</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {actions.map((action, i) => {
+            const IconComp = action.icon;
+            return (
+              <button
+                key={action.title}
+                onClick={() => toast({ title: 'Opening...', description: `Opening ${action.title}...` })}
+                className="card-lift neon-card stagger-entry group rounded-xl border p-4 text-left transition-all hover:shadow-lg animate-fade-in-up"
+                style={{ animationDelay: `${i * 80}ms` }}
+              >
+                <div className={`mb-3 inline-flex rounded-lg ${action.color} p-2.5 text-white shadow-sm`}>
+                  <IconComp className="size-5" />
+                </div>
+                <p className="text-sm font-semibold">{action.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{action.description}</p>
+              </button>
+            );
+          })}
         </div>
       </CardContent>
     </Card>
@@ -1646,52 +2063,19 @@ function DashboardPage({
       </div>
       </div>
 
+      {/* Live Bus Map */}
+      <div className="page-section">
+      <LiveBusMap />
+      </div>
+
       {/* Live Departure Board */}
       <div className="page-section">
       <DepartureBoard />
       </div>
 
-      {/* STYLE: Improved Quick Actions — icon cards */}
+      {/* Admin Quick Actions */}
       <div className="page-section">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Zap className="size-5" /> Quick Actions
-          </CardTitle>
-          <CardDescription>
-            Common administrative tasks
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-            {quickActions.map((qa) => {
-              const isActive = qa.id === 'generate' || qa.id === 'autoAssign';
-              return (
-                <button
-                  key={qa.id}
-                  onClick={() => {
-                    if (isActive) handleAction(qa.id);
-                    else if (qa.id === 'viewRoutes') setPortal('routes');
-                    else if (qa.id === 'viewTraffic') setPortal('traffic');
-                  }}
-                  disabled={!!actionLoading && isActive}
-                  className="group rounded-xl border p-4 text-left transition-all hover:shadow-md hover:border-foreground/20 disabled:opacity-60"
-                >
-                  <div className={`mb-3 inline-flex rounded-lg bg-gradient-to-br ${qa.gradient} p-2.5 text-white shadow-sm`}>
-                    {actionLoading === qa.id ? (
-                      <span className="size-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-                    ) : (
-                      <qa.icon className="size-5" />
-                    )}
-                  </div>
-                  <p className="text-sm font-semibold">{qa.label}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">{qa.desc}</p>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      <AdminQuickActions />
       </div>
 
       {/* Broadcast Messaging */}
@@ -3543,6 +3927,9 @@ function AnalyticsPage({ token }: { token: string }) {
       {/* Route Performance Heatmap */}
       <RoutePerformanceHeatmap />
 
+      {/* Route Performance Comparison Chart */}
+      <RoutePerformanceChart />
+
       {/* Route Performance Matrix */}
       <Card>
         <CardHeader>
@@ -3712,6 +4099,9 @@ function MaintenancePage({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
+      {/* Maintenance Calendar View */}
+      <MaintenanceCalendarView records={records} />
+
       {/* Fuel Cost Calculator */}
       <FuelCostCalculator />
 
