@@ -1258,6 +1258,48 @@ body,
   border-radius: 0.5rem;
 }
 
+/* ============================================================
+   Task 19-a: Advanced Styling Polish & Dark Mode Fixes
+   ============================================================ */
+
+/* Shimmer sweep for login card */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
+  100% { transform: translateX(200%) translateY(200%) rotate(45deg); }
+}
+.animate-shimmer-sweep {
+  animation: shimmerSweep 6s ease-in-out infinite;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
+}
+
+/* Sidebar active indicator */
+.sidebar-active-indicator {
+  position: relative;
+}
+.sidebar-active-indicator::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 4px;
+  bottom: 4px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--sidebar-accent, #10b981);
+}
+
+/* Notification bell subtle bounce */
+@keyframes bellNudge {
+  0%, 85%, 100% { transform: rotate(0deg); }
+  90% { transform: rotate(10deg); }
+  95% { transform: rotate(-10deg); }
+}
+.animate-bell-nudge {
+  animation: bellNudge 3s ease-in-out infinite;
+}
+
+/* Enhanced scrollbar for dark mode */
+.dark .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
+
 /* Gradient border stat card */
 .stat-card-gradient-border {
   position: relative;

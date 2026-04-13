@@ -116,6 +116,7 @@ import {
   Copy,
   Bell,
   RefreshCw,
+  Lightbulb,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -642,10 +643,22 @@ function RouteDetailPanel({
     return fake;
   }, [stops, route]);
 
+  // Deterministic amenity availability from route number
+  const routeNum = route.routeNumber || '';
+  const routeHash = (() => {
+    let h = 0;
+    for (let i = 0; i < routeNum.length; i++) {
+      h = ((h << 5) - h + routeNum.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  })();
+
   const amenities = [
-    { icon: Wifi, label: 'Free WiFi', available: true },
-    { icon: Snowflake, label: 'Air Conditioning', available: route.city !== 'intercity' },
-    { icon: Users, label: '40 Seats', available: true },
+    { icon: Wifi, label: 'WiFi', available: routeHash % 2 === 0 },
+    { icon: Snowflake, label: 'AC', available: routeNum.toUpperCase().startsWith('BLR') || routeHash % 3 === 0 },
+    { icon: Zap, label: 'Charging Ports', available: routeHash % 5 < 3 },
+    { icon: Shield, label: 'CCTV', available: routeHash % 4 < 3 },
+    { icon: AlertTriangle, label: 'Emergency Exit', available: true },
   ];
 
   return (
@@ -661,21 +674,18 @@ function RouteDetailPanel({
       {/* Amenities */}
       <div>
         <p className="text-sm font-medium text-muted-foreground mb-2">Bus Amenities</p>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-wrap gap-2">
           {amenities.map((a, i) => (
             <div
               key={i}
-              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
+              className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium transition-colors ${
                 a.available
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
-                  : 'border-muted bg-muted/50 text-muted-foreground'
+                  ? 'border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
+                  : 'border border-muted bg-muted/50 text-muted-foreground opacity-50'
               }`}
             >
-              <a.icon className="size-3.5" />
+              <a.icon className="size-3" />
               <span>{a.label}</span>
-              {a.available && (
-                <CheckCircle2 className="size-3 text-emerald-500" />
-              )}
             </div>
           ))}
         </div>
@@ -695,6 +705,75 @@ function RouteDetailPanel({
         Book Now — {formatCurrency(route.fare)}
       </Button>
     </div>
+  );
+}
+
+// ─── Travel Tips Widget ─────────────────────────────────────────────────────
+
+function TravelTipsWidget() {
+  const tips = [
+    'Book tickets in advance for guaranteed seats',
+    'Off-peak hours (10 AM-4 PM) have fewer crowds',
+    'Keep your QR ticket handy for quick scanning',
+    'Use the live tracker to plan your arrival',
+    'Weekend routes may have 15% longer travel times',
+    'Fares are 10% cheaper with monthly passes',
+  ];
+
+  const [visibleTip, setVisibleTip] = useState(0);
+  const [isFading, setIsFading] = useState(false);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setIsFading(true);
+      setTimeout(() => {
+        setVisibleTip((prev) => (prev + 1) % tips.length);
+        setIsFading(false);
+      }, 400);
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [tips.length]);
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Lightbulb className="size-5 text-amber-500" />
+          Travel Tips
+        </CardTitle>
+        <CardDescription>Helpful tips for a better commute</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="relative min-h-[80px] flex items-center">
+          <div
+            className={`transition-opacity duration-400 ${isFading ? 'opacity-0' : 'opacity-100'}`}
+          >
+            <div className="flex items-start gap-3">
+              <div className="shrink-0 mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-amber-50 dark:bg-amber-900/30">
+                <Lightbulb className="size-4 text-amber-500" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground leading-relaxed">
+                  {tips[visibleTip]}
+                </p>
+                <div className="flex items-center gap-1.5 mt-2">
+                  {tips.map((_, i) => (
+                    <div
+                      key={i}
+                      className={`h-1.5 rounded-full transition-all duration-300 ${
+                        i === visibleTip
+                          ? 'w-4 bg-amber-500'
+                          : 'w-1.5 bg-muted-foreground/20'
+                      }`}
+                    />
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2342,8 +2421,13 @@ function Dashboard({
         setPortal('search');
       }} />
 
-      {/* Commute Statistics */}
-      <CommuteStatistics userId={userId} />
+      {/* Commute Statistics + Travel Tips */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <CommuteStatistics userId={userId} />
+        </div>
+        <TravelTipsWidget />
+      </div>
 
       {/* Quick Trip Planner */}
       <QuickTripPlanner onFindRoutes={(from, to) => {

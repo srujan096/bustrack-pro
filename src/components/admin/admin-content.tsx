@@ -96,6 +96,9 @@ import {
   MessageSquare,
   Cloud,
   FileSpreadsheet,
+  ArrowUp,
+  ArrowDown,
+  Lightbulb,
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
@@ -1667,7 +1670,7 @@ function SeverityBadge({ severity }: { severity?: string }) {
     critical: 'bg-rose-100 text-rose-800 border-rose-300 dark:bg-rose-950/80 dark:text-rose-200',
   };
   return (
-    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600'}>
       {severity ?? 'unknown'}
     </Badge>
   );
@@ -1681,7 +1684,7 @@ function TrafficLevelBadge({ level }: { level?: string }) {
     high: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
   };
   return (
-    <Badge variant="outline" className={map[l] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+    <Badge variant="outline" className={map[l] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600'}>
       {level ?? 'unknown'}
     </Badge>
   );
@@ -1698,7 +1701,7 @@ function ScheduleStatusBadge({ status }: { status?: string }) {
     active: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
   };
   return (
-    <Badge variant="outline" className={`${map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'} ${isActive ? 'animate-badge-pulse' : ''}`}>
+    <Badge variant="outline" className={`${map[s] ?? 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600'} ${isActive ? 'animate-badge-pulse' : ''}`}>
       {status ?? 'unknown'}
     </Badge>
   );
@@ -2227,6 +2230,82 @@ function RecentActivityFeedWidget() {
 }
 
 /* ================================================================== */
+/*  Passenger Feedback Widget                                          */
+/* ================================================================== */
+function PassengerFeedbackWidget() {
+  const now = new Date();
+  const daySeed = Math.floor(now.getTime() / (24 * 60 * 60 * 1000));
+  const seed = (daySeed * 23) % 100;
+
+  const names = ['Priya S.', 'Rajesh K.', 'Anita M.', 'Vikram P.', 'Sneha R.'];
+  const routePrefixes = ['BLR', 'MUM', 'DEL', 'CHN', 'HYD'];
+  const comments = [
+    'Very clean bus and punctual service. AC worked perfectly throughout the journey.',
+    'Bus was delayed by 15 minutes. No announcement was made at the stop.',
+    'Comfortable seats and smooth ride. Driver was very professional.',
+    'Ticket counter was crowded. Took 20 minutes just to buy a ticket.',
+    'Great WiFi on board! Could work during my commute. Will use again.',
+  ];
+  const times = ['10 min ago', '25 min ago', '1 hour ago', '2 hours ago', '3 hours ago'];
+
+  const feedbackItems = names.map((name, i) => {
+    const route = `${routePrefixes[(seed + i * 3) % 5]}-${100 + ((seed + i * 7) % 20)}`;
+    const rating = 3 + ((seed + i * 11) % 3); // 3-5
+    const comment = comments[(seed + i) % comments.length];
+    const time = times[i];
+    return { name, route, rating, comment, time };
+  });
+
+  const avgRating = (feedbackItems.reduce((sum, f) => sum + f.rating, 0) / feedbackItems.length).toFixed(1);
+
+  const getSentimentColor = (rating: number) => {
+    if (rating >= 4) return 'border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20';
+    if (rating >= 3) return 'border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20';
+    return 'border-l-red-500 bg-red-50/50 dark:bg-red-950/20';
+  };
+
+  return (
+    <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '400ms' }}>
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <MessageSquare className="size-5 text-sky-500" /> Passenger Feedback
+            </CardTitle>
+            <CardDescription>Recent passenger reviews and ratings</CardDescription>
+          </div>
+          <div className="flex items-center gap-2">
+            <Star className="size-4 fill-amber-400 text-amber-400" />
+            <span className="text-lg font-bold">{avgRating}</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="max-h-96 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}>
+          {feedbackItems.map((item, i) => (
+            <div
+              key={i}
+              className={`rounded-xl border border-l-4 px-3 py-2.5 hover:bg-muted/30 transition-colors animate-fade-in-up ${getSentimentColor(item.rating)}`}
+              style={{ animationDelay: `${450 + i * 60}ms` }}
+            >
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-semibold truncate">{item.name}</span>
+                  <Badge variant="outline" className="text-[9px] px-1.5 py-0 shrink-0">{item.route}</Badge>
+                </div>
+                <span className="text-[10px] text-muted-foreground shrink-0">{item.time}</span>
+              </div>
+              <StarRating rating={item.rating} />
+              <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{item.comment}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
 /*  Active Routes Preview                                              */
 /* ================================================================== */
 function ActiveRoutesPreview({ onNavigate }: { onNavigate?: () => void }) {
@@ -2394,6 +2473,8 @@ function DashboardPage({
           icon: Route,
           color: 'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50',
           sparkColor: 'bg-emerald-400',
+          trend: (analytics.totalRoutes ?? 0) % 7 > 3 ? 'up' as const : 'down' as const,
+          trendPct: 2 + ((analytics.totalRoutes ?? 0) % 12),
         },
         {
           label: 'Total Crew',
@@ -2401,6 +2482,8 @@ function DashboardPage({
           icon: Users,
           color: 'text-violet-600 bg-violet-50 dark:bg-violet-950/50',
           sparkColor: 'bg-violet-400',
+          trend: (analytics.totalCrew ?? 0) % 7 > 3 ? 'up' as const : 'down' as const,
+          trendPct: 1 + ((analytics.totalCrew ?? 0) % 8),
         },
         {
           // FIX #1: use activeSchedules
@@ -2409,6 +2492,8 @@ function DashboardPage({
           icon: Calendar,
           color: 'text-amber-600 bg-amber-50 dark:bg-amber-950/50',
           sparkColor: 'bg-amber-400',
+          trend: (analytics.activeSchedules ?? 0) % 7 > 3 ? 'up' as const : 'down' as const,
+          trendPct: 3 + ((analytics.activeSchedules ?? 0) % 15),
         },
         {
           label: 'Active Alerts',
@@ -2416,6 +2501,8 @@ function DashboardPage({
           icon: AlertTriangle,
           color: 'text-rose-600 bg-rose-50 dark:bg-rose-950/50',
           sparkColor: 'bg-rose-400',
+          trend: (analytics.activeAlerts ?? 0) % 7 > 3 ? 'up' as const : 'down' as const,
+          trendPct: 1 + ((analytics.activeAlerts ?? 0) % 10),
         },
       ]
     : [];
@@ -2480,7 +2567,22 @@ function DashboardPage({
                         ? <AnimatedStatNumber value={s.value as number} />
                         : s.value}
                     </p>
-                    <MiniSparkline data={fakeSparkline(s.value as number)} color={s.sparkColor} />
+                    <div className="flex items-center gap-1.5 mt-1">
+                      <MiniSparkline data={fakeSparkline(s.value as number)} color={s.sparkColor} />
+                    </div>
+                    <div className="flex items-center gap-1 mt-1">
+                      {s.trend === 'up' ? (
+                        <>
+                          <ArrowUp className="size-3.5 text-emerald-500" />
+                          <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">+{s.trendPct}%</span>
+                        </>
+                      ) : (
+                        <>
+                          <ArrowDown className="size-3.5 text-red-500" />
+                          <span className="text-xs font-semibold text-red-600 dark:text-red-400">+{s.trendPct}%</span>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <div className={`rounded-xl p-3 transition-shadow group-hover:animate-pulse-glow ${s.color}`}>
                     <s.icon className="size-6" />
@@ -2501,11 +2603,12 @@ function DashboardPage({
       </div>
       </div>
 
-      {/* Recent Activity Feed + Active Routes */}
+      {/* Recent Activity Feed + Active Routes + Passenger Feedback */}
       <div className="page-section">
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <RecentActivityFeedWidget />
         <ActiveRoutesPreview onNavigate={() => setPortal('routes')} />
+        <PassengerFeedbackWidget />
       </div>
       </div>
 
@@ -2991,7 +3094,7 @@ function RoutesPage({ token }: { token: string }) {
                         /* STYLE: alternating row colors + hover */
                         <TableRow
                           key={id}
-                          className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer`}
+                          className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer table-row-lift`}
                           onClick={() => { setSelectedRoute(r); setDetailOpen(true); }}
                         >
                           <TableCell className="font-medium">
@@ -3313,6 +3416,14 @@ function SchedulesPage({ token }: { token: string }) {
 
   const statusFilters = ['all', 'scheduled', 'in_progress', 'completed', 'cancelled'];
 
+  const toAMPM = (t: string) => {
+    if (!t) return '—';
+    const [h, m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
   const fetchSchedules = useCallback(async () => {
     setLoading(true);
     try {
@@ -3489,7 +3600,7 @@ function SchedulesPage({ token }: { token: string }) {
                       <TableCell>
                         <span className="inline-flex items-center gap-1.5">
                           <Clock className="size-3.5 text-muted-foreground" />
-                          {s.departureTime ?? s.time ?? '—'}
+                          {toAMPM(s.departureTime ?? s.time)}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -3706,7 +3817,7 @@ function CrewPage({ token }: { token: string }) {
                     /* STYLE: alternating row colors + hover + clickable */
                     <TableRow
                       key={c.id ?? c._id}
-                      className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer`}
+                      className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all cursor-pointer table-row-lift`}
                       onClick={() => { setSelectedCrew(c); setDetailOpen(true); }}
                     >
                       <TableCell className="font-medium">

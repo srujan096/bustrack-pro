@@ -402,6 +402,125 @@ function DailySummaryReport({ crewName }: { crewName: string }) {
   );
 }
 
+// ──────────────────────────── Shift Handover Notes ────────────────────────────
+
+function ShiftHandoverNotes({ crewName }: { crewName: string }) {
+  const storageKey = `bt_handover_notes_${crewName}`;
+  const [note, setNote] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.note || '';
+      }
+    } catch {
+      // ignore parse errors
+    }
+    return '';
+  });
+  const [lastSaved, setLastSaved] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem(storageKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.timestamp || null;
+      }
+    } catch {
+      // ignore
+    }
+    return null;
+  });
+  const [saving, setSaving] = useState(false);
+
+  const MAX_CHARS = 1000;
+
+  const handleSave = () => {
+    if (!note.trim()) {
+      toast({ title: 'Cannot save empty note', description: 'Please write something before saving.', variant: 'destructive' });
+      return;
+    }
+    setSaving(true);
+    const timestamp = new Date().toLocaleString();
+    try {
+      localStorage.setItem(storageKey, JSON.stringify({ note, timestamp }));
+      setLastSaved(timestamp);
+      toast({ title: 'Note saved!', description: `Handover note saved at ${timestamp}` });
+    } catch {
+      toast({ title: 'Save failed', description: 'Could not save to local storage.', variant: 'destructive' });
+    }
+    setSaving(false);
+  };
+
+  const handleClear = () => {
+    setNote('');
+    setLastSaved(null);
+    try {
+      localStorage.removeItem(storageKey);
+    } catch {
+      // ignore
+    }
+    toast({ title: 'Note cleared', description: 'Handover note has been removed.' });
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-100 to-violet-100 dark:from-sky-900/40 dark:to-violet-900/40">
+            <Edit3 className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Shift Handover Notes</CardTitle>
+            <CardDescription className="text-xs">Write notes for the next shift crew</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-3">
+          <Textarea
+            value={note}
+            onChange={(e) => setNote(e.target.value.slice(0, MAX_CHARS))}
+            placeholder="Write your handover notes here... e.g., Bus KA-01-F1234 needs oil check, Route R215 has road work near Silk Board..."
+            className="min-h-[100px] resize-y text-sm"
+          />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className={`text-xs ${note.length > MAX_CHARS * 0.9 ? 'text-red-500 font-semibold' : 'text-muted-foreground'}`}>
+                {note.length}/{MAX_CHARS} characters
+              </span>
+              {lastSaved && (
+                <span className="text-[10px] text-muted-foreground">
+                  Last saved: {lastSaved}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 h-8 text-xs border-red-300 text-red-600 hover:bg-red-50 dark:border-red-700 dark:text-red-400 dark:hover:bg-red-950/40"
+                onClick={handleClear}
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Clear
+              </Button>
+              <Button
+                size="sm"
+                className="gap-1.5 h-8 text-xs bg-sky-600 text-white hover:bg-sky-700"
+                onClick={handleSave}
+                disabled={saving || !note.trim()}
+              >
+                <Save className="h-3.5 w-3.5" />
+                {saving ? 'Saving...' : 'Save Note'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ──────────────────────────── New Feature: Seed-based Data Helpers ────────────────────────────
 
 function getSeededValue(seed: string, min: number, max: number): number {
@@ -685,29 +804,29 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
       </div>
       <CardContent className="p-0">
         {/* Route & Time Row */}
-        <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-dashed border-gray-200">
+        <div className="px-5 pt-4 pb-3 flex items-center justify-between border-b border-dashed border-gray-200 dark:border-gray-700">
           <div>
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Route Number</p>
             <p className="text-lg font-bold text-emerald-700">{routeNumber}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Departure</p>
-            <p className="text-lg font-bold text-gray-900">{departureTime}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{departureTime}</p>
           </div>
           <div className="text-right">
             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Bus Reg</p>
-            <p className="text-lg font-bold text-gray-900">{busReg}</p>
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{busReg}</p>
           </div>
         </div>
 
         {/* Passengers Progress Bar */}
-        <div className="px-5 py-3 border-b border-dashed border-gray-200">
+        <div className="px-5 py-3 border-b border-dashed border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between mb-1.5">
             <div className="flex items-center gap-1.5">
               <Users className="h-3.5 w-3.5 text-gray-400" />
-              <span className="text-xs font-medium text-gray-600">Passengers</span>
+              <span className="text-xs font-medium text-gray-600 dark:text-gray-300">Passengers</span>
             </div>
-            <span className="text-xs font-bold text-gray-900">{totalPassengers}/{busCapacity} <span className="text-gray-400 font-normal">({occupancyPct}%)</span></span>
+            <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{totalPassengers}/{busCapacity} <span className="text-gray-400 font-normal">({occupancyPct}%)</span></span>
           </div>
           <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
@@ -718,7 +837,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
         </div>
 
         {/* Route Progress - Animated Dots */}
-        <div className="px-5 py-3 border-b border-dashed border-gray-200">
+        <div className="px-5 py-3 border-b border-dashed border-gray-200 dark:border-gray-700">
           <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">Route Progress</p>
           <div className="flex items-center gap-1 w-full overflow-hidden">
             {stops.map((stop, i) => (
@@ -762,7 +881,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
               </div>
               <div>
                 <p className="text-[10px] text-gray-400 uppercase tracking-wider">Next Stop</p>
-                <p className="text-sm font-semibold text-gray-900">{tripStatus === 'completed' ? 'Trip finished' : (nextStop?.name || '—')}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{tripStatus === 'completed' ? 'Trip finished' : (nextStop?.name || '—')}</p>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -865,7 +984,7 @@ function ShiftTimer() {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xl font-bold text-gray-900 font-mono">{formatShiftTime(elapsedSeconds)}</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-gray-100 font-mono">{formatShiftTime(elapsedSeconds)}</span>
               <span className="text-[10px] text-gray-400">/ {totalShiftHours}h shift</span>
             </div>
           </div>
@@ -1048,7 +1167,7 @@ function BreakTimer() {
                   />
                 </svg>
                 <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className="text-lg font-bold text-gray-900 font-mono tabular-nums">{formatTime(remainingSeconds)}</span>
+                  <span className="text-lg font-bold text-gray-900 dark:text-gray-100 font-mono tabular-nums">{formatTime(remainingSeconds)}</span>
                   <span className="text-[8px] text-gray-400 uppercase">
                     {breakType === 'tea' ? 'Tea' : 'Lunch'}
                   </span>
@@ -1117,7 +1236,7 @@ function RoutePerformance({ crewName }: { crewName: string }) {
               {trips.map((t) => (
                 <div key={t.route} className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2">
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{t.route}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{t.route}</p>
                     <p className="text-[10px] text-gray-400">{t.scheduled} → {t.actual}</p>
                   </div>
                   {statusBadge(t.status)}
@@ -1303,7 +1422,7 @@ function QuickCommunication() {
                   <Icon className={`h-4 w-4 ${colors.iconText}`} />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-gray-900 truncate">{msg.label}</p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{msg.label}</p>
                   <p className="text-[10px] text-gray-500 truncate">{msg.desc}</p>
                 </div>
               </button>
@@ -1364,7 +1483,7 @@ function EarningsTracker({ crewName }: { crewName: string }) {
                 <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
               </div>
-              <p className="text-lg font-bold text-gray-900">{c.value}</p>
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{c.value}</p>
             </div>
           );
         })}
@@ -1521,9 +1640,9 @@ function OvertimePayCalculator({ crewName }: { crewName: string }) {
           </div>
           <div className="divide-y divide-gray-50 dark:divide-gray-700">
             {[
-              { label: 'Base Pay', value: basePay, color: 'text-gray-900' },
-              { label: `Overtime (${thisMonthOT}h × ₹${otRate}/hr)`, value: otPay, color: 'text-gray-900' },
-              { label: 'Night Allowance', value: nightAllowance, color: 'text-gray-900' },
+              { label: 'Base Pay', value: basePay, color: 'text-gray-900 dark:text-gray-100' },
+              { label: `Overtime (${thisMonthOT}h × ₹${otRate}/hr)`, value: otPay, color: 'text-gray-900 dark:text-gray-100' },
+              { label: 'Night Allowance', value: nightAllowance, color: 'text-gray-900 dark:text-gray-100' },
               { label: 'Performance Bonus', value: perfBonus, color: 'text-emerald-600' },
               { label: 'Deductions', value: -deductions, color: 'text-red-600' },
             ].map((row) => (
@@ -1535,7 +1654,7 @@ function OvertimePayCalculator({ crewName }: { crewName: string }) {
               </div>
             ))}
             <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-emerald-50 to-teal-50">
-              <span className="text-sm font-bold text-gray-900">Total</span>
+              <span className="text-sm font-bold text-gray-900 dark:text-gray-100">Total</span>
               <span className="text-lg font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
                 ₹{total.toLocaleString('en-IN')}
               </span>
@@ -1596,7 +1715,7 @@ function ShiftSummaryCard({ dateStr, assignments, crewName }: { dateStr: string;
         </div>
       )}
       <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
-        <span className="text-xs font-medium text-gray-600">Total: <span className="font-bold text-gray-900">{totalHours.toFixed(1)}h</span></span>
+        <span className="text-xs font-medium text-gray-600">Total: <span className="font-bold text-gray-900 dark:text-gray-100">{totalHours.toFixed(1)}h</span></span>
         {hasOvertime && (
           <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">
             <Flame className="mr-0.5 h-2.5 w-2.5" />
@@ -1819,7 +1938,7 @@ function ShiftLogbook({ crewName }: { crewName: string }) {
                 </div>
                 <div className="flex-1 pb-4 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-sm font-semibold text-gray-900 truncate">{entry.type}</p>
+                    <p className="text-sm font-semibold text-gray-900 dark:text-gray-100 truncate">{entry.type}</p>
                     <div className="flex items-center gap-2 shrink-0">
                       <Badge className={
                         entry.status === 'Active'
@@ -2054,7 +2173,7 @@ function PerformanceScorecard({ crewName }: { crewName: string }) {
               />
             </svg>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-2xl font-bold text-gray-900">{data.overallScore}</span>
+              <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">{data.overallScore}</span>
               <span className="text-[10px] text-gray-400">Overall</span>
             </div>
           </div>
@@ -2062,7 +2181,7 @@ function PerformanceScorecard({ crewName }: { crewName: string }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-xs text-gray-500">This Month</p>
-                <p className="text-lg font-bold text-gray-900">{data.thisMonthScore}</p>
+                <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{data.thisMonthScore}</p>
               </div>
               <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${data.diff >= 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
                 {data.diff >= 0 ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
@@ -2152,7 +2271,7 @@ function QuickActions() {
                 <Icon className={`h-5 w-5 ${colors.iconText}`} />
               </div>
               <div>
-                <p className="text-sm font-semibold text-gray-900">{action.label}</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">{action.label}</p>
                 <p className="text-[11px] text-gray-500 mt-0.5">{action.description}</p>
               </div>
             </CardContent>
@@ -2339,7 +2458,7 @@ function CircularProgress({ value, size = 80, strokeWidth = 6, color = 'emerald'
           style={{ transition: 'stroke-dashoffset 0.6s ease' }}
         />
       </svg>
-      <span className="absolute text-sm font-bold text-gray-900">{Math.round(value)}%</span>
+      <span className="absolute text-sm font-bold text-gray-900 dark:text-gray-100">{Math.round(value)}%</span>
     </div>
   );
 }
@@ -2369,11 +2488,11 @@ function RouteMiniVisualization({
           <span className="text-xs font-semibold text-emerald-700 truncate">{start}</span>
         </div>
         <div className="flex items-center gap-1 my-1">
-          <div className="flex-1 border-t border-dashed border-gray-200" />
+          <div className="flex-1 border-t border-dashed border-gray-200 dark:border-gray-700" />
           <Badge variant="outline" className="text-[10px] px-1.5 py-0 shrink-0">
             R{routeNumber}
           </Badge>
-          <div className="flex-1 border-t border-dashed border-gray-200" />
+          <div className="flex-1 border-t border-dashed border-gray-200 dark:border-gray-700" />
         </div>
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs text-gray-600 truncate">{end}</span>
@@ -2590,7 +2709,7 @@ function WeeklyPerformanceScore({ crewName }: { crewName: string }) {
               }
             `}</style>
             <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-3xl font-bold text-gray-900">{data.score}</span>
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{data.score}</span>
               <span className="text-[10px] text-gray-400 mt-0.5">Performance Score</span>
             </div>
           </div>
@@ -2608,7 +2727,7 @@ function WeeklyPerformanceScore({ crewName }: { crewName: string }) {
                 <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-gray-100 dark:border-gray-700 px-3 py-2 bg-gray-50/50 dark:bg-gray-800/50">
                   <Icon className="h-4 w-4 text-gray-400 shrink-0" />
                   <div className="min-w-0">
-                    <p className="text-xs font-bold text-gray-900">{stat.value}</p>
+                    <p className="text-xs font-bold text-gray-900 dark:text-gray-100">{stat.value}</p>
                     <p className="text-[9px] text-gray-400">{stat.label}</p>
                   </div>
                 </div>
@@ -2668,7 +2787,7 @@ function DashboardPage({
                 {getInitials(crewProfile?.profile?.name || '')}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Welcome back, {crewProfile?.profile?.name || 'Crew Member'}
                 </h1>
                 <div className="mt-1 flex items-center gap-2">
@@ -2740,7 +2859,7 @@ function DashboardPage({
                 <CalendarIcon className="h-5 w-5 text-emerald-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {todayAssignments.length}
                 </p>
                 <p className="text-xs text-gray-500">Today&apos;s Assignments</p>
@@ -2756,7 +2875,7 @@ function DashboardPage({
                 <TrendingUp className="h-5 w-5 text-violet-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {upcomingAssignments.length}
                 </p>
                 <p className="text-xs text-gray-500">Upcoming</p>
@@ -2772,7 +2891,7 @@ function DashboardPage({
                 <CheckCircle2 className="h-5 w-5 text-amber-600" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {completedCount}
                 </p>
                 <p className="text-xs text-gray-500">Completed</p>
@@ -2788,7 +2907,7 @@ function DashboardPage({
                 <Star className="h-5 w-5 text-rose-500" />
               </div>
               <div>
-                <span className="text-2xl font-bold text-gray-900">
+                <span className="text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {crewProfile?.performanceRating?.toFixed(1) || '—'}
                 </span>
                 <p className="text-xs text-gray-500">Performance Rating</p>
@@ -2807,7 +2926,7 @@ function DashboardPage({
                 <Navigation className="h-4 w-4 text-emerald-600" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {completedCount + getSeededValue(crewProfile.profile?.name || '' + 'wt', 3, 8)}
                 </p>
                 <p className="text-[11px] text-gray-500">Trips This Week</p>
@@ -2820,7 +2939,7 @@ function DashboardPage({
                 <Timer className="h-4 w-4 text-sky-600" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {getWeeklyHours(crewProfile.profile?.name || '').reduce((s, h) => s + h, 0).toFixed(0)}h
                 </p>
                 <p className="text-[11px] text-gray-500">Hours Worked</p>
@@ -2833,7 +2952,7 @@ function DashboardPage({
                 <Gauge className="h-4 w-4 text-amber-600" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {320 + getSeededValue(crewProfile.profile?.name || '' + 'wd', 0, 180)} km
                 </p>
                 <p className="text-[11px] text-gray-500">Distance Covered</p>
@@ -2846,7 +2965,7 @@ function DashboardPage({
                 <Fuel className="h-4 w-4 text-rose-600" />
               </div>
               <div>
-                <p className="text-xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900 dark:text-gray-100">
                   {38 + getSeededValue(crewProfile.profile?.name || '' + 'wf', 0, 25)} L
                 </p>
                 <p className="text-[11px] text-gray-500">Fuel Used</p>
@@ -2974,7 +3093,7 @@ function DashboardPage({
                   strokeWidth={7}
                   color={crewProfile.performanceRating >= 4 ? 'emerald' : crewProfile.performanceRating >= 3 ? 'amber' : 'red'}
                 />
-                <p className="mt-3 text-sm font-semibold text-gray-900">
+                <p className="mt-3 text-sm font-semibold text-gray-900 dark:text-gray-100">
                   {crewProfile.performanceRating.toFixed(1)} / 5.0
                 </p>
                 <div className="mt-1">
@@ -2987,7 +3106,7 @@ function DashboardPage({
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
                   <Briefcase className="h-6 w-6 text-violet-600" />
                 </div>
-                <p className="mt-3 text-2xl font-bold text-gray-900">
+                <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {crewProfile.experienceYears}
                 </p>
                 <p className="text-xs text-gray-500">
@@ -3000,7 +3119,7 @@ function DashboardPage({
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
                   <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 </div>
-                <p className="mt-3 text-2xl font-bold text-gray-900">
+                <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
                   {Math.round(completionRate)}%
                 </p>
                 <p className="text-xs text-gray-500">Completion Rate</p>
@@ -3045,6 +3164,9 @@ function DashboardPage({
       {/* Daily Summary Report */}
       <DailySummaryReport crewName={crewProfile?.profile?.name || ''} />
 
+      {/* Shift Handover Notes */}
+      <ShiftHandoverNotes crewName={crewProfile?.profile?.name || ''} />
+
       {/* Route Performance */}
       {crewProfile && (
         <RoutePerformance crewName={crewProfile.profile?.name || ''} />
@@ -3076,7 +3198,7 @@ function DashboardPage({
                   {/* Content */}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="font-medium text-sm text-gray-900">
+                      <p className="font-medium text-sm text-gray-900 dark:text-gray-100">
                         Route {assignment.schedule.route?.routeNumber || '—'}
                       </p>
                       <Badge className={`${getStatusColor(assignment.status)} text-[10px]`}>
@@ -3640,7 +3762,7 @@ function AssignmentsPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">My Assignments</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">My Assignments</h1>
           <p className="mt-1 text-sm text-gray-500">
             View and manage your route assignments
           </p>
@@ -3698,7 +3820,7 @@ function AssignmentsPage({
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Today</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 dark:text-gray-100">Today</h3>
                     <span className="text-xs text-gray-400">({todayUpcoming.length})</span>
                     <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('today') ? '-rotate-90' : ''}`} />
                   </button>
@@ -3722,7 +3844,7 @@ function AssignmentsPage({
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-violet-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Tomorrow</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 dark:text-gray-100">Tomorrow</h3>
                     <span className="text-xs text-gray-400">({tomorrowUpcoming.length})</span>
                     <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('tomorrow') ? '-rotate-90' : ''}`} />
                   </button>
@@ -3746,7 +3868,7 @@ function AssignmentsPage({
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">This Week</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 dark:text-gray-100">This Week</h3>
                     <span className="text-xs text-gray-400">({thisWeekUpcoming.length})</span>
                     <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('thisweek') ? '-rotate-90' : ''}`} />
                   </button>
@@ -3770,7 +3892,7 @@ function AssignmentsPage({
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-gray-400 text-white">
                       <CalendarIcon className="h-3.5 w-3.5" />
                     </div>
-                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">Later</h3>
+                    <h3 className="text-sm font-semibold text-gray-700 group-hover:text-gray-900 dark:text-gray-100">Later</h3>
                     <span className="text-xs text-gray-400">({laterUpcoming.length})</span>
                     <ChevronDown className={`h-4 w-4 text-gray-400 ml-auto transition-transform ${collapsedGroups.has('later') ? '-rotate-90' : ''}`} />
                   </button>
@@ -3968,7 +4090,7 @@ function CalendarPage({
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Calendar</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Calendar</h1>
         <p className="mt-1 text-sm text-gray-500">
           View your assignments on a monthly calendar
         </p>
@@ -4394,7 +4516,7 @@ function LeaveRequestsPage({
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Leave Requests</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Leave Requests</h1>
           <p className="mt-1 text-sm text-gray-500">
             Submit and track your leave requests
           </p>
@@ -4459,7 +4581,7 @@ function LeaveRequestsPage({
                 })()}
               </svg>
               <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-3xl font-bold text-gray-900">{availableDays}</span>
+                <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{availableDays}</span>
                 <span className="text-[10px] text-gray-400">days available</span>
               </div>
             </div>
@@ -4467,28 +4589,28 @@ function LeaveRequestsPage({
             {/* Legend + details */}
             <div className="flex-1 space-y-4 w-full">
               <div>
-                <h3 className="text-lg font-semibold text-gray-900">Leave Balance</h3>
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Leave Balance</h3>
                 <p className="text-xs text-gray-400 mt-0.5">{totalAllowance} total days allowance</p>
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-sm bg-emerald-500 shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{availableDays}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{availableDays}</p>
                     <p className="text-[10px] text-gray-400">Available</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-sm bg-amber-500 shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{pendingDays}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{pendingDays}</p>
                     <p className="text-[10px] text-gray-400">Pending</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="h-3 w-3 rounded-sm bg-red-400 shrink-0" />
                   <div>
-                    <p className="text-sm font-bold text-gray-900">{usedDays}</p>
+                    <p className="text-sm font-bold text-gray-900 dark:text-gray-100">{usedDays}</p>
                     <p className="text-[10px] text-gray-400">Used</p>
                   </div>
                 </div>
@@ -4785,7 +4907,7 @@ function LeaveRequestsPage({
                       >
                         <Icon className={`h-4 w-4 shrink-0 ${t.iconColor}`} />
                         <div className="min-w-0">
-                          <p className={`text-xs font-semibold ${isActive ? 'text-gray-900' : 'text-gray-700'} truncate`}>{t.label}</p>
+                          <p className={`text-xs font-semibold ${isActive ? 'text-gray-900 dark:text-gray-100' : 'text-gray-700'} truncate`}>{t.label}</p>
                           <p className="text-[10px] text-gray-400 truncate">{t.desc}</p>
                         </div>
                       </button>
@@ -5026,7 +5148,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Fuel Log</h2>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Fuel Log</h2>
           <p className="text-sm text-gray-500">Track your fuel consumption and efficiency</p>
         </div>
         <div className="flex gap-2">
@@ -5169,7 +5291,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                 <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
               </div>
-              <p className={`text-lg font-bold ${c.color === 'red' ? 'text-red-600' : 'text-gray-900'}`}>{c.value}</p>
+              <p className={`text-lg font-bold ${c.color === 'red' ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>{c.value}</p>
             </div>
           );
         })}
@@ -5466,7 +5588,7 @@ function ProfilePage({
             <div className="flex-1 min-w-0">
               <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                 <div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 truncate">
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                     {crewProfile.profile.name}
                   </h2>
                   <div className="mt-1 flex items-center gap-2 flex-wrap">
@@ -5516,7 +5638,7 @@ function ProfilePage({
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
               <Bus className="h-5 w-5 text-emerald-600" />
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{completedCount}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{completedCount}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Total Trips</p>
           </CardContent>
         </Card>
@@ -5525,7 +5647,7 @@ function ProfilePage({
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 mx-auto mb-2">
               <Star className="h-5 w-5 text-amber-600" />
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{crewProfile.performanceRating.toFixed(1)}</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{crewProfile.performanceRating.toFixed(1)}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Rating</p>
           </CardContent>
         </Card>
@@ -5534,7 +5656,7 @@ function ProfilePage({
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 mx-auto mb-2">
               <Briefcase className="h-5 w-5 text-violet-600" />
             </div>
-            <p className="text-xl sm:text-2xl font-bold text-gray-900">{crewProfile.experienceYears}yr</p>
+            <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{crewProfile.experienceYears}yr</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Experience</p>
           </CardContent>
         </Card>
@@ -5639,25 +5761,25 @@ function ProfilePage({
           <div className="grid gap-5 sm:grid-cols-2">
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Email</p>
-              <p className="text-sm text-gray-900">{crewProfile.profile.email}</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{crewProfile.profile.email}</p>
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">License No.</p>
-              <p className="text-sm text-gray-900">{crewProfile.licenseNo || 'N/A'}</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{crewProfile.licenseNo || 'N/A'}</p>
             </div>
             {crewProfile.specialization === 'driver' && crewProfile.busNumber && (
               <div className="space-y-1.5">
                 <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Bus Number</p>
-                <p className="text-sm text-gray-900">{crewProfile.busNumber}</p>
+                <p className="text-sm text-gray-900 dark:text-gray-100">{crewProfile.busNumber}</p>
               </div>
             )}
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Total Assignments</p>
-              <p className="text-sm text-gray-900">{totalAssignments}</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{totalAssignments}</p>
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Max Daily Hours</p>
-              <p className="text-sm text-gray-900">{crewProfile.maxDailyHours}h</p>
+              <p className="text-sm text-gray-900 dark:text-gray-100">{crewProfile.maxDailyHours}h</p>
             </div>
             <div className="space-y-1.5">
               <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Availability</p>

@@ -2047,3 +2047,200 @@ Task: QA testing via agent-browser, bug fixes, styling improvements, new feature
 - All API endpoints returning valid data
 - Dev server compiles successfully (Turbopack)
 - No console errors in any portal
+
+---
+Task ID: 19-b
+Agent: Main
+Task: New Features and Functionality — Admin Feedback Widget, Bus Amenities, Crew Handover Notes, Travel Tips, Trend Arrows, AM/PM Fix
+
+## Work Log
+
+### 1. Admin: Passenger Feedback Dashboard Widget
+- Added `PassengerFeedbackWidget` component to admin-content.tsx
+- Shows 5 recent feedback items with deterministic data seeded from date
+- Each feedback: name, route, rating (1-5), comment, time
+- Star ratings using existing `StarRating` component
+- Color-coded sentiment: positive (green border-left), neutral (amber), negative (red)
+- Shows "Average Rating: X.X" summary in header with star icon
+- Integrated into Dashboard grid (3 columns on large screens): Activity Feed | Active Routes | Passenger Feedback
+- Added `MessageSquare` import (already available), `ArrowUp`, `ArrowDown`, `Lightbulb` to lucide imports
+
+### 2. Customer: Bus Amenities Display
+- Enhanced `RouteDetailPanel` amenities section in customer-content.tsx
+- New amenity set: WiFi (Wifi), AC (Snowflake), Charging Ports (Zap), CCTV (Shield), Emergency Exit (AlertTriangle)
+- Each displayed as a small pill: icon + label, green if available, muted if not
+- Deterministic logic from route number hash:
+  - WiFi: even hash values
+  - AC: BLR-prefixed routes or hash % 3 === 0
+  - Charging Ports: hash % 5 < 3
+  - CCTV: hash % 4 < 3
+  - Emergency Exit: always available
+- Pill-style layout with rounded-full borders
+- Added `Lightbulb` icon import
+
+### 3. Crew: Shift Handover Notes
+- Added `ShiftHandoverNotes` component to crew-content.tsx
+- Textarea for writing notes to next shift crew
+- Stored in localStorage with key `bt_handover_notes_{crewName}` (note + timestamp)
+- Shows character count (max 1000) with red warning near limit
+- "Save Note" and "Clear" buttons with toast notifications
+- Shows last saved timestamp when available
+- Uses lazy state initializer for localStorage (avoids setState-in-effect lint issue)
+- Placed in Dashboard below Daily Summary Report
+
+### 4. Customer: Travel Tips Widget
+- Added `TravelTipsWidget` to customer-content.tsx
+- Shows 3 cycling travel tips as mini-card (6 total tips in rotation)
+- Tips rotate every 10 seconds with fade animation (opacity transition)
+- Dot indicators showing current tip position
+- Each tip has Lightbulb icon
+- Compact widget placed in 1/3 width of dashboard grid alongside Commute Statistics (2/3)
+- Tips: advance booking, off-peak hours, QR ticket, live tracker, weekend times, monthly passes
+
+### 5. Admin: Quick Stats Trend Arrows
+- Enhanced existing stat cards on Admin Dashboard with trend indicators
+- Added `trend` ('up'/'down') and `trendPct` fields to each stat object
+- Deterministic from stat value: value % 7 > 3 → 'up', else 'down'
+- Trend percentage also deterministic from value modulo
+- ArrowUp icon (green) for up trends, ArrowDown icon (red) for down trends
+- Shows "+X%" text next to arrow
+
+### 6. Admin: Schedule AM/PM Format Fix
+- Checked Schedules page table rendering — departure times were in 24-hour format
+- Added `toAMPM` helper function inside `SchedulesPage` component
+- Applied `toAMPM()` conversion to departure time cell in the Schedules table
+- Note: TodayScheduleCompactTable (dashboard) already had its own toAMPM helper
+
+## Files Modified
+- `src/components/admin/admin-content.tsx` — PassengerFeedbackWidget, trend arrows on stats, AM/PM fix, icon imports
+- `src/components/customer/customer-content.tsx` — Enhanced amenities, TravelTipsWidget, Lightbulb import
+- `src/components/crew/crew-content.tsx` — ShiftHandoverNotes component
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully (Turbopack)
+- All existing functionality preserved
+- Dark mode supported on all new components
+
+---
+Task ID: 19-a
+Agent: Main - Advanced Styling Polish & Dark Mode Fixes
+
+## Work Log
+
+### 1. Dark Mode Polish — Fix Remaining White Boxes
+**crew-content.tsx:**
+- Fixed ALL `text-gray-900` instances (~50+ occurrences) to `text-gray-900 dark:text-gray-100` using replace_all
+- Fixed `border-gray-200` to `border-gray-200 dark:border-gray-700` in Digital Trip Manifest (3 instances)
+- Fixed `border-gray-200` to `border-gray-200 dark:border-gray-700` in Route Timeline connector lines (2 instances)
+- Fixed `text-gray-600` to `text-gray-600 dark:text-gray-300` for Passengers label
+- Fixed duplicate `dark:text-gray-100` that arose from the replace_all operation
+
+**admin-content.tsx:**
+- Fixed `border-gray-200` default badges to `bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-gray-600` in SeverityBadge, TrafficLevelBadge, and ScheduleStatusBadge (3 components)
+- Added `table-row-lift` class to Routes table rows (was missing)
+- Added `table-row-lift` class to Crew table rows (was missing)
+
+**customer-content.tsx:**
+- Reviewed all `bg-white/XX` patterns — all are opacity-based with proper dark mode context (no bare `bg-white` issues found)
+- `bg-gray-50` pattern already has `dark:` variant
+
+### 2. Enhanced Login Page — Shimmer Effect
+- Added shimmer sweep overlay div inside the login glass card in page.tsx
+- Uses `animate-shimmer-sweep` CSS class with diagonal sweep animation (6s interval)
+- Positioned absolutely within the card with `pointer-events-none` and `z-10` to not interfere with interactions
+- Opacity at ~0.05 for subtle glass-like effect
+
+### 3. Sidebar Active State Glow
+- Added `sidebar-active-indicator` class to active sidebar button in `SidebarSection` component
+- CSS pseudo-element `::before` renders a 3px wide left border accent bar
+- Color matches the user role gradient: admin=red, driver=amber, conductor=teal, customer=emerald
+- Uses CSS custom property `--sidebar-accent` set via inline style for dynamic color per role
+
+### 4. Table Enhancements — Alternating Rows & Hover
+- Verified all `<TableRow>` components in admin-content.tsx tables:
+  - Routes table: now has `table-row-lift` class + alternating rows + hover effects ✅
+  - Schedules table: already had `table-row-lift` ✅
+  - Traffic Alerts table: already had `table-row-lift` ✅
+  - Crew table: now has `table-row-lift` class ✅
+  - Fleet analytics table: already had `table-row-lift` ✅
+  - Maintenance table: already had `table-row-lift` ✅
+
+### 5. Notification Badge Enhancement
+- Added `animate-bell-nudge` class to the notification bell SVG when `unreadCount > 0`
+- Animation is a subtle bell ring pattern: rotate(0) → rotate(10deg) → rotate(-10deg) → rotate(0)
+- 3-second interval with most of the time spent idle (85% idle, 5% active)
+- Added `animate-badge-pulse` class to the red unread count badge for subtle pulse effect
+
+### 6. Global CSS Additions
+Added to `globals.css`:
+- `@keyframes shimmerSweep` + `.animate-shimmer-sweep` class for login card shimmer
+- `.sidebar-active-indicator` with `::before` pseudo-element for 3px left border accent
+- `@keyframes bellNudge` + `.animate-bell-nudge` class for notification bell animation
+- `.dark .custom-scrollbar::-webkit-scrollbar-track` dark mode scrollbar enhancement
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully
+- All existing functionality preserved
+- No visual regressions
+
+## Files Modified
+- `src/app/globals.css`: Added ~50 lines of new CSS animations and utility classes
+- `src/app/page.tsx`: Added shimmer overlay, sidebar active indicator, bell animation (~10 lines changed)
+- `src/components/crew/crew-content.tsx`: Dark mode fixes for text-gray-900 and border-gray-200 (~55 replacements)
+- `src/components/admin/admin-content.tsx`: Dark mode badge fixes + table-row-lift additions (~10 changes)
+
+---
+Task ID: 19 (Round 19 — Auto Review + Styling + Features)
+Agent: Main + 2 Parallel Subagents
+Task: QA testing, styling polish, dark mode fixes, new features
+
+## Current Project Status Assessment
+- ESLint: 0 errors, 0 warnings
+- Dev server running on port 3000, notification service on port 3005
+- All 4 portals render correctly (Admin: 41 cards, Driver: 51, Conductor: 49, Customer: 24)
+- All API endpoints returning valid data
+- Total codebase: 22,197 lines (up from 21,834, +363 lines this round)
+
+## QA Testing Results
+✅ Login page renders with glass morphism + shimmer sweep animation
+✅ Admin portal: 41 cards, all 10 pages, Passenger Feedback + System Health + IST Clock + Quick Actions
+✅ Driver portal: 51 cards, Trip Manifest + Shift Timer + Break Timer + Daily Summary + Handover Notes + Weather
+✅ Conductor portal: 49 cards, all sections rendering
+✅ Customer portal: 24 cards, Search History + Travel Tips + Amenities + Quick Book + Loyalty
+✅ Announcements API: 2 active announcements
+✅ Connecting Routes API: 1 connecting route for Koramangala→Whitefield
+✅ Login API: Returns valid token
+
+## Styling Improvements (Task 19-a)
+1. **Dark Mode Polish**: Fixed ~60+ dark mode issues across crew, admin, customer portals
+   - text-gray-900 → text-gray-900 dark:text-gray-100
+   - border-gray-200 → border-gray-200 dark:border-gray-700
+   - Fixed SeverityBadge, TrafficLevelBadge, ScheduleStatusBadge dark variants
+2. **Login Shimmer**: Subtle diagonal white gradient sweep across glass card every 6s
+3. **Sidebar Active Indicator**: 3px left border accent on active item (role-colored)
+4. **Table Enhancements**: Added table-row-lift to Routes and Crew tables
+5. **Notification Bell**: bellNudge animation (ring every 3s) + badge pulse for unread
+6. **Global CSS**: +40 lines (shimmerSweep, bellNudge, sidebar-active-indicator, dark scrollbars)
+
+## New Features (Task 19-b)
+1. **Passenger Feedback Widget** (Admin Dashboard): 5 feedback items with StarRating, sentiment borders (green/amber/red), average rating summary. Added to 3-column dashboard grid.
+2. **Bus Amenities Display** (Customer): WiFi, AC, Charging, CCTV, Emergency Exit pills in Route Detail Panel. Deterministic availability from route number hash.
+3. **Shift Handover Notes** (Crew Dashboard): Textarea with 1000 char limit, localStorage persistence, Save/Clear buttons, last saved timestamp.
+4. **Travel Tips Widget** (Customer Dashboard): 6 cycling tips with 10s fade rotation, dot indicators, Lightbulb icon.
+5. **Quick Stats Trend Arrows** (Admin Dashboard): ArrowUp/ArrowDown with "+X%" on all 4 stat cards.
+6. **Schedule AM/PM Format** (Admin): Added toAMPM helper to SchedulesPage departure time column.
+
+## Files Modified
+- `src/app/globals.css` — +40 lines (animations, utilities)
+- `src/app/page.tsx` — Shimmer sweep, sidebar active indicator, bell nudge
+- `src/components/admin/admin-content.tsx` — Passenger Feedback, dark mode fixes, table lift, trend arrows, AM/PM
+- `src/components/customer/customer-content.tsx` — Bus Amenities, Travel Tips
+- `src/components/crew/crew-content.tsx` — Shift Handover Notes, dark mode fixes
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles with no errors
+- All new components verified present in code (Grep confirmed)
+- All APIs responding correctly
