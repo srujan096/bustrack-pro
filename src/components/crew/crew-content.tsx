@@ -306,6 +306,102 @@ function getBarColor(hours: number): string {
   return 'bg-red-500';
 }
 
+// ──────────────────────────── Daily Summary Report ────────────────────────────
+
+function DailySummaryReport({ crewName }: { crewName: string }) {
+  const today = getTodayStr();
+
+  // Deterministic values from crewName + today
+  const tripsCompleted = 3 + getSeededValue(crewName + 'trips' + today, 0, 3);
+  const totalKm = 120 + getSeededValue(crewName + 'km' + today, 0, 160);
+  const totalPassengers = 150 + getSeededValue(crewName + 'pax' + today, 0, 250);
+  const fuelConsumed = 25 + getSeededValue(crewName + 'fuel' + today, 0, 25);
+  const earnings = 800 + getSeededValue(crewName + 'earn' + today, 0, 1700);
+
+  const handleDownloadReport = () => {
+    const report = [
+      `═══════════════════════════════════════════`,
+      `       DAILY SUMMARY REPORT`,
+      `       BusTrack Pro - Crew Module`,
+      `═══════════════════════════════════════════`,
+      ``,
+      `  Date:        ${formatDate(today)}`,
+      `  Crew:        ${crewName}`,
+      ``,
+      `───────────────────────────────────────────`,
+      `  METRICS`,
+      `───────────────────────────────────────────`,
+      ``,
+      `  Trips Completed:    ${tripsCompleted}`,
+      `  Total Km Driven:    ${totalKm} km`,
+      `  Total Passengers:   ${totalPassengers}`,
+      `  Fuel Consumed:      ${fuelConsumed} L`,
+      `  Earnings:           ₹${earnings.toLocaleString('en-IN')}`,
+      ``,
+      `───────────────────────────────────────────`,
+      `  Generated at: ${new Date().toLocaleString()}`,
+      `═══════════════════════════════════════════`,
+    ].join('\n');
+
+    const blob = new Blob([report], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `daily-report-${today}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: 'Report Downloaded', description: `Daily report for ${formatDate(today)} saved.` });
+  };
+
+  const stats = [
+    { label: 'Trips Completed', value: tripsCompleted, unit: '', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-100 dark:border-emerald-800' },
+    { label: 'Total Km Driven', value: totalKm, unit: 'km', color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50 dark:bg-sky-900/30', border: 'border-sky-100 dark:border-sky-800' },
+    { label: 'Total Passengers', value: totalPassengers, unit: '', color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30', border: 'border-violet-100 dark:border-violet-800' },
+    { label: 'Fuel Consumed', value: fuelConsumed, unit: 'L', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-100 dark:border-amber-800' },
+    { label: 'Earnings', value: `₹${earnings.toLocaleString('en-IN')}`, unit: '', color: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-50 dark:bg-rose-900/30', border: 'border-rose-100 dark:border-rose-800' },
+  ];
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-100 to-amber-100 dark:from-rose-900/40 dark:to-amber-900/40">
+              <Download className="h-4 w-4 text-rose-600 dark:text-rose-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Daily Summary Report</CardTitle>
+              <CardDescription className="text-xs">Today&apos;s performance at a glance</CardDescription>
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 h-8 text-xs"
+            onClick={handleDownloadReport}
+          >
+            <Download className="h-3.5 w-3.5" />
+            Download Report
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          {stats.map((stat) => (
+            <div
+              key={stat.label}
+              className={`rounded-lg border p-3 text-center ${stat.bg} ${stat.border}`}
+            >
+              <p className={`text-lg font-bold ${stat.color}`}>{stat.value}</p>
+              <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">{stat.label}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ──────────────────────────── New Feature: Seed-based Data Helpers ────────────────────────────
 
 function getSeededValue(seed: string, min: number, max: number): number {
@@ -630,16 +726,16 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
                 <div className="flex flex-col items-center shrink-0" style={{ width: '14px' }}>
                   <div className={`h-3 w-3 rounded-full border-2 transition-all duration-500 ${
                     isDotFilled(i)
-                      ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200 scale-110'
+                      ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200 scale-110 animate-check-bounce'
                       : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                   }`} style={{ animationDelay: `${i * 150}ms` }} />
                   <span className="mt-1 text-[8px] text-gray-400 leading-tight truncate max-w-[32px]">{stop.name.split(' ')[0]}</span>
                 </div>
                 {i < stops.length - 1 && (
                   <div className="flex-1 min-w-[8px]">
-                    <div className="h-0.5 w-full bg-gray-100 dark:bg-gray-700 relative">
+                    <div className="h-0.5 w-full bg-gray-100 dark:bg-gray-700 relative overflow-hidden">
                       <div
-                        className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-500 ${isDotFilled(i) ? 'w-full' : 'w-0'}`}
+                        className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-700 ease-out ${isDotFilled(i) ? 'w-full' : 'w-0'}`}
                         style={{ transitionDelay: `${i * 150}ms` }}
                       />
                     </div>
@@ -756,7 +852,7 @@ function ShiftTimer() {
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="flex flex-col items-center gap-4">
+        <div className={`flex flex-col items-center gap-4 ${shiftState === 'running' ? 'ring-2 ring-emerald-500/30 animate-pulse rounded-xl p-3 -m-3' : ''}`}>
           {/* Circular Progress */}
           <div className="relative">
             <svg width="140" height="140" className="-rotate-90">
@@ -1073,8 +1169,11 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
   ];
 
   const [items, setItems] = useState(initialItems);
+  const [justToggled, setJustToggled] = useState<string | null>(null);
 
   const toggleItem = (id: string) => {
+    setJustToggled(id);
+    setTimeout(() => setJustToggled(null), 400);
     setItems((prev) =>
       prev.map((item) =>
         item.id === id ? { ...item, defaultChecked: !item.defaultChecked } : item
@@ -1130,7 +1229,7 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
                   item.defaultChecked
                     ? 'bg-emerald-500 border-emerald-500'
                     : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
-                }`}>
+                } ${justToggled === item.id ? 'animate-check-bounce' : ''}`}>
                   {item.defaultChecked && (
                     <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
@@ -2943,6 +3042,9 @@ function DashboardPage({
       {/* End of Day Summary */}
       <EndOfShiftSummary crewName={crewProfile?.profile?.name || ''} />
 
+      {/* Daily Summary Report */}
+      <DailySummaryReport crewName={crewProfile?.profile?.name || ''} />
+
       {/* Route Performance */}
       {crewProfile && (
         <RoutePerformance crewName={crewProfile.profile?.name || ''} />
@@ -3194,7 +3296,7 @@ function WeatherImpact() {
   const WeatherIcon = weatherData.icon;
 
   return (
-    <Card className={`rounded-xl shadow-sm bg-white dark:bg-gray-800 border ${weatherData.impactBorder}`}>
+    <Card className={`rounded-xl shadow-sm border ${weatherData.impactBorder} ${weatherData.type === 'Sunny' ? 'weather-bg-sunny' : weatherData.type === 'Cloudy' ? 'weather-bg-cloudy' : weatherData.type === 'Rainy' ? 'weather-bg-rainy' : 'weather-bg-stormy'}`}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">

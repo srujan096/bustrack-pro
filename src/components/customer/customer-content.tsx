@@ -1612,7 +1612,7 @@ function SeatSelection({
                 return (
                   <div
                     key={seat}
-                    className={`relative flex items-center justify-center h-9 w-full rounded-md border-2 text-xs font-medium transition-all ${getSeatStyle(seat)} ${isAisleAfter ? 'mr-2' : ''}`}
+                    className={`relative flex items-center justify-center h-9 w-full rounded-md border-2 text-xs font-medium transition-all seat-smooth-hover ${getSeatStyle(seat)} ${isAisleAfter ? 'mr-2' : ''}`}
                     onClick={() => toggleSeat(seat)}
                   >
                     {seat}
@@ -2318,8 +2318,8 @@ function Dashboard({
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {statCards.map(s => (
-          <Card key={s.title} className="hover:shadow-md transition-shadow">
+        {statCards.map((s, idx) => (
+          <Card key={s.title} className="hover:shadow-md transition-shadow stat-card-gradient-border animate-fade-in-up" style={{ animationDelay: `${idx * 100}ms`, opacity: 0 }}>
             <CardContent className="flex items-center gap-4">
               <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-lg ${s.bg}`}>
                 <s.icon className={`size-6 ${s.color}`} />
@@ -2675,7 +2675,7 @@ function FareCalculator() {
           <span className="shrink-0 text-sm text-muted-foreground">km</span>
         </div>
         {estimated !== null && (
-          <div className="rounded-lg bg-white/70 px-3 py-2">
+          <div className="rounded-lg bg-white/70 px-3 py-2 fare-glow">
             <p className="text-xs text-muted-foreground">Estimated fare:</p>
             <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(estimated)}</p>
             <p className="text-xs text-muted-foreground">₹5 base + ₹2/km</p>
@@ -2713,6 +2713,8 @@ function SearchRoutes({
   const [sortBy, setSortBy] = useState('price-asc');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
   const [connectingResults, setConnectingResults] = useState<ConnectingRouteResult[]>([]);
+  const [searchHistory, setSearchHistory] = useState<{ from: string; to: string }[]>([]);
+  const [showAllRoutes, setShowAllRoutes] = useState(false);
 
   const toggleFilter = useCallback((filter: string) => {
     setActiveFilters(prev => {
@@ -2753,6 +2755,31 @@ function SearchRoutes({
     return sorted;
   }, [results, sortBy, activeFilters]);
 
+  // Load search history from localStorage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('bt_search_history');
+      if (saved) setSearchHistory(JSON.parse(saved));
+    } catch {}
+  }, []);
+
+  const addSearchHistory = useCallback((from: string, to: string) => {
+    setSearchHistory(prev => {
+      const filtered = prev.filter(h => !(h.from === from && h.to === to));
+      const updated = [{ from, to }, ...filtered].slice(0, 5);
+      try { localStorage.setItem('bt_search_history', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }, []);
+
+  const removeSearchHistory = useCallback((from: string, to: string) => {
+    setSearchHistory(prev => {
+      const updated = prev.filter(h => !(h.from === from && h.to === to));
+      try { localStorage.setItem('bt_search_history', JSON.stringify(updated)); } catch {}
+      return updated;
+    });
+  }, []);
+
   // Load locations and all routes for popular section
   useEffect(() => {
     async function fetchLocations() {
@@ -2783,6 +2810,8 @@ function SearchRoutes({
       setError('Please select both start and end locations');
       return;
     }
+    // Save search to history
+    addSearchHistory(startLocation, endLocation);
     try {
       setSearching(true);
       setError('');
@@ -2979,6 +3008,7 @@ function SearchRoutes({
 
                 <div className="flex items-end">
                   <Button
+                    data-search-btn
                     className="w-full"
                     onClick={handleSearch}
                     disabled={searching}
@@ -3010,19 +3040,81 @@ function SearchRoutes({
         </Card>
       )}
 
+      {/* Search History Chips */}
+      {searchHistory.length > 0 && !hasSearched && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Recent Searches:</p>
+          <div className="flex flex-wrap gap-2">
+            {searchHistory.map((h, i) => (
+              <button
+                key={`${h.from}-${h.to}-${i}`}
+                onClick={() => {
+                  setStartLocation(h.from);
+                  setEndLocation(h.to);
+                  setTimeout(() => {
+                    addSearchHistory(h.from, h.to);
+                    setStartLocation(h.from);
+                    setEndLocation(h.to);
+                    // trigger search
+                    const btn = document.querySelector('[data-search-btn]') as HTMLButtonElement;
+                    btn?.click();
+                  }, 50);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-muted bg-muted/30 hover:bg-muted/60 px-3 py-1 text-xs text-foreground transition-colors group/chip"
+              >
+                <span>{h.from} → {h.to}</span>
+                <span
+                  role="button"
+                  tabIndex={0}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    removeSearchHistory(h.from, h.to);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.stopPropagation();
+                      removeSearchHistory(h.from, h.to);
+                    }
+                  }}
+                  className="text-muted-foreground hover:text-red-500 transition-colors ml-0.5"
+                  aria-label="Remove from history"
+                >
+                  ✕
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Popular Routes (before search) */}
       {!hasSearched && !loading && popularRoutes.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="size-5 text-emerald-500" />
-              Popular Routes
-            </CardTitle>
-            <CardDescription>Most affordable routes available</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <TrendingUp className="size-5 text-emerald-500" />
+                  Popular Routes
+                </CardTitle>
+                <CardDescription>Most affordable routes available</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAllRoutes(!showAllRoutes)}
+                className="gap-1.5"
+              >
+                {showAllRoutes ? 'Show Popular' : 'View All Routes'}
+                <Badge variant="secondary" className="ml-1 text-[10px] px-1.5">
+                  {showAllRoutes ? allRoutes.length : popularRoutes.length}
+                </Badge>
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {popularRoutes.map(route => (
+              {(showAllRoutes ? allRoutes : popularRoutes).map(route => (
                 <Card key={route.id} className="border bg-muted/20 hover:bg-muted/40 transition-colors">
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between">
@@ -3179,7 +3271,8 @@ function SearchRoutes({
                     <Card
                       className={`border transition-all hover:shadow-sm ${isSelected ? 'border-primary/50 bg-primary/5 ring-1 ring-primary/20' : ''} ${
                         routeIdx === 0 ? 'relative overflow-hidden' : ''
-                      }`}
+                      } animate-fade-in-up`}
+                      style={{ animationDelay: `${routeIdx * 80}ms`, opacity: 0 }}
                     >
                       {/* Animated gradient border on best match */}
                       {routeIdx === 0 && (

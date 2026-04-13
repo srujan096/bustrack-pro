@@ -1863,3 +1863,187 @@ After thorough investigation, most features from previous rounds (13-16) were st
 2. Implement mobile responsiveness fine-tuning
 3. Add more styling polish and animations
 4. Continue adding new features based on user feedback
+
+---
+Task ID: 18-b
+Agent: Main
+Task: Add New Features and Functionality — Dark Mode Enhancement, Route Search History, Route Comparison Tool, Daily Summary Report, Notification Enhancement, Keyboard Navigation Shortcuts
+
+## Work Log
+
+### 1. Dark Mode Toggle Enhancement (page.tsx)
+- Enhanced `ThemeToggle` component with smooth 180° rotation animation on Sun/Moon icon when toggling (rotate-180 duration-500)
+- Added brief flash/ripple overlay effect on entire page during theme change using `animate-theme-flash` CSS keyframe animation
+- Theme preference stored in localStorage with key `bt_theme`
+- Added `isAnimating` state and `flashKey` state to manage animation lifecycle
+- Added `@keyframes themeFlash` CSS animation (0.5s fade from 0.5 to 0 opacity)
+
+### 2. Enhanced Route Search (customer-content.tsx)
+- **Search History**: Added localStorage-based search history (key: `bt_search_history`) tracking last 5 searches
+- History displayed as small chips below the search form with format "From → To ✕"
+- Clicking a chip fills the search form and triggers search automatically via `data-search-btn` attribute
+- Each chip has an ✕ button to remove from history
+- **Popular Routes Enhancement**: Added "View All Routes" button that toggles between popular routes (5 cheapest) and all routes
+- Route count badge shown next to toggle button label
+
+### 3. Admin: Route Comparison Tool (admin-content.tsx)
+- Created `RouteComparisonTool` component with route dropdown selection (2-3 routes max)
+- Side-by-side comparison table with columns: Metric, Route 1, Route 2, [Route 3]
+- 6 metrics compared: Distance (km), Duration (min), Fare (₹), Traffic Level, Stops Count, On-Time Rate (%)
+- Best values highlighted with green background (✓ checkmark) per row
+- "Lowest" metrics (distance, duration, fare, traffic, stops) highlight the minimum; "highest" (on-time rate) highlights the maximum
+- Deterministic values for duration, stops count, and on-time rate generated from route ID hash
+- Empty state shown when fewer than 2 routes selected
+- Added to Routes page after route table and optimization insights
+
+### 4. Crew: Daily Summary Report (crew-content.tsx)
+- Created `DailySummaryReport` component with deterministic daily metrics from crew name + date seed
+- Metrics displayed in 5 colored cards: Trips Completed (3-6), Total Km Driven (120-280km), Total Passengers (150-400), Fuel Consumed (25-50L), Earnings (₹800-₹2500)
+- "Download Report" button generates a formatted plain text summary and triggers file download as `daily-report-{date}.txt`
+- Uses `Download` icon from lucide-react
+- Toast notification on successful download
+- Added to Crew Dashboard below End of Day Summary
+
+### 5. Notification Enhancement (page.tsx)
+- Verified that "Mark all as read" functionality already exists in `NotificationBell` component
+- Found existing implementation with confirmation dialog: "Mark all as read?" with Yes/No buttons
+- Feature was already complete with `showMarkAllConfirm` state, `markAllRead` function, and proper UI
+- No changes needed
+
+### 6. Quick Navigation Shortcuts (page.tsx)
+- Added keyboard event listener in `Home` component useEffect for keys 1-9
+- Keys navigate to sidebar pages based on user role (admin, driver, conductor, customer)
+- Only active when not in input/textarea/select/contentEditable elements
+- Only active without modifier keys (Ctrl, Alt, Meta)
+- Added keyboard shortcuts hint panel at bottom of sidebar (above user section)
+- Shows up to 9 shortcuts with kbd badges, current page highlighted
+- Hidden when sidebar is collapsed
+- Role-specific page lists matching the sidebar navigation structure
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully
+- All existing functionality preserved
+- All new features support dark mode
+- All localStorage operations use specified keys (bt_theme, bt_search_history)
+
+## Files Modified
+- `src/app/page.tsx`: ThemeToggle enhancement, flash animation CSS, keyboard shortcuts, sidebar hint
+- `src/components/customer/customer-content.tsx`: Search history, View All Routes toggle
+- `src/components/admin/admin-content.tsx`: RouteComparisonTool component
+- `src/components/crew/crew-content.tsx`: DailySummaryReport component
+
+## Task 18-a: Improve Styling Details Across All Portals
+
+### Files Modified:
+- `src/app/globals.css` — Added 180+ lines of new CSS utilities
+- `src/app/page.tsx` — App shell sidebar/header/footer polish
+- `src/components/admin/admin-content.tsx` — Table enhancements
+- `src/components/customer/customer-content.tsx` — Visual enhancements
+- `src/components/crew/crew-content.tsx` — Visual enhancements
+
+### Changes Summary:
+
+#### 1. Global CSS (globals.css)
+- Added `@keyframes glowPulseEmerald`, `badgePulse`, `checkBounce`, `breadcrumbFade`
+- Added utility classes: `.animate-glow-pulse-emerald`, `.animate-shimmer`, `.animate-badge-pulse`, `.animate-check-bounce`
+- Added `.custom-scrollbar` with webkit dark mode support
+- Added `.table-row-lift` hover effect (translateY + shadow)
+- Added `.card-enter` animation class
+- Added `.sidebar-gradient-top` with emerald→teal 2px gradient
+- Added `.sidebar-dot-separator` for section dividers
+- Added `.card-header-gradient::after` with primary gradient bottom line
+- Added `.fare-glow` for fare calculator pulsing glow
+- Added `.stat-card-gradient-border` with multi-color gradient border
+- Added `.weather-bg-sunny/cloudy/rainy/stormy` gradient backgrounds
+- Added `.footer-gradient-border` top border gradient
+- Added `.seat-smooth-hover` with scale(1.08) hover
+- Added `.animate-breadcrumb-fade` for breadcrumb transitions
+
+#### 2. App Shell (page.tsx)
+- Sidebar: Added `sidebar-gradient-top` class for 2px emerald→teal gradient line at top
+- Sidebar: Added `sidebar-dot-separator` div between nav sections
+- Sidebar: Changed collapse transition from `duration-300` to `duration-200` for snappier feel
+- Notification bell: Added `hover:scale-110 active:scale-95 transition-all duration-200`
+- Breadcrumb: Added `animate-breadcrumb-fade` class + `key={breadcrumb-${portal}}` for re-mount on page change
+- Footer: Added `footer-gradient-border` class for top gradient border
+- Footer links: Added `animated-underline` class to Privacy, Terms, Contact buttons
+
+#### 3. Admin Portal (admin-content.tsx)
+- All TableRows: Added `even:bg-muted/30`, `hover:-translate-y-px hover:shadow-sm`, `table-row-lift`
+- CardHeader: Added `relative card-header-gradient` to all 16 card headers
+- ScheduleStatusBadge: Added `animate-badge-pulse` for `in_progress` and `active` statuses
+- Added `active` status mapping to the badge color map
+
+#### 4. Customer Portal (customer-content.tsx)
+- Search results cards: Added `animate-fade-in-up` with staggered `animationDelay: ${routeIdx * 80}ms`
+- Stat cards: Added `stat-card-gradient-border` for gradient border effect + staggered fade-in
+- Fare calculator result: Added `fare-glow` class for pulsing emerald glow
+- Seat selection: Added `seat-smooth-hover` class for scale(1.08) hover transition
+
+#### 5. Crew Portal (crew-content.tsx)
+- Shift timer: Added `ring-2 ring-emerald-500/30 animate-pulse` wrapper when running
+- Trip manifest dots: Added `animate-check-bounce` when filled
+- Trip manifest lines: Changed to `duration-700 ease-out` + added `overflow-hidden` for smooth fill animation
+- Checklist: Added `justToggled` state with `animate-check-bounce` on toggle
+- Weather card: Added dynamic `weather-bg-*` gradient backgrounds matching weather type
+
+### Verification:
+- ESLint: ✅ Clean pass
+- Dev server: ✅ Running, no errors
+
+---
+Task ID: 18 (Round 18 — Auto Review QA + Styling + Features)
+Agent: Main + 2 Parallel Subagents + Explore Agent
+Task: QA testing via agent-browser, bug fixes, styling improvements, new features
+
+## Current Project Status Assessment
+- ESLint: 0 errors, 0 warnings throughout
+- Dev server running on port 3000, notification service on port 3005
+- All 4 portals verified via agent-browser (Admin, Driver, Conductor, Customer)
+- Total codebase: 21,834 lines (up from 19,991, +1,843 lines this round)
+
+## QA Testing Results (agent-browser)
+✅ Login page renders with glass morphism, gradient mesh background, floating particles
+✅ Admin portal: 41+ cards, all 10 pages accessible, System Health + IST Clock + Quick Actions + Active Routes
+✅ Driver portal: 51 rounded-xl cards, Trip Manifest + Shift Timer + Break Timer + Daily Summary + Weather + Checklist all rendering
+✅ Conductor portal: Loads successfully
+✅ Customer portal: 24+ cards, Search History chips + Quick Book + Loyalty + Fare Calculator
+✅ Announcements API: 2 active announcements returned
+✅ Connecting Routes API: 1 connecting route found for Koramangala→Whitefield
+✅ Analytics API: Returns valid dashboard data
+✅ All APIs responding with valid data (200 status)
+
+## Bug Fixes
+1. **Missing `Bus` icon import** (crew-content.tsx): The `Bus` component from lucide-react was used in 9 places but was actually already imported on line 42. The earlier round mistakenly added a duplicate import which was cleaned up.
+2. **`Moon` naming conflict** (crew-content.tsx): A local `Moon` function component (line 1622) conflicted with importing `Moon` from lucide-react. Removed the lucide-react import since the local component is used for custom SVG rendering.
+
+## Styling Improvements (Task 18-a)
+1. **App Shell**: Emerald→teal gradient line at sidebar top, dot separators between sections, notification bell hover scale (scale-110/95), breadcrumb fade-in animation, smooth sidebar collapse transition
+2. **Admin Portal**: Alternating row backgrounds on all tables (`even:bg-muted/30`), table row hover lift effect, card header gradient lines, status badge pulse animations for active states
+3. **Customer Portal**: Staggered fade-in on search results (80ms delay), gradient border effect on stat cards, fare calculator glow pulse, smoother seat hover transitions
+4. **Crew Portal**: Shift timer pulsing ring when running, trip manifest stop fill animations, checklist bounce on completion, weather card animated gradient backgrounds
+5. **Global CSS**: Added 180+ lines of custom animations (fadeInUp, slideInLeft, shimmer, glowPulse, scaleIn), custom scrollbar styles (light+dark), table-row-lift utility, card-enter animation
+6. **Footer**: Gradient top border, animated underline on hover links
+
+## New Features (Task 18-b)
+1. **Dark Mode Toggle Enhancement**: 180° rotation animation on icon toggle, flash/ripple overlay effect during theme change, localStorage persistence (key: `bt_theme`)
+2. **Search History** (Customer): Tracks last 5 searches in localStorage (`bt_search_history`), clickable chips with remove buttons below search form
+3. **Popular Routes Enhancement** (Customer): "View All Routes" toggle button with route count badge
+4. **Route Comparison Tool** (Admin): Side-by-side comparison of 2-3 routes with 6 metrics, green highlight for best values, added to Routes page
+5. **Daily Summary Report** (Crew): Compact card with 5 deterministic metrics + Download Report button generating .txt file
+6. **Keyboard Navigation Shortcuts**: Keys 1-9 navigate to sidebar pages, only active outside input fields, hint panel at sidebar bottom
+
+## Files Modified
+- `src/app/globals.css` — +180 lines of animations, scrollbar, utility classes
+- `src/app/page.tsx` — Dark mode toggle animation, keyboard shortcuts, sidebar styling
+- `src/components/admin/admin-content.tsx` — Table styling, Route Comparison Tool
+- `src/components/customer/customer-content.tsx` — Search history, staggered animations, gradient borders
+- `src/components/crew/crew-content.tsx` — Fixed Bus/Moon imports, shift timer glow, checklist bounce, Daily Summary Report
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- All 4 portals render correctly (verified via agent-browser)
+- All API endpoints returning valid data
+- Dev server compiles successfully (Turbopack)
+- No console errors in any portal

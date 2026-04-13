@@ -417,7 +417,7 @@ function LiveFleetTracker() {
   ];
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Bus className="size-5" /> Live Fleet Tracker
         </CardTitle>
@@ -488,7 +488,7 @@ function LiveBusMap() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <MapIcon className="size-5" /> Live Bus Map
         </CardTitle>
@@ -596,7 +596,7 @@ function RoutePerformanceChart() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <BarChart3 className="size-5" /> Route Performance
         </CardTitle>
@@ -741,7 +741,7 @@ function MaintenanceCalendarView({ records }: { records: any[] }) {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -855,7 +855,7 @@ function AdminQuickActions() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Zap className="size-5" /> Quick Actions
         </CardTitle>
@@ -909,7 +909,7 @@ function PassengerAnalytics() {
   const line = pts.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x},${p.y}`).join(' ');
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Users className="size-5" /> Passenger Analytics
         </CardTitle>
@@ -949,7 +949,7 @@ function RoutePerformanceHeatmap() {
   const clr = (v: number) => v >= 85 ? 'bg-emerald-500 text-white' : v >= 70 ? 'bg-amber-400 text-white' : 'bg-rose-500 text-white';
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Activity className="size-5" /> Route Performance Heatmap
         </CardTitle>
@@ -991,7 +991,7 @@ function FuelCostCalculator() {
   const fuelL = d > 0 && m > 0 ? d / m : null;
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Fuel className="size-5" /> Fuel Cost Calculator
         </CardTitle>
@@ -1062,7 +1062,7 @@ function TodayScheduleCompactTable() {
 
   return (
     <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -1092,7 +1092,7 @@ function TodayScheduleCompactTable() {
               </thead>
               <tbody>
                 {schedules.map((s: any, i: number) => (
-                  <tr key={s.id || i} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
+                  <tr key={s.id || i} className="border-b border-border/30 even:bg-muted/30 hover:bg-muted/50 hover:-translate-y-px hover:shadow-sm transition-all table-row-lift">
                     <td className="py-2.5 px-2">
                       <span className="font-semibold text-foreground">{s.route?.routeNumber || '—'}</span>
                     </td>
@@ -1189,7 +1189,7 @@ function DepartureBoard() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <div className="flex items-center justify-between">
           <CardTitle className="led-text text-lg tracking-wider">DEPARTURES</CardTitle>
           <div className="flex items-center gap-2">
@@ -1274,7 +1274,7 @@ function CrewFatigueMonitor() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Gauge className="size-5" /> Crew Fatigue Monitor
         </CardTitle>
@@ -1404,7 +1404,7 @@ function OptimizationInsights() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Compass className="size-5" /> Optimization Insights
         </CardTitle>
@@ -1689,14 +1689,16 @@ function TrafficLevelBadge({ level }: { level?: string }) {
 
 function ScheduleStatusBadge({ status }: { status?: string }) {
   const s = (status ?? '').toLowerCase();
+  const isActive = s === 'in_progress' || s === 'active';
   const map: Record<string, string> = {
     scheduled: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300',
     in_progress: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-950/60 dark:text-amber-300',
     completed: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
     cancelled: 'bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300',
+    active: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300',
   };
   return (
-    <Badge variant="outline" className={map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'}>
+    <Badge variant="outline" className={`${map[s] ?? 'bg-gray-100 text-gray-600 border-gray-200'} ${isActive ? 'animate-badge-pulse' : ''}`}>
       {status ?? 'unknown'}
     </Badge>
   );
@@ -1975,7 +1977,7 @@ function LiveActivityFeed() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2 text-lg">
             <Activity className="size-5" /> Live Activity Feed
@@ -2032,7 +2034,7 @@ function SystemHealthPanel({ lastSync }: { lastSync: string }) {
 
   return (
     <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Activity className="size-5 text-emerald-500" /> System Health
         </CardTitle>
@@ -2098,7 +2100,7 @@ function ISTClockWidget() {
 
   return (
     <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '100ms' }}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Clock className="size-5 text-sky-500" /> IST Clock
         </CardTitle>
@@ -2186,7 +2188,7 @@ function RecentActivityFeedWidget() {
 
   return (
     <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '200ms' }}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <CardTitle className="flex items-center gap-2 text-lg">
           <Activity className="size-5 text-violet-500" /> Recent Activity
         </CardTitle>
@@ -2249,7 +2251,7 @@ function ActiveRoutesPreview({ onNavigate }: { onNavigate?: () => void }) {
 
   return (
     <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '300ms' }}>
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-3 relative card-header-gradient">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="flex items-center gap-2 text-lg">
@@ -2615,7 +2617,7 @@ function DashboardPage({
                   </TableHeader>
                   <TableBody>
                     {alerts.slice(0, 5).map((alert: any) => (
-                      <TableRow key={alert.id ?? alert._id} className="hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all">
+                      <TableRow key={alert.id ?? alert._id} className="even:bg-muted/30 hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all table-row-lift">
                         <TableCell className="font-medium">
                           {/* FIX #2: access nested route.routeNumber */}
                           {alert.route?.routeNumber ?? alert.routeNumber ?? '—'}
@@ -3075,9 +3077,215 @@ function RoutesPage({ token }: { token: string }) {
       {/* Route Optimization Insights */}
       <OptimizationInsights />
 
+      {/* Route Comparison Tool */}
+      <RouteComparisonTool routes={routes} />
+
       {/* NEW: Route Details Dialog */}
       <RouteDetailsDialog route={selectedRoute} open={detailOpen} onOpenChange={setDetailOpen} />
     </div>
+  );
+}
+
+/* ================================================================== */
+/*  Route Comparison Tool                                              */
+/* ================================================================== */
+function RouteComparisonTool({ routes }: { routes: any[] }) {
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectValue, setSelectValue] = useState('');
+
+  const availableRoutes = routes.filter(r => !selectedIds.includes(r.id ?? r._id));
+
+  const addRoute = () => {
+    if (!selectValue || selectedIds.length >= 3) return;
+    setSelectedIds(prev => [...prev, selectValue]);
+    setSelectValue('');
+  };
+
+  const removeRoute = (id: string) => {
+    setSelectedIds(prev => prev.filter(i => i !== id));
+  };
+
+  const selectedRoutes = routes.filter(r => selectedIds.includes(r.id ?? r._id));
+
+  // Deterministic helper
+  function seedHash(str: string): number {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) {
+      h = ((h << 5) - h + str.charCodeAt(i)) | 0;
+    }
+    return Math.abs(h);
+  }
+
+  const metrics = [
+    {
+      label: 'Distance (km)',
+      getValue: (r: any) => r.distanceKm ?? 0,
+      format: (v: number) => `${v} km`,
+      best: 'lowest' as const,
+    },
+    {
+      label: 'Duration (min)',
+      getValue: (r: any) => r.durationMin ?? (seedHash(r.id ?? '') % 60 + 15),
+      format: (v: number) => `${v} min`,
+      best: 'lowest' as const,
+    },
+    {
+      label: 'Fare (₹)',
+      getValue: (r: any) => r.fare ?? 0,
+      format: (v: number) => `₹${v}`,
+      best: 'lowest' as const,
+    },
+    {
+      label: 'Traffic Level',
+      getValue: (r: any) => {
+        const levels: Record<string, number> = { low: 1, moderate: 2, high: 3, severe: 4 };
+        return levels[(r.trafficLevel ?? '').toLowerCase()] ?? 2;
+      },
+      format: (_v: number, r: any) => {
+        const lvl = (r.trafficLevel ?? 'moderate').charAt(0).toUpperCase() + (r.trafficLevel ?? 'moderate').slice(1);
+        return lvl;
+      },
+      best: 'lowest' as const,
+    },
+    {
+      label: 'Stops Count',
+      getValue: (r: any) => r.stopsCount ?? (seedHash((r.id ?? '') + 'stops') % 12 + 3),
+      format: (v: number) => String(v),
+      best: 'lowest' as const,
+    },
+    {
+      label: 'On-Time Rate',
+      getValue: (r: any) => 70 + (seedHash((r.id ?? '') + 'otr') % 28),
+      format: (v: number) => `${v}%`,
+      best: 'highest' as const,
+    },
+  ];
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <ArrowRightLeft className="size-5 text-violet-500" />
+          Route Comparison Tool
+        </CardTitle>
+        <CardDescription>Select 2-3 routes to compare side by side</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Route selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          {selectedRoutes.map((r: any, idx: number) => (
+            <Badge
+              key={r.id ?? r._id}
+              variant="outline"
+              className="flex items-center gap-1.5 py-1.5 px-3 text-sm"
+            >
+              <span className="font-mono text-xs">{r.routeNumber ?? `Route ${idx + 1}`}</span>
+              <span className="text-muted-foreground text-xs">
+                {r.startLocation} → {r.endLocation}
+              </span>
+              <button
+                onClick={() => removeRoute(r.id ?? r._id)}
+                className="ml-1 text-muted-foreground hover:text-red-500 transition-colors"
+                aria-label="Remove route"
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedIds.length < 3 && (
+            <div className="flex items-center gap-1.5">
+              <Select value={selectValue} onValueChange={setSelectValue}>
+                <SelectTrigger className="w-48 h-8 text-xs">
+                  <SelectValue placeholder="Select a route..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableRoutes.map((r: any) => (
+                    <SelectItem key={r.id ?? r._id} value={r.id ?? r._id}>
+                      <span className="font-mono mr-1">{r.routeNumber ?? '—'}</span>
+                      {r.startLocation} → {r.endLocation}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 gap-1"
+                onClick={addRoute}
+                disabled={!selectValue || selectedIds.length >= 3}
+              >
+                <Plus className="size-3.5" /> Add
+              </Button>
+            </div>
+          )}
+        </div>
+
+        {/* Comparison Table */}
+        {selectedRoutes.length >= 2 && (
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[140px]">Metric</TableHead>
+                  {selectedRoutes.map((r: any, idx: number) => (
+                    <TableHead key={r.id ?? r._id} className="text-center">
+                      <div className="flex flex-col items-center gap-0.5">
+                        <Badge variant="outline" className="font-mono text-xs">R{idx + 1}</Badge>
+                        <span className="text-[10px] text-muted-foreground font-normal">
+                          {r.routeNumber ?? '—'}
+                        </span>
+                      </div>
+                    </TableHead>
+                  ))}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {metrics.map((metric) => {
+                  const values = selectedRoutes.map(r => metric.getValue(r));
+                  let bestIdx = -1;
+                  if (metric.best === 'lowest') {
+                    bestIdx = values.indexOf(Math.min(...values));
+                  } else {
+                    bestIdx = values.indexOf(Math.max(...values));
+                  }
+
+                  return (
+                    <TableRow key={metric.label}>
+                      <TableCell className="font-medium text-sm">{metric.label}</TableCell>
+                      {selectedRoutes.map((r: any, idx: number) => {
+                        const val = metric.getValue(r);
+                        const isBest = idx === bestIdx && selectedRoutes.length >= 2;
+                        return (
+                          <TableCell
+                            key={r.id ?? r._id}
+                            className={`text-center text-sm font-semibold ${isBest ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300' : ''}`}
+                          >
+                            {isBest && (
+                              <span className="inline-block mr-1 text-emerald-500">✓</span>
+                            )}
+                            {typeof metric.format === 'function'
+                              ? (metric.format as (v: number, r: any) => string)(val, r)
+                              : String(val)}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+
+        {selectedRoutes.length < 2 && (
+          <div className="text-center py-8 text-muted-foreground">
+            <GitMerge className="size-8 mx-auto mb-2 opacity-30" />
+            <p className="text-sm">Select at least 2 routes to compare</p>
+            <p className="text-xs mt-1">Choose routes from the dropdown above</p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -3274,7 +3482,7 @@ function SchedulesPage({ token }: { token: string }) {
                 </TableHeader>
                 <TableBody>
                   {filteredSchedules.map((s: any, idx: number) => (
-                    <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
+                    <TableRow key={s.id ?? s._id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all table-row-lift`}>
                       <TableCell className="font-medium">
                         {s.route?.routeNumber ?? s.routeNumber ?? '—'}
                       </TableCell>
@@ -4460,7 +4668,7 @@ function AnalyticsPage({ token }: { token: string }) {
                 {perfMatrix.map((row, i) => {
                   const cityName = ['BLR', 'DEL', 'MUM', 'CHN', 'HYD'][i] ?? '—';
                   return (
-                    <TableRow key={cityName} className={i % 2 === 0 ? '' : 'bg-muted/30'}>
+                    <TableRow key={cityName} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} table-row-lift`}>
                       <TableCell className="font-medium">{cityName}</TableCell>
                       {(['Revenue', 'On-Time %', 'Completion', 'Satisfaction'] as const).map((metric) => {
                         const val = row[metric];
@@ -4517,7 +4725,7 @@ function AnalyticsPage({ token }: { token: string }) {
                 <TableBody>
                   {cityStats.map((c: any, i: number) => (
                     /* STYLE: alternating row colors + hover */
-                    <TableRow key={i} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
+                    <TableRow key={i} className={`${i % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all table-row-lift`}>
                       <TableCell className="font-medium">{c.city}</TableCell>
                       <TableCell>₹{c.revenue.toLocaleString()}</TableCell>
                       <TableCell>{c.journeys.toLocaleString()}</TableCell>

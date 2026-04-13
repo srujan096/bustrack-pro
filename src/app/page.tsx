@@ -487,6 +487,11 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
           animation: gradientMeshBg 20s ease infinite;
         }
         .animate-glow-pulse { animation: glowPulse 2s ease-in-out infinite; }
+        @keyframes themeFlash {
+          0% { opacity: 0.5; }
+          100% { opacity: 0; }
+        }
+        .animate-theme-flash { animation: themeFlash 0.5s ease-out forwards; }
       `}</style>
 
       <div className="relative w-full max-w-md">
@@ -1010,7 +1015,7 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
     <div className="relative" ref={bellRef}>
       <button
         onClick={() => { setIsOpen(!isOpen); if (!isOpen) setIsNewNotif(false); }}
-        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 hover:scale-110 active:scale-95 transition-all duration-200"
       >
         <svg className="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -1145,7 +1150,7 @@ function HamburgerButton({ isOpen, onClick }: { isOpen: boolean; onClick: () => 
 // ============================================================
 function Breadcrumbs({ currentPageLabel, roleName }: { currentPageLabel: string; roleName: string }) {
   return (
-    <nav className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400" aria-label="Breadcrumb">
+    <nav className="hidden sm:flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 animate-breadcrumb-fade" aria-label="Breadcrumb">
       <span className="flex items-center gap-1 text-gray-400 dark:text-gray-500">
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
@@ -1610,6 +1615,53 @@ export default function Home() {
     return () => scrollEl.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Quick navigation shortcuts (keys 1-9 navigate to sidebar pages)
+  useEffect(() => {
+    if (!user) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't capture when typing in input/textarea/select
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target as HTMLElement)?.isContentEditable) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
+      const num = parseInt(e.key);
+      if (num >= 1 && num <= 9) {
+        const allPagesMap: Record<string, { label: string; sections: { pages: { id: string; label: string }[] }[] }> = {
+          admin: { label: '', sections: [
+            { pages: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'users', label: 'Users' }] },
+            { pages: [{ id: 'routes', label: 'Routes' }, { id: 'schedules', label: 'Schedules' }, { id: 'crew', label: 'Crew' }, { id: 'traffic', label: 'Traffic' }] },
+            { pages: [{ id: 'holidays', label: 'Holidays' }, { id: 'analytics', label: 'Analytics' }, { id: 'maintenance', label: 'Maintenance' }, { id: 'settings', label: 'Settings' }] },
+          ]},
+          driver: { label: '', sections: [
+            { pages: [{ id: 'dashboard', label: 'Dashboard' }] },
+            { pages: [{ id: 'assignments', label: 'My Assignments' }, { id: 'calendar', label: 'Calendar' }] },
+            { pages: [{ id: 'holidays', label: 'Leave Requests' }, { id: 'profile', label: 'Profile' }] },
+            { pages: [{ id: 'fuelLog', label: 'Fuel Log' }] },
+          ]},
+          conductor: { label: '', sections: [
+            { pages: [{ id: 'dashboard', label: 'Dashboard' }] },
+            { pages: [{ id: 'assignments', label: 'My Assignments' }, { id: 'calendar', label: 'Calendar' }] },
+            { pages: [{ id: 'holidays', label: 'Leave Requests' }, { id: 'profile', label: 'Profile' }] },
+            { pages: [{ id: 'fuelLog', label: 'Fuel Log' }] },
+          ]},
+          customer: { label: '', sections: [
+            { pages: [{ id: 'dashboard', label: 'Dashboard' }, { id: 'search', label: 'Search Routes' }] },
+            { pages: [{ id: 'map', label: 'Route Map' }, { id: 'bookings', label: 'My Bookings' }, { id: 'history', label: 'Journey History' }] },
+            { pages: [{ id: 'support', label: 'Support' }] },
+          ]},
+        };
+        const roleConfig = allPagesMap[user.role] || allPagesMap.customer;
+        const allPages = roleConfig.sections.flatMap(s => s.pages);
+        if (num <= allPages.length) {
+          e.preventDefault();
+          setPortal(allPages[num - 1].id);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [user, setPortal]);
+
   const handleLogin = (loggedInUser: UserProfile, loginToken: string) => {
     setUser(loggedInUser);
     setToken(loginToken);
@@ -1674,7 +1726,7 @@ export default function Home() {
         }
         .animate-fade-in-up { animation: fadeInUp 0.2s ease-out; }
       `}</style>
-      <footer className="bg-card border-t border-border flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative overflow-hidden">
+      <footer className="bg-card border-t border-border flex-shrink-0 shadow-[0_-1px_3px_rgba(0,0,0,0.03)] relative overflow-hidden footer-gradient-border">
         {/* Animated bus driving across footer */}
         <div className="absolute bottom-1 left-0 animate-footer-bus pointer-events-none opacity-15">
           <BusIcon className="w-6 h-6 text-foreground" />
@@ -1719,9 +1771,9 @@ export default function Home() {
             <span className="text-gray-300 dark:text-gray-600">&bull;</span>
             <span>v6.0.0</span>
             <span className="text-gray-300 dark:text-gray-600 hidden sm:inline">&bull;</span>
-            <button onClick={() => handleFooterLink('Privacy Policy')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Privacy Policy</button>
-            <button onClick={() => handleFooterLink('Terms of Service')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Terms of Service</button>
-            <button onClick={() => handleFooterLink('Contact Us')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline">Contact Us</button>
+            <button onClick={() => handleFooterLink('Privacy Policy')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline animated-underline">Privacy Policy</button>
+            <button onClick={() => handleFooterLink('Terms of Service')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline animated-underline">Terms of Service</button>
+            <button onClick={() => handleFooterLink('Contact Us')} className="text-muted-foreground hover:text-foreground transition-colors hidden sm:inline animated-underline">Contact Us</button>
           </div>
           <div className="flex items-center gap-2 sm:gap-3">
             <span className="flex items-center gap-1.5">
@@ -1916,20 +1968,45 @@ function WeatherWidget() {
 // ============================================================
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [flashKey, setFlashKey] = useState(0);
+
+  const handleToggle = () => {
+    const newTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
+    setIsAnimating(true);
+    setTheme(newTheme);
+    // Store theme preference in localStorage
+    try { localStorage.setItem('bt_theme', newTheme); } catch {}
+    // Trigger flash/ripple effect
+    setFlashKey(k => k + 1);
+    setTimeout(() => setIsAnimating(false), 500);
+  };
 
   return (
-    <button
-      onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
-      className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 group"
-      aria-label="Toggle theme"
-      suppressHydrationWarning
-    >
-      {resolvedTheme === 'dark' ? (
-        <Sun className="w-5 h-5 text-amber-400 transition-transform duration-300 group-hover:rotate-45" />
-      ) : (
-        <Moon className="w-5 h-5 text-gray-600 transition-transform duration-300 group-hover:-rotate-12" />
+    <>
+      {/* Flash/ripple overlay on theme change */}
+      {flashKey > 0 && (
+        <div
+          key={flashKey}
+          className="fixed inset-0 z-[9999] pointer-events-none animate-theme-flash"
+          style={{
+            background: resolvedTheme === 'dark' ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)',
+          }}
+        />
       )}
-    </button>
+      <button
+        onClick={handleToggle}
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 group"
+        aria-label="Toggle theme"
+        suppressHydrationWarning
+      >
+        {resolvedTheme === 'dark' ? (
+          <Sun className={`w-5 h-5 text-amber-400 transition-transform duration-500 ${isAnimating ? 'rotate-180' : 'group-hover:rotate-45'}`} />
+        ) : (
+          <Moon className={`w-5 h-5 text-gray-600 transition-transform duration-500 ${isAnimating ? '-rotate-180' : 'group-hover:-rotate-12'}`} />
+        )}
+      </button>
+    </>
   );
 }
 
@@ -2211,17 +2288,19 @@ function AppShell({
 
       {/* Nav with sections */}
       <nav className="flex-1 p-2 overflow-y-auto">
-        {config.sections.map((section) => (
-          <SidebarSection
-            key={section.title}
-            title={section.title}
-            pages={section.pages}
-            portal={portal}
-            setPortal={handleSetPortal}
-            configColor={config.color}
-            collapsed={sidebarCollapsed}
-            userRole={user.role}
-          />
+        {config.sections.map((section, idx) => (
+          <React.Fragment key={section.title}>
+            {idx > 0 && <div className="sidebar-dot-separator my-1" />}
+            <SidebarSection
+              title={section.title}
+              pages={section.pages}
+              portal={portal}
+              setPortal={handleSetPortal}
+              configColor={config.color}
+              collapsed={sidebarCollapsed}
+              userRole={user.role}
+            />
+          </React.Fragment>
         ))}
 
         {/* Keyboard shortcut hint - clickable */}
@@ -2253,6 +2332,31 @@ function AppShell({
           {!sidebarCollapsed && <span>Help</span>}
         </button>
       </div>
+
+      {/* Keyboard shortcuts hint */}
+      {!sidebarCollapsed && (
+        <div className="px-3 pb-2">
+          <div className="rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-gray-200 dark:border-gray-700 px-2.5 py-2">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500 font-medium mb-1.5">Keyboard Shortcuts</p>
+            <div className="flex flex-wrap gap-1">
+              {allPages.slice(0, 9).map((page, i) => (
+                <div
+                  key={page.id}
+                  className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded cursor-default transition-colors ${
+                    portal === page.id
+                      ? 'bg-primary/10 text-primary font-semibold'
+                      : 'text-gray-400 dark:text-gray-500 hover:text-foreground hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  title={`Press ${i + 1} to go to ${page.label}`}
+                >
+                  <kbd className="px-1 py-0 rounded bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 text-[9px] font-mono font-medium text-gray-400 dark:text-gray-500">{i + 1}</kbd>
+                  <span className="max-w-[60px] truncate">{page.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* User */}
       <div className={`p-3 border-t border-gray-200 dark:border-gray-800 ${sidebarCollapsed ? 'flex flex-col items-center gap-2' : ''}`}>
@@ -2303,14 +2407,14 @@ function AppShell({
 
       {/* Mobile Sidebar (overlay) */}
       {isMobile && sidebarOpen && (
-        <aside className="fixed left-0 top-0 bottom-0 w-72 glass-sidebar z-50 shadow-2xl animate-sidebar-slide border-r border-white/5">
+        <aside className="fixed left-0 top-0 bottom-0 w-72 glass-sidebar z-50 shadow-2xl animate-sidebar-slide border-r border-white/5 sidebar-gradient-top">
           {sidebarContent}
         </aside>
       )}
 
       {/* Desktop Sidebar */}
       {!isMobile && (
-        <aside className={`glass-sidebar flex-shrink-0 overflow-hidden border-r border-white/5 transition-all duration-300 ${sidebarCollapsed ? 'w-16' : 'w-64'}`}>
+        <aside className={`glass-sidebar flex-shrink-0 overflow-hidden border-r border-white/5 transition-all duration-200 ${sidebarCollapsed ? 'w-16' : 'w-64'} sidebar-gradient-top`}>
           {sidebarContent}
           {/* Collapse/expand toggle */}
           <button
@@ -2348,7 +2452,7 @@ function AppShell({
               isOpen={isMobile ? sidebarOpen : false}
               onClick={() => setSidebarOpen(!sidebarOpen)}
             />
-            <div className="hidden sm:block">
+            <div className="hidden sm:block" key={`breadcrumb-${portal}`}>
               <Breadcrumbs currentPageLabel={currentPageLabel} roleName={config.label} />
             </div>
             <h1 className="text-lg font-semibold text-gray-900 dark:text-white sm:hidden">

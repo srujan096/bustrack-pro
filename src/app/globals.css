@@ -1148,3 +1148,188 @@ body,
   transform: translateY(12px);
   animation: slideUpStagger 0.5s ease-out forwards;
 }
+
+/* ============================================================
+   Task 18-a: Additional Animations & Utility Classes
+   ============================================================ */
+
+/* Glow pulse for emerald (fare calculator, shift timer) */
+@keyframes glowPulseEmerald {
+  0%, 100% { box-shadow: 0 0 5px rgba(16, 185, 129, 0.2); }
+  50% { box-shadow: 0 0 18px rgba(16, 185, 129, 0.45), 0 0 4px rgba(16, 185, 129, 0.2); }
+}
+.animate-glow-pulse-emerald { animation: glowPulseEmerald 2.5s ease-in-out infinite; }
+
+/* Shimmer overlay for surfaces */
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent 25%, rgba(255,255,255,0.1) 50%, transparent 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Custom scrollbar utility class */
+.custom-scrollbar::-webkit-scrollbar { width: 6px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.15); border-radius: 3px; }
+.custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(0,0,0,0.25); }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); }
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+/* Table row lift effect */
+.table-row-lift { transition: all 0.2s ease; }
+.table-row-lift:hover { transform: translateY(-1px); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.dark .table-row-lift:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+
+/* Card entrance animation */
+.card-enter { animation: fadeInUp 0.4s ease-out forwards; }
+
+/* Status badge pulse for active/in_progress */
+@keyframes badgePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.05); }
+}
+.animate-badge-pulse { animation: badgePulse 2s ease-in-out infinite; }
+
+/* Checklist completion bounce */
+@keyframes checkBounce {
+  0% { transform: scale(0.8); }
+  40% { transform: scale(1.15); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); }
+}
+.animate-check-bounce { animation: checkBounce 0.4s ease-out; }
+
+/* Gradient top border for sidebar */
+.sidebar-gradient-top {
+  position: relative;
+}
+.sidebar-gradient-top::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #10b981, #14b8a6, #10b981);
+  z-index: 10;
+}
+
+/* Sidebar section dot separator */
+.sidebar-dot-separator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 4px 0;
+}
+.sidebar-dot-separator::before {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: oklch(0.7 0.02 260 / 30%);
+}
+.sidebar-dot-separator::after {
+  content: '';
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: oklch(0.7 0.02 260 / 30%);
+}
+.dark .sidebar-dot-separator::before,
+.dark .sidebar-dot-separator::after {
+  background: oklch(0.5 0.02 260 / 40%);
+}
+
+/* Card header gradient bottom line */
+.card-header-gradient::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, oklch(0.55 0.2 260 / 20%), transparent);
+}
+
+/* Fare result glow */
+.fare-glow {
+  animation: glowPulseEmerald 2.5s ease-in-out infinite;
+  border-radius: 0.5rem;
+}
+
+/* Gradient border stat card */
+.stat-card-gradient-border {
+  position: relative;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.stat-card-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1.5px;
+  background: linear-gradient(135deg, oklch(0.55 0.2 260), oklch(0.65 0.17 163), oklch(0.75 0.15 85));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Weather gradient backgrounds */
+.weather-bg-sunny {
+  background: linear-gradient(135deg, oklch(0.95 0.04 85) 0%, oklch(0.98 0.01 85) 100%);
+}
+.dark .weather-bg-sunny {
+  background: linear-gradient(135deg, oklch(0.22 0.04 85) 0%, oklch(0.18 0.02 85) 100%);
+}
+.weather-bg-cloudy {
+  background: linear-gradient(135deg, oklch(0.94 0.01 260) 0%, oklch(0.97 0.005 260) 100%);
+}
+.dark .weather-bg-cloudy {
+  background: linear-gradient(135deg, oklch(0.22 0.02 260) 0%, oklch(0.18 0.01 260) 100%);
+}
+.weather-bg-rainy {
+  background: linear-gradient(135deg, oklch(0.92 0.02 230) 0%, oklch(0.95 0.01 230) 100%);
+}
+.dark .weather-bg-rainy {
+  background: linear-gradient(135deg, oklch(0.22 0.03 230) 0%, oklch(0.18 0.02 230) 100%);
+}
+.weather-bg-stormy {
+  background: linear-gradient(135deg, oklch(0.90 0.03 300) 0%, oklch(0.94 0.015 300) 100%);
+}
+.dark .weather-bg-stormy {
+  background: linear-gradient(135deg, oklch(0.22 0.03 300) 0%, oklch(0.18 0.02 300) 100%);
+}
+
+/* Footer gradient top border */
+.footer-gradient-border {
+  position: relative;
+}
+.footer-gradient-border::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(0.55 0.2 260 / 30%), oklch(0.65 0.17 163 / 30%), oklch(0.55 0.2 260 / 30%), transparent);
+}
+
+/* Seat hover smooth transition */
+.seat-smooth-hover {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.seat-smooth-hover:hover {
+  transform: scale(1.08);
+  z-index: 2;
+}
+
+/* Breadcrumb fade-in on page change */
+@keyframes breadcrumbFade {
+  from { opacity: 0; transform: translateX(-6px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-breadcrumb-fade { animation: breadcrumbFade 0.3s ease-out forwards; }
