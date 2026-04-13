@@ -2819,3 +2819,89 @@ Added 10 new CSS sections (+161 lines) to globals.css:
 4. Implement data export (CSV/PDF) for admin analytics
 5. Add automated E2E tests
 6. Mobile responsiveness fine-tuning
+
+---
+Task ID: 14
+Agent: Main - Cron Round: QA + 3 New Features + CSS Polish
+Task: QA testing, new feature implementations across all 3 portals, CSS utility additions
+
+## Current Project Status Assessment
+BusTrack Pro is fully stable. ESLint 0 errors. Server HTTP 200. All 6 API endpoints verified (auth, routes, analytics, schedules, crew, announcements). Login page renders correctly via agent-browser. No JS errors detected.
+
+## Completed Modifications
+
+### 1. New Feature: Data Export Panel (Admin Dashboard)
+- `DataExportPanel` component placed after BroadcastMessaging on Dashboard
+- 4 export option cards in 2-column grid:
+  - Routes Data (Bus icon, CSV), Crew Data (Users icon, CSV), Analytics (BarChart3 icon, CSV), Financial Report (DollarSign icon, PDF)
+- Each card: icon in muted circle, title, description, format badge, Download button
+- Total Records Preview: "115 Routes", "104 Crew", "2,128 Schedules", "₹12.4L Revenue"
+- "Last export: Never" status text
+- Toast notification on each download click
+- Uses `neon-card page-content-transition` CSS
+- Export cards use `card-hover-border` for hover effect
+
+### 2. New Feature: Smart Route Suggestions (Customer Search Routes)
+- `SmartRouteSuggestions` component placed above search form
+- 8 popular route cards in horizontal scrollable row
+- Each card: route number (monospace bold), from→to (truncated), traffic dot indicator, emoji badge (🔥 Trending, ⚡ Fast, 🟢 Clear, 💰 Best Value), fare
+- Deterministic fares (₹25-₹60)
+- Click to pre-fill search form (origin/destination)
+- `handleSuggestionSelect` handler with toast notification
+- Uses `glass-card hover-scale overflow-container` for scrolling
+- Cards use `card-hover-border` for hover effect
+
+### 3. New Feature: Shift History Log (Crew Dashboard)
+- `ShiftHistoryLog` component placed after EndOfShiftSummary
+- 7 deterministic shift entries for last 7 days
+- Vertical timeline with colored dots and connecting line
+- Each entry: formatted date, route number + from→to, color-coded hours (green/amber/red/gray), trip count, status badge
+- Statuses: completed (green), overtime (red), partial (amber), absent (gray)
+- Scrollable list (max-h-300px) with custom scrollbar
+- Summary footer: "This Week: 49.0 hrs" + "Avg 4.0 trips/day"
+- Uses `neon-card page-content-transition card-hover-border` CSS
+
+### 4. CSS Utility Enhancements (globals.css)
+Added 9 new sections (+103 lines):
+1. **Focus Ring Variants** — `.focus-ring-emerald`, `.focus-ring-amber`, `.focus-ring-rose`
+2. **Gradient Backgrounds** — `.bg-gradient-soft`, `.bg-gradient-warm` (with dark mode)
+3. **Button Press Animation** — `.btn-press-anim` with pressScale keyframes
+4. **Card Hover Border** — `.card-hover-border` (subtle border + shadow on hover)
+5. **Text Shadow Utilities** — `.text-shadow-sm`, `.text-shadow-md`, `.text-shadow-glow`
+6. **Backdrop Blur Levels** — `.blur-xs` through `.blur-xl`
+7. **Animated Dashed Border** — `.border-dashed-animated`
+8. **Inset Shadow** — `.shadow-inset`, `.shadow-inset-sm` (with dark mode)
+
+### 5. Styling Polish Applications
+- Admin DataExportPanel: `card-hover-border` on 4 export option cards
+- Customer SmartRouteSuggestions: `card-hover-border` on each route card
+- Crew ShiftHistoryLog: `card-hover-border` on outer Card
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Server: HTTP 200, all APIs responding
+- agent-browser: Login page renders, no error pages detected
+- Content length: 397 chars on login page (correct)
+
+## Codebase Stats
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| globals.css | 1,838 | 1,941 | +103 |
+| page.tsx | 2,679 | 2,679 | 0 |
+| admin-content.tsx | 6,683 | 6,766 | +83 |
+| crew-content.tsx | 6,416 | 6,558 | +142 |
+| customer-content.tsx | 6,878 | 6,938 | +60 |
+| **Total** | **24,494** | **24,882** | **+388** |
+
+## Unresolved Issues
+1. Dev server process persistence between tool sessions (sandbox, not code)
+2. No automated test suite
+3. Tickets/notes not persisted to DB
+4. OSRM dependency for route map
+
+## Priority Recommendations for Next Phase
+1. Persist tickets and crew notes to database (Prisma schema update)
+2. Add WebSocket real-time updates for live tracking
+3. Implement actual CSV/PDF export API endpoints (download buttons currently only show toasts)
+4. Add data persistence for customer bookings
+5. Mobile responsiveness audit and fixes

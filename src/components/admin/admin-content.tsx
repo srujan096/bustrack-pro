@@ -2556,6 +2556,84 @@ function RouteComparisonPanel() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Data Export Panel                                                  */
+/* ------------------------------------------------------------------ */
+function DataExportPanel() {
+  const exportOptions = [
+    { title: 'Routes Data', icon: Bus, description: 'Export all routes with schedules', format: 'CSV' },
+    { title: 'Crew Data', icon: Users, description: 'Export crew roster and assignments', format: 'CSV' },
+    { title: 'Analytics', icon: BarChart3, description: 'Export performance analytics', format: 'CSV' },
+    { title: 'Financial Report', icon: DollarSign, description: 'Export revenue and fare data', format: 'PDF' },
+  ];
+
+  const totalRecords = [
+    { label: '115 Routes', color: 'text-emerald-600' },
+    { label: '104 Crew', color: 'text-sky-600' },
+    { label: '2,128 Schedules', color: 'text-amber-600' },
+    { label: '₹12.4L Revenue', color: 'text-violet-600' },
+  ];
+
+  return (
+    <Card className="neon-card page-content-transition">
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Download className="size-5" /> Data Export Center
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6">
+        {/* Export Options Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {exportOptions.map((opt) => {
+            const IconComp = opt.icon;
+            return (
+              <div key={opt.title} className="card-hover-border rounded-xl border p-4 flex items-start gap-3 transition-all hover:shadow-md">
+                <div className="shrink-0 flex size-10 items-center justify-center rounded-full bg-muted">
+                  <IconComp className="size-5 text-foreground" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold">{opt.title}</p>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0">
+                      {opt.format}
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 h-7 text-xs"
+                    onClick={() =>
+                      toast({
+                        title: 'Export Started',
+                        description: `${opt.title} data is being prepared...`,
+                      })
+                    }
+                  >
+                    <Download className="size-3.5 mr-1" /> Download
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Total Records Preview */}
+        <div className="flex flex-wrap gap-3">
+          {totalRecords.map((rec) => (
+            <div key={rec.label} className="rounded-lg border bg-muted/40 px-3 py-1.5 text-center">
+              <p className={`text-sm font-bold ${rec.color}`}>{rec.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Last Export */}
+        <p className="text-xs text-muted-foreground">Last export: Never</p>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
@@ -2840,6 +2918,11 @@ function DashboardPage({
       {/* Broadcast Messaging */}
       <div className="page-section">
       <BroadcastMessaging />
+      </div>
+
+      {/* Data Export Center */}
+      <div className="page-section">
+      <DataExportPanel />
       </div>
 
       {/* Live Activity Feed */}

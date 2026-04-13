@@ -97,6 +97,7 @@ import {
   Heart,
   Snowflake,
   LogOut,
+  History,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -732,6 +733,144 @@ function EndOfShiftSummary({ crewName }: { crewName: string }) {
               Submit Report
             </Button>
           )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── Shift History Log ────────────────────────────
+
+function ShiftHistoryLog() {
+  const shiftHistory = [
+    { date: '2026-04-13', route: 'BLR-101', from: 'Koramangala', to: 'Whitefield', hours: 8.5, status: 'completed', trips: 4 },
+    { date: '2026-04-12', route: 'BLR-115', from: 'Majestic', to: 'Electronic City', hours: 9.0, status: 'completed', trips: 5 },
+    { date: '2026-04-11', route: 'BLR-102', from: 'Indiranagar', to: 'MG Road', hours: 7.5, status: 'completed', trips: 3 },
+    { date: '2026-04-10', route: 'BLR-128', from: 'Silk Board', to: 'HSR Layout', hours: 8.0, status: 'completed', trips: 4 },
+    { date: '2026-04-09', route: 'BLR-101', from: 'Koramangala', to: 'Whitefield', hours: 10.0, status: 'overtime', trips: 6 },
+    { date: '2026-04-08', route: 'BLR-115', from: 'Majestic', to: 'Electronic City', hours: 6.0, status: 'partial', trips: 2 },
+    { date: '2026-04-07', route: 'BLR-102', from: 'Indiranagar', to: 'MG Road', hours: 0, status: 'absent', trips: 0 },
+  ];
+
+  const totalHours = shiftHistory.reduce((sum, s) => sum + s.hours, 0);
+  const workingDays = shiftHistory.filter((s) => s.status !== 'absent').length;
+  const avgTrips = workingDays > 0 ? (shiftHistory.reduce((sum, s) => sum + s.trips, 0) / workingDays).toFixed(1) : '0';
+
+  const formatShiftDate = (dateStr: string) => {
+    const d = new Date(dateStr + 'T00:00:00');
+    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const getHoursColor = (hours: number, status: string) => {
+    if (status === 'absent') return 'text-gray-400';
+    if (hours <= 8) return 'text-emerald-600 dark:text-emerald-400';
+    if (hours <= 9) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const getDotColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800';
+      case 'overtime': return 'bg-red-500 ring-2 ring-red-200 dark:ring-red-800';
+      case 'partial': return 'bg-amber-500 ring-2 ring-amber-200 dark:ring-amber-800';
+      case 'absent': return 'bg-gray-400 ring-2 ring-gray-200 dark:ring-gray-700';
+      default: return 'bg-gray-300 ring-2 ring-gray-200';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800';
+      case 'overtime': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-800';
+      case 'partial': return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-800';
+      case 'absent': return 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-400 dark:border-gray-700';
+      default: return 'bg-gray-100 text-gray-600 border-gray-200';
+    }
+  };
+
+  return (
+    <Card className="card-hover-border neon-card page-content-transition">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-100 to-rose-100 dark:from-amber-900/40 dark:to-rose-900/40">
+            <History className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Recent Shift History</CardTitle>
+            <CardDescription className="text-xs">Last 7 days shift activity</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+          <div className="relative pl-6">
+            {/* Vertical timeline line */}
+            <div className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-gray-200 dark:bg-gray-700" />
+
+            <div className="space-y-0">
+              {shiftHistory.map((shift, index) => (
+                <div key={shift.date} className="relative py-3">
+                  {/* Timeline dot */}
+                  <div className={`absolute left-[-18px] top-[18px] h-3 w-3 rounded-full ${getDotColor(shift.status)} z-10`} />
+
+                  {/* Content */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-xs font-semibold text-gray-900 dark:text-gray-100">
+                          {formatShiftDate(shift.date)}
+                        </span>
+                        {shift.status !== 'absent' && (
+                          <span className="text-[10px] text-gray-400 font-mono">{shift.route}</span>
+                        )}
+                      </div>
+                      {shift.status !== 'absent' ? (
+                        <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                          {shift.from} → {shift.to}
+                        </p>
+                      ) : (
+                        <p className="text-[11px] text-gray-400 italic">No shift assigned</p>
+                      )}
+                      <div className="flex items-center gap-3 mt-1">
+                        <span className={`text-[11px] font-semibold ${getHoursColor(shift.hours, shift.status)}`}>
+                          {shift.status === 'absent' ? '—' : `${shift.hours}h`}
+                        </span>
+                        {shift.status !== 'absent' && (
+                          <span className="text-[11px] text-gray-400">
+                            {shift.trips} trip{shift.trips !== 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Badge className={`shrink-0 text-[10px] border ${getStatusBadge(shift.status)}`}>
+                      {shift.status.charAt(0).toUpperCase() + shift.status.slice(1)}
+                    </Badge>
+                  </div>
+
+                  {/* Separator line between entries (except last) */}
+                  {index < shiftHistory.length - 1 && (
+                    <div className="mt-3 border-b border-dashed border-gray-100 dark:border-gray-800" />
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Summary footer */}
+        <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-600 dark:text-gray-300 font-medium">
+              This Week: {totalHours.toFixed(1)} hrs
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Navigation className="h-3.5 w-3.5 text-gray-400" />
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              Avg {avgTrips} trips/day
+            </span>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -3454,6 +3593,9 @@ function DashboardPage({
 
       {/* End of Day Summary */}
       <EndOfShiftSummary crewName={crewProfile?.profile?.name || ''} />
+
+      {/* Recent Shift History */}
+      <ShiftHistoryLog />
 
       {/* Daily Summary Report */}
       <DailySummaryReport crewName={crewProfile?.profile?.name || ''} />

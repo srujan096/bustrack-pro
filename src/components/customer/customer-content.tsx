@@ -3060,6 +3060,57 @@ function FareCalculator() {
 
 // ─── Search Routes ───────────────────────────────────────────────────────────
 
+// ─── Smart Route Suggestions Widget ──────────────────────────────────────────
+
+const popularRoutes = [
+  { route: 'BLR-101', from: 'Koramangala', to: 'Whitefield', traffic: 'high', badge: '🔥 Trending' },
+  { route: 'BLR-115', from: 'Majestic', to: 'Electronic City', traffic: 'medium', badge: '⚡ Fast' },
+  { route: 'MUM-201', from: 'Bandra', to: 'Andheri', traffic: 'low', badge: '🟢 Clear' },
+  { route: 'DEL-301', from: 'Connaught Place', to: 'Gurgaon', traffic: 'high', badge: '🔥 Trending' },
+  { route: 'CHN-401', from: 'T. Nagar', to: 'OMR', traffic: 'medium', badge: '💰 Best Value' },
+  { route: 'HYD-501', from: 'Hitech City', to: 'Jubilee Hills', traffic: 'low', badge: '🟢 Clear' },
+  { route: 'BLR-128', from: 'Silk Board', to: 'HSR Layout', traffic: 'medium', badge: '⚡ Fast' },
+  { route: 'BLR-102', from: 'Indiranagar', to: 'MG Road', traffic: 'high', badge: '🔥 Trending' },
+];
+
+const trafficDotColors: Record<string, string> = {
+  low: 'bg-emerald-500',
+  medium: 'bg-amber-500',
+  high: 'bg-red-500',
+};
+
+function SmartRouteSuggestions({ onSelect }: { onSelect: (route: { from: string; to: string }) => void }) {
+  return (
+    <div>
+      <div className="flex items-center gap-2 mb-3">
+        <Sparkles className="size-4 text-primary" />
+        <h3 className="text-sm font-semibold text-foreground">Smart Route Suggestions</h3>
+        <Badge variant="secondary" className="text-[10px] px-1.5">Popular</Badge>
+      </div>
+      <div className="overflow-container flex gap-3 p-1">
+        {popularRoutes.map((r, idx) => (
+          <div
+            key={r.route}
+            onClick={() => onSelect({ from: r.from, to: r.to })}
+            className="card-hover-border glass-card rounded-xl p-3 min-w-[180px] max-w-[200px] flex-shrink-0 cursor-pointer hover-scale transition-all"
+          >
+            <div className="font-mono font-bold text-sm text-primary">{r.route}</div>
+            <div className="text-xs text-muted-foreground truncate-1 mt-1">{r.from} → {r.to}</div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className={`h-2 w-2 rounded-full ${trafficDotColors[r.traffic] ?? 'bg-gray-400'}`} />
+              <span className="text-[10px] text-muted-foreground capitalize">{r.traffic}</span>
+            </div>
+            <div className="flex items-center justify-between mt-2">
+              <span className="text-[11px] font-medium">{r.badge}</span>
+              <span className="text-xs font-bold text-emerald-700 dark:text-emerald-300">₹{25 + idx * 5}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function SearchRoutes({
   userId,
 }: {
@@ -3152,6 +3203,12 @@ function SearchRoutes({
       return updated;
     });
   }, []);
+
+  const handleSuggestionSelect = (route: { from: string; to: string }) => {
+    setStartLocation(route.from);
+    setEndLocation(route.to);
+    toast({ title: 'Route Selected', description: `${route.from} → ${route.to}` });
+  };
 
   // Load locations and all routes for popular section
   useEffect(() => {
@@ -3289,6 +3346,9 @@ function SearchRoutes({
 
   return (
     <div className="space-y-6">
+      {/* Smart Route Suggestions */}
+      <SmartRouteSuggestions onSelect={handleSuggestionSelect} />
+
       {/* Search Form */}
       <Card>
         <CardHeader>
