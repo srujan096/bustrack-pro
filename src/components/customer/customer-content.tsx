@@ -1,6 +1,9 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import {
+  PieChart, Pie, Cell, ResponsiveContainer, Tooltip,
+} from 'recharts';
 import dynamic from 'next/dynamic';
 import L from 'leaflet';
 import { format, subDays } from 'date-fns';
@@ -455,96 +458,99 @@ function WeatherBadge({ city }: { city: string | undefined }) {
   );
 }
 
-// ─── Spending Donut Chart ────────────────────────────────────────────────────
+// ─── Spending Donut Chart (Recharts) ──────────────────────────────────────────
+
+const SPENDING_COLORS = ['#10b981', '#f59e0b', '#8b5cf6'];
+
+interface SpendingSegment {
+  name: string;
+  value: number;
+  pct: number;
+}
+
+const CustomPieTooltip = ({ active, payload }: any) => {
+  if (!active || !payload?.length) return null;
+  const d = payload[0].payload as SpendingSegment;
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-foreground">{d.name}</p>
+      <p className="text-sm" style={{ color: SPENDING_COLORS[payload[0].dataIndex] }}>{formatCurrency(d.value)}</p>
+      <p className="text-xs text-muted-foreground">{d.pct}% of total</p>
+    </div>
+  );
+};
+
+const CustomPieLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, pct, name }: any) => {
+  const RADIAN = Math.PI / 180;
+  const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+  const x = cx + radius * Math.cos(-midAngle * RADIAN);
+  const y = cy + radius * Math.sin(-midAngle * RADIAN);
+  if (pct < 15) return null;
+  return (
+    <text x={x} y={y} textAnchor="middle" dominantBaseline="central" className="fill-white text-[11px] font-bold">
+      {pct}%
+    </text>
+  );
+};
+
+const renderCustomLabel = (entry: any) => {
+  const { cx, cy, midAngle, innerRadius, outerRadius, pct } = entry;
+  return <CustomPieLabel cx={cx} cy={cy} midAngle={midAngle} innerRadius={innerRadius} outerRadius={outerRadius} pct={pct} name={entry.name} />;
+};
 
 function SpendingDonut({ totalSpent }: { totalSpent: number }) {
-  const [hoveredSeg, setHoveredSeg] = useState<number | null>(null);
-  const segments = useMemo(() => {
+  const segments = useMemo<SpendingSegment[]>(() => {
     if (totalSpent <= 0) return [];
     const busFares = Math.round(totalSpent * 0.58);
     const seasonPass = Math.round(totalSpent * 0.28);
     const other = totalSpent - busFares - seasonPass;
     return [
-      { label: 'Bus Fares', value: busFares, color: '#10b981', pct: 58 },
-      { label: 'Season Pass', value: seasonPass, color: '#f59e0b', pct: 28 },
-      { label: 'Other', value: other, color: '#8b5cf6', pct: 14 },
+      { name: 'Bus Fares', value: busFares, pct: 58 },
+      { name: 'Season Pass', value: seasonPass, pct: 28 },
+      { name: 'Other', value: other, pct: 14 },
     ];
   }, [totalSpent]);
 
   if (segments.length === 0) return null;
 
-  const size = 160;
-  const strokeWidth = 28;
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  let accumulated = 0;
-
   return (
     <div className="flex flex-col items-center gap-4">
-      <div className="relative" style={{ width: size, height: size }}>
-        <svg width={size} height={size} className="-rotate-90">
-          {/* Background circle */}
-          <circle
-            cx={size / 2}
-            cy={size / 2}
-            r={radius}
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={strokeWidth}
-            className="text-muted-foreground/10"
-          />
-          {/* Segments */}
-          {segments.map((seg, i) => {
-            const offset = (accumulated / 100) * circumference;
-            const segLen = (seg.pct / 100) * circumference;
-            accumulated += seg.pct;
-            return (
-              <circle
-                key={i}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                stroke={seg.color}
-                strokeWidth={hoveredSeg === i ? strokeWidth + 6 : strokeWidth}
-                strokeDasharray={`${segLen} ${circumference - segLen}`}
-                strokeDashoffset={-offset}
-                strokeLinecap="butt"
-                className="transition-all duration-300 cursor-pointer"
-                style={{ filter: hoveredSeg === i ? 'drop-shadow(0 0 6px rgba(0,0,0,0.2))' : 'none' }}
-                onMouseEnter={() => setHoveredSeg(i)}
-                onMouseLeave={() => setHoveredSeg(null)}
-              />
-            );
-          })}
-        </svg>
-        {/* Center text */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-          {hoveredSeg !== null ? (
-            <>
-              <p className="text-xs text-muted-foreground">{segments[hoveredSeg].label}</p>
-              <p className="text-xl font-bold" style={{ color: segments[hoveredSeg].color }}>{formatCurrency(segments[hoveredSeg].value)}</p>
-              <p className="text-xs text-muted-foreground">{segments[hoveredSeg].pct}%</p>
-            </>
-          ) : (
-            <>
-              <p className="text-xs text-muted-foreground">Total Spent</p>
-              <p className="text-xl font-bold">{formatCurrency(totalSpent)}</p>
-            </>
-          )}
-        </div>
+      <div className="relative w-full" style={{ height: 200 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={segments}
+              cx="50%"
+              cy="50%"
+              innerRadius={55}
+              outerRadius={80}
+              paddingAngle={3}
+              dataKey="value"
+              label={renderCustomLabel}
+              labelLine={false}
+              strokeWidth={0}
+            >
+              {segments.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={SPENDING_COLORS[index]} />
+              ))}
+            </Pie>
+            <Tooltip content={<CustomPieTooltip />} />
+            {/* Center text */}
+            <text x="50%" y="44%" textAnchor="middle" dominantBaseline="central" className="fill-muted-foreground text-[11px]">
+              Total Spent
+            </text>
+            <text x="50%" y="56%" textAnchor="middle" dominantBaseline="central" className="fill-foreground text-[16px] font-bold">
+              {formatCurrency(totalSpent)}
+            </text>
+          </PieChart>
+        </ResponsiveContainer>
       </div>
-      {/* Legend */}
+      {/* Interactive Legend */}
       <div className="flex items-center gap-4 text-sm">
         {segments.map((seg, i) => (
-          <div
-            key={i}
-            className={`flex items-center gap-1.5 cursor-pointer rounded-md px-2 py-1 transition-all ${hoveredSeg === i ? 'bg-muted/50 dark:bg-muted/20' : ''}`}
-            onMouseEnter={() => setHoveredSeg(i)}
-            onMouseLeave={() => setHoveredSeg(null)}
-          >
-            <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: seg.color }} />
-            <span className="text-muted-foreground">{seg.label}</span>
+          <div key={i} className="flex items-center gap-1.5">
+            <div className="h-3 w-3 rounded-sm" style={{ backgroundColor: SPENDING_COLORS[i] }} />
+            <span className="text-muted-foreground">{seg.name}</span>
             <span className="font-medium">{seg.pct}%</span>
           </div>
         ))}
@@ -5631,75 +5637,57 @@ const FAQ_ITEMS = [
   },
 ];
 
-function SupportPage() {
-  // SupportTicket Interface
+function SupportPage({ userId }: { userId: string }) {
+  // SupportTicket Interface (matches DB model)
   interface SupportTicket {
     id: string;
-    subject: string;
-    category: string;
-    priority: string;
-    status: 'Open' | 'Pending' | 'Resolved';
+    title: string;
     description: string;
-    response?: string;
+    category: string;
+    status: string;
+    priority: string;
     createdAt: string;
+    updatedAt: string;
   }
 
   const [activeTab, setActiveTab] = useState<'tickets' | 'faq' | 'contact'>('tickets');
-  const [ticketFilter, setTicketFilter] = useState<'All' | 'Open' | 'Pending' | 'Resolved'>('All');
+  const [ticketFilter, setTicketFilter] = useState<'All' | 'Open' | 'In Progress' | 'Resolved'>('All');
   const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
   const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [newTicket, setNewTicket] = useState({
-    subject: '',
+    title: '',
     category: '',
     priority: '',
     description: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [tickets, setTickets] = useState<SupportTicket[]>([]);
+  const [loadingTickets, setLoadingTickets] = useState(true);
 
-  const TICKET_CATEGORIES = ['Booking Issue', 'Refund', 'Delay', 'Safety', 'Cleanliness'];
-  const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
+  const TICKET_CATEGORIES = ['general', 'refund', 'complaint', 'suggestion', 'safety'];
+  const TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent'];
 
-  const [tickets, setTickets] = useState<SupportTicket[]>([
-    {
-      id: 'TKT-10234',
-      subject: 'Bus arrived 30 minutes late on Route BLR-101',
-      category: 'Delay',
-      priority: 'High',
-      status: 'Open',
-      description: 'The bus on route BLR-101 from Majestic to Koramangala was scheduled for 8:30 AM but arrived at 9:00 AM. This caused me to miss an important meeting. The driver did not provide any prior notification about the delay.',
-      createdAt: '2025-01-15T10:30:00Z',
-    },
-    {
-      id: 'TKT-10187',
-      subject: 'Refund not processed for cancelled ticket',
-      category: 'Refund',
-      priority: 'Medium',
-      status: 'Pending',
-      description: 'I cancelled my booking (ID: BK-4521) on January 10th due to a schedule change. The refund of ₹350 was supposed to be processed within 3-5 business days but has not been credited yet.',
-      response: 'Your refund has been approved and is being processed by our payment partner. It should reflect in your account within 2 business days. Refund reference: RF-88732.',
-      createdAt: '2025-01-10T14:20:00Z',
-    },
-    {
-      id: 'TKT-10098',
-      subject: 'AC not working on BLR-335 evening service',
-      category: 'Cleanliness',
-      priority: 'Medium',
-      status: 'Resolved',
-      description: 'The air conditioning was not functioning on the 6:00 PM service of route BLR-335 from HSR to Electronic City on January 8th. The bus was extremely hot and uncomfortable for the entire 45-minute journey.',
-      response: 'We apologize for the inconvenience. The AC unit on this bus has been repaired and serviced. We have also added this vehicle to our priority maintenance list. A ₹50 credit has been added to your wallet as compensation.',
-      createdAt: '2025-01-08T18:45:00Z',
-    },
-    {
-      id: 'TKT-10012',
-      subject: 'Unable to book seat for BLR-501 tomorrow',
-      category: 'Booking Issue',
-      priority: 'High',
-      status: 'Open',
-      description: 'When trying to book a ticket for route BLR-501 from Whitefield to ITPL for tomorrow morning, the app shows "No seats available" but the bus appears empty on the live tracker. The booking keeps failing at the payment step.',
-      createdAt: '2025-01-16T08:15:00Z',
-    },
-  ]);
+  // Fetch tickets from API on mount
+  useEffect(() => {
+    async function fetchTickets() {
+      try {
+        const res = await fetch(`/api/support-tickets?userId=${userId}`);
+        if (!res.ok) throw new Error('Failed to fetch tickets');
+        const data = await res.json();
+        setTickets(data.tickets ?? []);
+      } catch {
+        toast({
+          title: 'Error',
+          description: 'Could not load support tickets.',
+          variant: 'destructive',
+        });
+      } finally {
+        setLoadingTickets(false);
+      }
+    }
+    fetchTickets();
+  }, [userId]);
 
   const SUPPORT_FAQS = [
     { q: 'How do I book a ticket online?', a: 'Go to the Search Routes tab, enter your origin and destination, select a route and schedule, then proceed to payment. You can pay via UPI, card, or wallet balance.' },
@@ -5712,33 +5700,68 @@ function SupportPage() {
     { q: 'How do I provide feedback or rate my journey?', a: 'After completing a trip, go to Journey History and find your completed journey. You can rate the trip from 1-5 stars and provide detailed feedback across categories like punctuality, comfort, and safety.' },
   ];
 
+  // Map DB status to display filter
+  const dbStatusToFilter = (status: string): string => {
+    if (status === 'open') return 'Open';
+    if (status === 'in_progress') return 'In Progress';
+    if (status === 'resolved' || status === 'closed') return 'Resolved';
+    return status;
+  };
+
+  const filterToDbStatus = (filter: string): string | null => {
+    if (filter === 'Open') return 'open';
+    if (filter === 'In Progress') return 'in_progress';
+    if (filter === 'Resolved') return null; // resolved + closed
+    return null;
+  };
+
   const filteredTickets = useMemo(() => {
     if (ticketFilter === 'All') return tickets;
-    return tickets.filter(t => t.status === ticketFilter);
+    if (ticketFilter === 'Resolved') return tickets.filter(t => t.status === 'resolved' || t.status === 'closed');
+    const dbStatus = filterToDbStatus(ticketFilter);
+    if (dbStatus) return tickets.filter(t => t.status === dbStatus);
+    return tickets;
   }, [tickets, ticketFilter]);
 
   const ticketCounts = useMemo(() => ({
     All: tickets.length,
-    Open: tickets.filter(t => t.status === 'Open').length,
-    Pending: tickets.filter(t => t.status === 'Pending').length,
-    Resolved: tickets.filter(t => t.status === 'Resolved').length,
+    Open: tickets.filter(t => t.status === 'open').length,
+    'In Progress': tickets.filter(t => t.status === 'in_progress').length,
+    Resolved: tickets.filter(t => t.status === 'resolved' || t.status === 'closed').length,
   }), [tickets]);
 
   const statusColorMap: Record<string, string> = {
-    Open: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
-    Pending: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
-    Resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+    open: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+    in_progress: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
+    resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+    closed: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-900/50 dark:border-slate-700 dark:text-slate-300',
   };
 
   const priorityColorMap: Record<string, string> = {
-    Low: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:border-sky-700 dark:text-sky-300',
-    Medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
-    High: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
-    Critical: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
+    low: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:border-sky-700 dark:text-sky-300',
+    normal: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
+    high: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+    urgent: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
   };
 
-  const handleSubmitTicket = useCallback(() => {
-    if (!newTicket.subject.trim() || !newTicket.category || !newTicket.priority || !newTicket.description.trim()) {
+  const categoryColorMap: Record<string, string> = {
+    general: 'bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/50 dark:border-violet-700 dark:text-violet-300',
+    refund: 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+    complaint: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
+    suggestion: 'bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:border-sky-700 dark:text-sky-300',
+    safety: 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+  };
+
+  const formatStatus = (status: string): string => {
+    return status.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  };
+
+  const formatCategory = (category: string): string => {
+    return category.charAt(0).toUpperCase() + category.slice(1);
+  };
+
+  const handleSubmitTicket = useCallback(async () => {
+    if (!newTicket.title.trim() || !newTicket.category || !newTicket.priority || !newTicket.description.trim()) {
       toast({
         title: 'Missing Information',
         description: 'Please fill in all required fields.',
@@ -5747,27 +5770,38 @@ function SupportPage() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      const ticketId = `TKT-${String(Date.now()).slice(-5)}`;
-      const created: SupportTicket = {
-        id: ticketId,
-        subject: newTicket.subject.trim(),
-        category: newTicket.category,
-        priority: newTicket.priority,
-        status: 'Open',
-        description: newTicket.description.trim(),
-        createdAt: new Date().toISOString(),
-      };
+    try {
+      const res = await fetch('/api/support-tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          title: newTicket.title.trim(),
+          description: newTicket.description.trim(),
+          category: newTicket.category,
+          priority: newTicket.priority,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to create ticket');
+      const data = await res.json();
+      const created = data.ticket as SupportTicket;
       setTickets(prev => [created, ...prev]);
-      setNewTicket({ subject: '', category: '', priority: '', description: '' });
+      setNewTicket({ title: '', category: '', priority: '', description: '' });
       setSubmitting(false);
       setDialogOpen(false);
       toast({
         title: 'Ticket Created!',
-        description: `Your support ticket ${ticketId} has been submitted. We'll respond within 24 hours.`,
+        description: `Your support ticket ${created.id.slice(0, 8)} has been submitted. We'll respond within 24 hours.`,
       });
-    }, 800);
-  }, [newTicket]);
+    } catch {
+      setSubmitting(false);
+      toast({
+        title: 'Error',
+        description: 'Failed to create support ticket. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [newTicket, userId]);
 
   return (
     <div className="space-y-6">
@@ -5833,9 +5867,18 @@ function SupportPage() {
       {/* TICKETS TAB */}
       {activeTab === 'tickets' && (
         <div className="space-y-4">
+          {/* Loading state */}
+          {loadingTickets ? (
+            <div className="space-y-3">
+              {[1, 2, 3].map(i => (
+                <Skeleton key={i} className="h-28 rounded-xl" />
+              ))}
+            </div>
+          ) : (
+          <>
           {/* Status filter tabs */}
           <div className="flex items-center gap-2 flex-wrap">
-            {(['All', 'Open', 'Pending', 'Resolved'] as const).map(filter => (
+            {(['All', 'Open', 'In Progress', 'Resolved'] as const).map(filter => (
               <button
                 key={filter}
                 onClick={() => setTicketFilter(filter)}
@@ -5882,18 +5925,18 @@ function SupportPage() {
                     <div className="flex items-start gap-3 p-4">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <Badge variant="outline" className="font-mono text-xs">{ticket.id}</Badge>
-                          <Badge variant="outline" className={statusColorMap[ticket.status]}>
-                            {ticket.status}
+                          <Badge variant="outline" className="font-mono text-xs">{ticket.id.slice(0, 8)}</Badge>
+                          <Badge variant="outline" className={statusColorMap[ticket.status] ?? statusColorMap.open}>
+                            {formatStatus(ticket.status)}
                           </Badge>
-                          <Badge variant="outline" className={priorityColorMap[ticket.priority]}>
+                          <Badge variant="outline" className={priorityColorMap[ticket.priority] ?? priorityColorMap.normal}>
                             {ticket.priority}
                           </Badge>
-                          <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/50 dark:border-violet-700 dark:text-violet-300">
-                            {ticket.category}
+                          <Badge variant="outline" className={categoryColorMap[ticket.category] ?? categoryColorMap.general}>
+                            {formatCategory(ticket.category)}
                           </Badge>
                         </div>
-                        <p className="text-sm font-semibold mt-2 truncate">{ticket.subject}</p>
+                        <p className="text-sm font-semibold mt-2 truncate">{ticket.title}</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </p>
@@ -5914,19 +5957,13 @@ function SupportPage() {
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Description</p>
                         <p className="text-sm text-muted-foreground leading-relaxed">{ticket.description}</p>
                       </div>
-                      {ticket.response && (
-                        <div>
-                          <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Response from Support</p>
-                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 p-3">
-                            <p className="text-sm text-emerald-700 dark:text-emerald-300 leading-relaxed">{ticket.response}</p>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )}
                 </Card>
               ))}
             </div>
+          )}
+          </>
           )}
         </div>
       )}
@@ -6034,11 +6071,11 @@ function SupportPage() {
           <div className="space-y-4 py-2">
             {/* Subject */}
             <div className="space-y-1.5">
-              <label className="text-sm font-medium">Subject *</label>
+              <label className="text-sm font-medium">Title *</label>
               <Input
                 placeholder="Brief summary of your issue"
-                value={newTicket.subject}
-                onChange={e => setNewTicket(p => ({ ...p, subject: e.target.value }))}
+                value={newTicket.title}
+                onChange={e => setNewTicket(p => ({ ...p, title: e.target.value }))}
               />
             </div>
             {/* Category & Priority */}
@@ -6054,7 +6091,7 @@ function SupportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {TICKET_CATEGORIES.map(cat => (
-                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                      <SelectItem key={cat} value={cat}>{formatCategory(cat)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -6070,7 +6107,7 @@ function SupportPage() {
                   </SelectTrigger>
                   <SelectContent>
                     {TICKET_PRIORITIES.map(pri => (
-                      <SelectItem key={pri} value={pri}>{pri}</SelectItem>
+                      <SelectItem key={pri} value={pri}>{pri.charAt(0).toUpperCase() + pri.slice(1)}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
@@ -6674,7 +6711,7 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
       {portal === 'map' && <RouteMapView />}
       {portal === 'bookings' && <MyBookings userId={userId} setPortal={setPortal} />}
       {portal === 'history' && <JourneyHistory userId={userId} />}
-      {portal === 'support' && <SupportPage />}
+      {portal === 'support' && <SupportPage userId={userId} />}
     </div>
   );
 }

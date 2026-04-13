@@ -25,6 +25,7 @@ model Profile {
   trafficReports TrafficAlert[]
   notifications  Notification[]
   auditLogs      AuditLog[]
+  supportTickets SupportTicket[]
 }
 
 model CrewProfile {
@@ -39,6 +40,21 @@ model CrewProfile {
   busNumber        String   @default("")
 
   profile Profile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  notes   CrewNote[]
+}
+
+model CrewNote {
+  id        String   @id @default(cuid())
+  crewId    String
+  date      String   // YYYY-MM-DD format
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  crew      CrewProfile @relation(fields: [crewId], references: [id], onDelete: Cascade)
+
+  @@unique([crewId, date])
+  @@index([crewId])
 }
 
 model Route {
@@ -178,6 +194,23 @@ model RouteAnalytics {
   totalJourneys  Int      @default(0)
 
   route Route @relation(fields: [routeId], references: [id], onDelete: Cascade)
+}
+
+model SupportTicket {
+  id          String   @id @default(cuid())
+  userId      String
+  title       String
+  description String
+  category    String   @default("general")  // general, refund, complaint, suggestion, safety
+  status      String   @default("open")     // open, in_progress, resolved, closed
+  priority    String   @default("normal")   // low, normal, high, urgent
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        Profile  @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([status])
 }
 
 model Announcement {

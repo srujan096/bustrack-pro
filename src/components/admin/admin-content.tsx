@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, ReferenceLine,
+} from 'recharts';
 import { toast } from '@/hooks/use-toast';
 import {
   Card,
@@ -289,97 +293,70 @@ function EmptyState({
 }
 
 /* ------------------------------------------------------------------ */
-/*  SVG Weekly Bar Chart Component                                     */
+/*  Weekly Bar Chart Component (Recharts)                                */
 /* ------------------------------------------------------------------ */
+
+interface WeeklyBarData {
+  day: string;
+  routes: number;
+}
+
+const CustomBarTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const val = payload[0].value as number;
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-foreground">{label}</p>
+      <p className="text-sm text-emerald-600">{val} routes completed</p>
+      <p className="text-xs text-muted-foreground">{val}% completion</p>
+    </div>
+  );
+};
+
+const WeeklyBarLabel = (props: any) => {
+  const { x, y, width, value } = props;
+  return (
+    <text x={x + width / 2} y={y - 6} textAnchor="middle" className="fill-foreground text-[11px] font-medium">
+      {value}
+    </text>
+  );
+};
+
 function WeeklyBarChart() {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   const seed = 42;
-  const values = days.map((_, i) => Math.round(40 + ((seed + i * 37) % 60)));
-  const maxVal = Math.max(...values, 1);
-
-  const chartW = 500;
-  const chartH = 200;
-  const padL = 40;
-  const padR = 16;
-  const padT = 16;
-  const padB = 32;
-  const innerW = chartW - padL - padR;
-  const innerH = chartH - padT - padB;
-  const barW = innerW / days.length * 0.6;
-  const gap = innerW / days.length;
+  const data: WeeklyBarData[] = days.map((day, i) => ({
+    day,
+    routes: Math.round(40 + ((seed + i * 37) % 60)),
+  }));
 
   return (
-    <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full h-auto" aria-label="Weekly Schedule Completion Chart">
-      <defs>
-        <linearGradient id="barGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stopColor="#34d399" />
-          <stop offset="100%" stopColor="#059669" />
-        </linearGradient>
-      </defs>
-      {/* Y-axis grid lines and labels */}
-      {[0, 25, 50, 75, 100].map((v) => {
-        const y = padT + innerH - (v / maxVal) * innerH;
-        return (
-          <g key={v}>
-            <line
-              x1={padL}
-              y1={y}
-              x2={chartW - padR}
-              y2={y}
-              stroke="currentColor"
-              className="text-muted/30"
-              strokeWidth="1"
-              strokeDasharray="4 4"
-            />
-            <text
-              x={padL - 6}
-              y={y + 4}
-              textAnchor="end"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {v}
-            </text>
-          </g>
-        );
-      })}
-      {/* Bars */}
-      {values.map((v, i) => {
-        const barH = Math.max((v / maxVal) * innerH, 2);
-        const x = padL + gap * i + (gap - barW) / 2;
-        const y = padT + innerH - barH;
-        return (
-          <g key={i}>
-            <rect
-              x={x}
-              y={y}
-              width={barW}
-              height={barH}
-              rx="4"
-              fill="url(#barGrad)"
-              className="transition-all duration-500"
-            />
-            {/* Value label */}
-            <text
-              x={x + barW / 2}
-              y={y - 6}
-              textAnchor="middle"
-              className="fill-foreground text-[10px] font-medium"
-            >
-              {v}
-            </text>
-            {/* X-axis label */}
-            <text
-              x={x + barW / 2}
-              y={chartH - 8}
-              textAnchor="middle"
-              className="fill-muted-foreground text-[11px]"
-            >
-              {days[i]}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+    <ResponsiveContainer width="100%" height={240}>
+      <BarChart data={data} margin={{ top: 20, right: 16, left: 0, bottom: 0 }}>
+        <defs>
+          <linearGradient id="weeklyBarGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor="#34d399" />
+            <stop offset="100%" stopColor="#059669" />
+          </linearGradient>
+        </defs>
+        <CartesianGrid strokeDasharray="4 4" stroke="currentColor" className="text-muted-foreground/20" vertical={false} />
+        <XAxis
+          dataKey="day"
+          tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+          axisLine={false}
+          tickLine={false}
+        />
+        <YAxis
+          tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+          axisLine={false}
+          tickLine={false}
+          domain={[0, 100]}
+          ticks={[0, 25, 50, 75, 100]}
+        />
+        <Tooltip content={<CustomBarTooltip />} cursor={{ fill: 'hsl(var(--muted-foreground) / 0.05)' }} />
+        <Bar dataKey="routes" fill="url(#weeklyBarGrad)" radius={[6, 6, 0, 0]} label={<WeeklyBarLabel />} />
+      </BarChart>
+    </ResponsiveContainer>
   );
 }
 
@@ -5075,8 +5052,6 @@ function AnalyticsPage({ token }: { token: string }) {
   const avgPerRoute = cityStats.length > 0 ? Math.round(totalRevenue / cityStats.length) : 0;
   const highestEarner = topRoutes.length > 0 ? topRoutes[0] : { name: '—', revenue: 0 };
 
-  const maxRevenue = Math.max(...dailyTrends.map((d) => d.revenue), 1);
-
   return (
     <div className="space-y-6">
       {/* Date Range Filter Pills */}
@@ -5167,7 +5142,7 @@ function AnalyticsPage({ token }: { token: string }) {
         </div>
       )}
 
-      {/* Daily Trend Chart */}
+      {/* Daily Revenue Trend — Recharts AreaChart */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-lg">
@@ -5176,14 +5151,7 @@ function AnalyticsPage({ token }: { token: string }) {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="space-y-3">
-              {Array.from({ length: 7 }).map((_, i) => (
-                <div key={i} className="flex items-center gap-3">
-                  <Skeleton className="h-4 w-20" />
-                  <Skeleton className="h-8 flex-1" />
-                </div>
-              ))}
-            </div>
+            <Skeleton className="h-[240px] w-full rounded-lg" />
           ) : dailyTrends.length === 0 ? (
             <EmptyState
               icon={BarChart3}
@@ -5191,27 +5159,45 @@ function AnalyticsPage({ token }: { token: string }) {
               description="Revenue trend data will appear once journeys are completed."
             />
           ) : (
-            <div className="space-y-3">
-              {dailyTrends.map((d, i) => {
-                const pct = (d.revenue / maxRevenue) * 100;
-                return (
-                  <div key={i} className="flex items-center gap-3">
-                    <span className="w-24 shrink-0 text-sm text-muted-foreground">
-                      {formatDate(d.date)}
-                    </span>
-                    <div className="relative h-8 flex-1 overflow-hidden rounded-md bg-muted">
-                      <div
-                        className="h-full rounded-md bg-gradient-to-r from-emerald-400 to-emerald-500 transition-all duration-500"
-                        style={{ width: `${Math.max(pct, 2)}%` }}
-                      />
-                      <span className="absolute inset-0 flex items-center pl-2 text-xs font-medium text-white mix-blend-difference">
-                        ₹{d.revenue.toLocaleString()}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+            <ResponsiveContainer width="100%" height={240}>
+              <AreaChart data={dailyTrends} margin={{ top: 8, right: 16, left: 0, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="revenueAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#10b981" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#10b981" stopOpacity={0.03} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="4 4" stroke="currentColor" className="text-muted-foreground/20" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tickFormatter={(v: string) => formatDate(v)}
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+                  axisLine={false}
+                  tickLine={false}
+                  tickFormatter={(v: number) => `₹${(v / 1000).toFixed(0)}K`}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const d = payload[0].payload as { date: string; revenue: number; journeys: number };
+                    return (
+                      <div className="rounded-lg border bg-background px-3 py-2 shadow-lg">
+                        <p className="text-xs font-semibold text-foreground">{formatDate(d.date)}</p>
+                        <p className="text-sm text-emerald-600">₹{d.revenue.toLocaleString()}</p>
+                        <p className="text-xs text-muted-foreground">{d.journeys} journeys</p>
+                      </div>
+                    );
+                  }}
+                />
+                <Area type="monotone" dataKey="revenue" stroke="#10b981" strokeWidth={2} fill="url(#revenueAreaGrad)" dot={{ r: 3, fill: '#10b981', stroke: '#fff', strokeWidth: 2 }} activeDot={{ r: 5, fill: '#059669', stroke: '#fff', strokeWidth: 2 }} />
+              </AreaChart>
+            </ResponsiveContainer>
           )}
         </CardContent>
       </Card>
@@ -5933,7 +5919,7 @@ function AdminFooter() {
 }
 
 /* ================================================================== */
-/*  Users Management Page — with approve/reject                        */
+/*  Users Management Page — with approve/reject, pagination, details   */
 /* ================================================================== */
 function UsersPage({ token }: { token: string }) {
   const [users, setUsers] = useState<any[]>([]);
@@ -5942,6 +5928,11 @@ function UsersPage({ token }: { token: string }) {
   const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [updatingStatus, setUpdatingStatus] = useState(false);
+  const PAGE_SIZE = 20;
 
   const fetchUsers = useCallback(async () => {
     setLoading(true);
@@ -5964,6 +5955,9 @@ function UsersPage({ token }: { token: string }) {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => { setCurrentPage(1); }, [activeTab, searchTerm, roleFilter]);
+
   const handleApprove = async (userId: string, status: 'approved' | 'rejected') => {
     try {
       const res = await fetch('/api/auth', {
@@ -5978,8 +5972,37 @@ function UsersPage({ token }: { token: string }) {
       }
       toast({ title: `User ${status}`, description: `User has been ${status} successfully.` });
       fetchUsers();
+      // Update selected user if dialog is open
+      if (selectedUser?.id === userId) {
+        setSelectedUser({ ...selectedUser, approvalStatus: status });
+      }
     } catch {
       toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
+    }
+  };
+
+  const handlePatchStatus = async (userId: string, approvalStatus: string) => {
+    setUpdatingStatus(true);
+    try {
+      const res = await fetch('/api/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, approvalStatus }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'Status Updated', description: `User approval status changed to ${approvalStatus}.` });
+      fetchUsers();
+      if (selectedUser?.id === userId) {
+        setSelectedUser({ ...selectedUser, approvalStatus });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
+    } finally {
+      setUpdatingStatus(false);
     }
   };
 
@@ -5998,6 +6021,10 @@ function UsersPage({ token }: { token: string }) {
       }
       toast({ title: 'User Deleted', description: `${userName} has been removed.` });
       fetchUsers();
+      if (selectedUser?.id === userId) {
+        setDetailsOpen(false);
+        setSelectedUser(null);
+      }
     } catch {
       toast({ title: 'Error', description: 'Failed to delete user', variant: 'destructive' });
     }
@@ -6008,6 +6035,14 @@ function UsersPage({ token }: { token: string }) {
     const matchRole = roleFilter === 'all' || u.role === roleFilter;
     return matchSearch && matchRole;
   });
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const paginatedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const handleOpenDetails = (user: any) => {
+    setSelectedUser(user);
+    setDetailsOpen(true);
+  };
 
   const statusBadge = (status: string) => {
     const styles: Record<string, string> = {
@@ -6027,6 +6062,14 @@ function UsersPage({ token }: { token: string }) {
     };
     return styles[role] || '';
   };
+
+  const rolePills = [
+    { key: 'all', label: 'All', icon: Users },
+    { key: 'admin', label: 'Admin', icon: Shield },
+    { key: 'driver', label: 'Driver', icon: Bus },
+    { key: 'conductor', label: 'Conductor', icon: UserCheck },
+    { key: 'customer', label: 'Customer', icon: Users },
+  ];
 
   return (
     <div className="space-y-6">
@@ -6071,19 +6114,19 @@ function UsersPage({ token }: { token: string }) {
           <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Users</p>
           <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">{users.length}</p>
         </div>
-        <div className="rounded-xl p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
-          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">Drivers</p>
-          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">{users.filter(u => u.role === 'driver').length}</p>
+        <div className="rounded-xl p-4 bg-gradient-to-br from-rose-50 to-rose-100/50 dark:from-rose-950/30 dark:to-rose-900/10 border border-rose-200/50 dark:border-rose-800/30">
+          <p className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wider">Admins</p>
+          <p className="text-2xl font-bold text-rose-700 dark:text-rose-300 mt-1">{users.filter(u => u.role === 'admin').length}</p>
         </div>
-        <div className="rounded-xl p-4 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-950/30 dark:to-teal-900/10 border border-teal-200/50 dark:border-teal-800/30">
-          <p className="text-xs font-medium text-teal-600 dark:text-teal-400 uppercase tracking-wider">Conductors</p>
-          <p className="text-2xl font-bold text-teal-700 dark:text-teal-300 mt-1">{users.filter(u => u.role === 'conductor').length}</p>
+        <div className="rounded-xl p-4 bg-gradient-to-br from-sky-50 to-sky-100/50 dark:from-sky-950/30 dark:to-sky-900/10 border border-sky-200/50 dark:border-sky-800/30">
+          <p className="text-xs font-medium text-sky-600 dark:text-sky-400 uppercase tracking-wider">Customers</p>
+          <p className="text-2xl font-bold text-sky-700 dark:text-sky-300 mt-1">{users.filter(u => u.role === 'customer').length}</p>
         </div>
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
+      {/* Search + Role Filter Pills */}
+      <div className="space-y-3">
+        <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
@@ -6093,17 +6136,26 @@ function UsersPage({ token }: { token: string }) {
             className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
         </div>
-        <select
-          value={roleFilter}
-          onChange={e => setRoleFilter(e.target.value)}
-          className="px-4 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
-        >
-          <option value="all">All Roles</option>
-          <option value="admin">Admin</option>
-          <option value="driver">Driver</option>
-          <option value="conductor">Conductor</option>
-          <option value="customer">Customer</option>
-        </select>
+        <div className="flex flex-wrap gap-2">
+          {rolePills.map(pill => {
+            const PillIcon = pill.icon;
+            const isActive = roleFilter === pill.key;
+            return (
+              <button
+                key={pill.key}
+                onClick={() => setRoleFilter(pill.key)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-all border ${
+                  isActive
+                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:bg-muted'
+                }`}
+              >
+                <PillIcon className="w-3 h-3" />
+                {pill.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* User Table */}
@@ -6131,8 +6183,12 @@ function UsersPage({ token }: { token: string }) {
                   {activeTab === 'pending' ? 'No pending approvals' : 'No users found'}
                 </td></tr>
               ) : (
-                filteredUsers.map(u => (
-                  <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                paginatedUsers.map(u => (
+                  <tr
+                    key={u.id}
+                    className="hover:bg-muted/30 transition-colors cursor-pointer"
+                    onClick={() => handleOpenDetails(u)}
+                  >
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
@@ -6157,8 +6213,14 @@ function UsersPage({ token }: { token: string }) {
                     <td className="px-4 py-3">
                       <p className="text-xs text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</p>
                     </td>
-                    <td className="px-4 py-3">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-2">
+                        <button
+                          onClick={() => handleOpenDetails(u)}
+                          className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-medium rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          <Eye className="w-3.5 h-3.5" /> View
+                        </button>
                         {u.approvalStatus === 'pending' && (
                           <>
                             <button onClick={() => handleApprove(u.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
@@ -6169,11 +6231,6 @@ function UsersPage({ token }: { token: string }) {
                             </button>
                           </>
                         )}
-                        {u.role !== 'admin' && (
-                          <button onClick={() => handleDelete(u.id, u.name)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-medium rounded-lg transition-colors">
-                            Delete
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -6182,7 +6239,153 @@ function UsersPage({ token }: { token: string }) {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination */}
+        {filteredUsers.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/20">
+            <p className="text-xs text-muted-foreground">
+              Showing {(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)} of {filteredUsers.length} users
+            </p>
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="p-1.5 rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              {Array.from({ length: totalPages }, (_, i) => i + 1)
+                .filter(page => page === 1 || page === totalPages || Math.abs(page - currentPage) <= 1)
+                .reduce<(number | string)[]>((acc, page, idx, arr) => {
+                  if (idx > 0 && page - (arr[idx - 1] as number) > 1) {
+                    acc.push('...');
+                  }
+                  acc.push(page);
+                  return acc;
+                }, [])
+                .map((item, idx) =>
+                  typeof item === 'string' ? (
+                    <span key={`dots-${idx}`} className="px-1 text-xs text-muted-foreground">...</span>
+                  ) : (
+                    <button
+                      key={item}
+                      onClick={() => setCurrentPage(item)}
+                      className={`w-8 h-8 rounded-md text-xs font-medium transition-colors ${
+                        currentPage === item
+                          ? 'bg-primary text-primary-foreground'
+                          : 'hover:bg-muted text-muted-foreground'
+                      }`}
+                    >
+                      {item}
+                    </button>
+                  )
+                )}
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="p-1.5 rounded-md hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* User Details Dialog */}
+      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
+                {(selectedUser?.name || 'U').charAt(0).toUpperCase()}
+              </div>
+              <div>
+                <p>{selectedUser?.name || 'Unknown'}</p>
+                <p className="text-sm font-normal text-muted-foreground">{selectedUser?.email || ''}</p>
+              </div>
+            </DialogTitle>
+            <DialogDescription>View and manage user details</DialogDescription>
+          </DialogHeader>
+          {selectedUser && (
+            <div className="space-y-4">
+              {/* Role & Status */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${roleBadge(selectedUser.role)}`}>
+                  {selectedUser.role}
+                </span>
+                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusBadge(selectedUser.approvalStatus)}`}>
+                  {selectedUser.approvalStatus || 'approved'}
+                </span>
+              </div>
+
+              {/* Details Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-lg border p-3 space-y-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Joined</p>
+                  <p className="text-sm font-medium">{selectedUser.createdAt ? formatDateTime(selectedUser.createdAt) : '—'}</p>
+                </div>
+                <div className="rounded-lg border p-3 space-y-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Phone</p>
+                  <p className="text-sm font-medium">{selectedUser.phone || 'Not set'}</p>
+                </div>
+                <div className="rounded-lg border p-3 space-y-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">User ID</p>
+                  <p className="text-xs font-mono text-muted-foreground truncate">{selectedUser.id}</p>
+                </div>
+                <div className="rounded-lg border p-3 space-y-1">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-medium">Role</p>
+                  <p className="text-sm font-medium capitalize">{selectedUser.role}</p>
+                </div>
+              </div>
+
+              {/* Status Actions */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Change Approval Status</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePatchStatus(selectedUser.id, 'approved')}
+                    disabled={updatingStatus || selectedUser.approvalStatus === 'approved'}
+                    className="flex-1 px-3 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-200 dark:disabled:bg-emerald-900 disabled:text-emerald-400 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                  </button>
+                  <button
+                    onClick={() => handlePatchStatus(selectedUser.id, 'pending')}
+                    disabled={updatingStatus || selectedUser.approvalStatus === 'pending'}
+                    className="flex-1 px-3 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-200 dark:disabled:bg-amber-900 disabled:text-amber-400 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <Clock className="w-3.5 h-3.5" /> Reset to Pending
+                  </button>
+                  <button
+                    onClick={() => handlePatchStatus(selectedUser.id, 'rejected')}
+                    disabled={updatingStatus || selectedUser.approvalStatus === 'rejected'}
+                    className="flex-1 px-3 py-2 bg-red-500 hover:bg-red-600 disabled:bg-red-200 dark:disabled:bg-red-900 disabled:text-red-400 text-white text-xs font-medium rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <XCircle className="w-3.5 h-3.5" /> Reject
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            {selectedUser?.role !== 'admin' && (
+              <button
+                onClick={() => { if (selectedUser) handleDelete(selectedUser.id, selectedUser.name); }}
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1.5"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Delete User
+              </button>
+            )}
+            <button
+              onClick={() => setDetailsOpen(false)}
+              className="px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-medium rounded-lg transition-colors"
+            >
+              Close
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

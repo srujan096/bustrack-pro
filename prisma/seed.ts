@@ -761,7 +761,62 @@ async function main() {
   }
   console.log("✅ Holiday requests created");
 
-  // 13. Generate CREDENTIALS.txt
+  // 13. Create support tickets for first customer
+  const firstCustomer = customerProfiles[0];
+  const supportTickets = [
+    {
+      userId: firstCustomer.id,
+      title: 'Bus arrived 30 minutes late on Route KIA-001',
+      description: 'The bus from Majestic to Koramangala was scheduled for 8:30 AM but arrived at 9:00 AM. This caused me to miss an important meeting at work. The driver did not provide any prior notification about the delay via the app or on-board announcement.',
+      category: 'complaint',
+      status: 'open',
+      priority: 'high',
+      createdAt: new Date(Date.now() - 86400000),
+    },
+    {
+      userId: firstCustomer.id,
+      title: 'Refund not processed for cancelled ticket',
+      description: 'I cancelled my booking due to a schedule change on the evening service. The refund of ₹350 was supposed to be processed within 3-5 business days but has not been credited to my account yet. Booking reference: BK-4521.',
+      category: 'refund',
+      status: 'in_progress',
+      priority: 'normal',
+      createdAt: new Date(Date.now() - 5 * 86400000),
+    },
+    {
+      userId: firstCustomer.id,
+      title: 'AC not working on KIA-003 evening service',
+      description: 'The air conditioning was not functioning on the 6:00 PM service from HSR Layout to Electronic City. The bus was extremely hot and uncomfortable for the entire 45-minute journey. This is the third time this week.',
+      category: 'complaint',
+      status: 'resolved',
+      priority: 'high',
+      createdAt: new Date(Date.now() - 8 * 86400000),
+    },
+    {
+      userId: firstCustomer.id,
+      title: 'Unable to book seat for tomorrow morning route',
+      description: 'When trying to book a ticket for the 7:30 AM route from Whitefield to ITPL for tomorrow, the app shows "No seats available" but the live tracker shows the bus as empty. The booking keeps failing at the payment step.',
+      category: 'general',
+      status: 'open',
+      priority: 'normal',
+      createdAt: new Date(Date.now() - 1 * 86400000),
+    },
+    {
+      userId: firstCustomer.id,
+      title: 'Add digital season pass for monthly commuters',
+      description: 'It would be great if BusTrack could introduce a digital monthly season pass that works across all routes in Bangalore. Currently I spend nearly ₹3,500 every month on daily tickets and a pass would save both money and time.',
+      category: 'suggestion',
+      status: 'open',
+      priority: 'low',
+      createdAt: new Date(Date.now() - 3 * 86400000),
+    },
+  ];
+
+  for (const st of supportTickets) {
+    await db.supportTicket.create({ data: st });
+  }
+  console.log(`✅ ${supportTickets.length} support tickets created`);
+
+  // 14. Generate CREDENTIALS.txt
   const allProfiles = await db.profile.findMany({
     orderBy: [{ role: 'asc' }, { id: 'asc' }],
     select: { id: true, email: true, name: true, role: true }

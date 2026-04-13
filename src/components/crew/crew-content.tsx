@@ -2,6 +2,9 @@
 
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Cell,
+} from 'recharts';
+import {
   Card,
   CardContent,
   CardDescription,
@@ -404,8 +407,9 @@ function DailySummaryReport({ crewName }: { crewName: string }) {
 
 // ──────────────────────────── Shift Handover Notes ────────────────────────────
 
-function ShiftHandoverNotes({ crewName }: { crewName: string }) {
+function ShiftHandoverNotes({ crewName, crewId }: { crewName: string; crewId?: string }) {
   const storageKey = `bt_handover_notes_${crewName}`;
+  const today = getTodayStr();
   const [note, setNote] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey);
@@ -431,8 +435,33 @@ function ShiftHandoverNotes({ crewName }: { crewName: string }) {
     return null;
   });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(() => !!crewId);
 
   const MAX_CHARS = 1000;
+
+  // Fetch note from API on mount, fall back to localStorage
+  useEffect(() => {
+    if (!crewId || !loading) return;
+    fetch(`/api/crew-notes?crewId=${crewId}&date=${today}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.note?.content) {
+          setNote(data.note.content);
+          const ts = new Date(data.note.updatedAt).toLocaleString();
+          setLastSaved(ts);
+          // Also update localStorage as backup
+          try {
+            localStorage.setItem(storageKey, JSON.stringify({ note: data.note.content, timestamp: ts }));
+          } catch {
+            // ignore
+          }
+        }
+      })
+      .catch(() => {
+        // Fall back to localStorage (already loaded)
+      })
+      .finally(() => setLoading(false));
+  }, [crewId, today, storageKey, loading]);
 
   const handleSave = () => {
     if (!note.trim()) {
@@ -441,14 +470,35 @@ function ShiftHandoverNotes({ crewName }: { crewName: string }) {
     }
     setSaving(true);
     const timestamp = new Date().toLocaleString();
+
+    // Save to localStorage immediately
     try {
       localStorage.setItem(storageKey, JSON.stringify({ note, timestamp }));
-      setLastSaved(timestamp);
-      toast({ title: 'Note saved!', description: `Handover note saved at ${timestamp}` });
     } catch {
-      toast({ title: 'Save failed', description: 'Could not save to local storage.', variant: 'destructive' });
+      // ignore
     }
-    setSaving(false);
+
+    // Also persist to API if crewId is available
+    const apiPromise = crewId
+      ? fetch('/api/crew-notes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ crewId, date: today, content: note }),
+        })
+          .then((res) => res.json())
+          .catch(() => null)
+      : Promise.resolve(null);
+
+    apiPromise
+      .then(() => {
+        setLastSaved(timestamp);
+        toast({ title: 'Note saved!', description: `Handover note saved at ${timestamp}` });
+      })
+      .catch(() => {
+        setLastSaved(timestamp);
+        toast({ title: 'Note saved locally', description: 'Saved to device. Server sync failed.', variant: 'destructive' });
+      })
+      .finally(() => setSaving(false));
   };
 
   const handleClear = () => {
@@ -459,6 +509,23 @@ function ShiftHandoverNotes({ crewName }: { crewName: string }) {
     } catch {
       // ignore
     }
+
+    // Also clear from API
+    if (crewId) {
+      fetch(`/api/crew-notes?crewId=${crewId}&date=${today}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.note?.id) {
+            fetch('/api/crew-notes', {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: data.note.id, content: '' }),
+            }).catch(() => {});
+          }
+        })
+        .catch(() => {});
+    }
+
     toast({ title: 'Note cleared', description: 'Handover note has been removed.' });
   };
 
@@ -1748,17 +1815,40 @@ function Moon({ className }: { className?: string }) {
 
 // ──────────────────────────── Reusable Visual Components ────────────────────────────
 
+const HoursTooltip = ({ active, payload, label }: any) => {
+  if (!active || !payload?.length) return null;
+  const val = payload[0].value as number;
+  const status = val <= 8 ? 'Within target' : val <= 9 ? 'Slightly over' : 'Over target';
+  const color = val <= 8 ? '#10b981' : val <= 9 ? '#f59e0b' : '#ef4444';
+  return (
+    <div className="rounded-lg border bg-background px-3 py-2 shadow-lg">
+      <p className="text-xs font-semibold text-foreground">{label}</p>
+      <p className="text-sm font-bold" style={{ color }}>{val.toFixed(1)}h</p>
+      <p className="text-xs text-muted-foreground">{status} (target: 8h)</p>
+    </div>
+  );
+};
+
+const HoursBarLabel = (props: any) => {
+  const { x, y, width, value } = props;
+  return (
+    <text x={x + width + 3} y={y + 4} textAnchor="start" className="fill-foreground text-[10px] font-bold">
+      {value.toFixed(1)}h
+    </text>
+  );
+};
+
 function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
   const hours = useMemo(() => getWeeklyHours(crewName), [crewName]);
   const totalHours = hours.reduce((sum, h) => sum + h, 0);
   const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const maxHours = 10;
-  const barHeight = 22;
-  const barGap = 8;
-  const chartWidth = 100;
-  const labelWidth = 32;
-  const valueWidth = 36;
-  const totalChartHeight = (barHeight + barGap) * 7 - barGap;
+  const data = dayLabels.map((day, i) => ({ day, hours: hours[i] }));
+
+  const getBarColorHex = (h: number) => {
+    if (h <= 8) return '#10b981';
+    if (h <= 9) return '#f59e0b';
+    return '#ef4444';
+  };
 
   return (
     <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
@@ -1780,40 +1870,33 @@ function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
         </div>
       </CardHeader>
       <CardContent>
-        <svg viewBox={`0 0 ${chartWidth} ${totalChartHeight}`} className="w-full" preserveAspectRatio="xMidYMid meet">
-          {hours.map((h, i) => {
-            const y = i * (barHeight + barGap);
-            const barWidth = (h / maxHours) * (chartWidth - labelWidth - valueWidth);
-            return (
-              <g key={dayLabels[i]}>
-                <text
-                  x={0}
-                  y={y + barHeight / 2 + 4}
-                  className="fill-gray-500 text-[7px] font-semibold"
-                  textAnchor="start"
-                >
-                  {dayLabels[i]}
-                </text>
-                <rect
-                  x={labelWidth}
-                  y={y}
-                  width={Math.max(barWidth, 2)}
-                  height={barHeight}
-                  rx={4}
-                  className={getBarColor(h)}
-                  opacity={0.9}
-                />
-                <text
-                  x={labelWidth + Math.max(barWidth, 2) + 3}
-                  y={y + barHeight / 2 + 3.5}
-                  className={`fill-gray-700 text-[6.5px] font-bold`}
-                >
-                  {h.toFixed(1)}h
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+        <ResponsiveContainer width="100%" height={280}>
+          <BarChart data={data} layout="vertical" margin={{ top: 4, right: 36, left: 4, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="4 4" stroke="currentColor" className="text-muted-foreground/20" horizontal={false} />
+            <XAxis
+              type="number"
+              domain={[0, 10]}
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
+              axisLine={false}
+              tickLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="day"
+              tick={{ fontSize: 12, fill: 'hsl(var(--muted-foreground))' }}
+              axisLine={false}
+              tickLine={false}
+              width={36}
+            />
+            <Tooltip content={<HoursTooltip />} cursor={{ fill: 'hsl(var(--muted-foreground) / 0.05)' }} />
+            <ReferenceLine x={8} stroke="#f59e0b" strokeDasharray="6 3" strokeWidth={1.5} label={{ value: '8h target', position: 'top', fill: '#f59e0b', fontSize: 11 }} />
+            <Bar dataKey="hours" radius={[0, 6, 6, 0]} label={<HoursBarLabel />} >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={getBarColorHex(entry.hours)} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
         {/* Legend */}
         <div className="mt-3 flex flex-wrap gap-4 text-xs text-gray-500">
           <div className="flex items-center gap-1.5">
@@ -3232,7 +3315,7 @@ function DashboardPage({
       <DailySummaryReport crewName={crewProfile?.profile?.name || ''} />
 
       {/* Shift Handover Notes */}
-      <ShiftHandoverNotes crewName={crewProfile?.profile?.name || ''} />
+      <ShiftHandoverNotes crewName={crewProfile?.profile?.name || ''} crewId={crewProfile?.id || undefined} />
 
       {/* Route Performance */}
       {crewProfile && (
