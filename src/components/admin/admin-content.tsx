@@ -3601,7 +3601,7 @@ function RouteFormDialog({
   const [distanceKm, setDistanceKm] = useState(() => String(editingRoute?.distanceKm ?? ''));
   const [durationMin, setDurationMin] = useState(() => String(editingRoute?.durationMin ?? ''));
   const [fare, setFare] = useState(() => String(editingRoute?.fare ?? ''));
-  const [startTime, setStartTime] = useState(() => editingRoute?.startTime ?? '06:00');
+  const [startTime, setStartTime] = useState(() => editingRoute?.startTime ?? '05:00');
   const [endTime, setEndTime] = useState(() => editingRoute?.endTime ?? '22:00');
   const [frequencyMinutes, setFrequencyMinutes] = useState(() => String(editingRoute?.frequencyMinutes ?? '60'));
   const [trafficLevel, setTrafficLevel] = useState(() => editingRoute?.trafficLevel ?? 'Medium');
@@ -4167,6 +4167,49 @@ function SchedulesPage({ token }: { token: string }) {
               </Button>
               <Button variant={timelineView ? 'default' : 'outline'} size="sm" onClick={() => setTimelineView(true)}>
                 <LayoutList className="size-3.5 mr-1" /> Timeline
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                try {
+                  const csvHeader = 'Route Number,Date,Departure Time,Status,Bus Registration\n';
+                  const csvRows = schedules.map((s: any) =>
+                    `${s.route?.routeNumber ?? s.routeNumber ?? ''},${s.date ?? selectedDate},${s.departureTime ?? s.time ?? ''},${s.status ?? ''},${s.route?.busRegistration ?? s.busNumber ?? ''}`
+                  ).join('\n');
+                  const blob = new Blob([csvHeader + csvRows], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `schedules_${selectedDate}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: 'Export Successful', description: `Exported ${schedules.length} schedules as CSV` });
+                } catch {
+                  toast({ title: 'Export Failed', description: 'Could not generate CSV file', variant: 'destructive' });
+                }
+              }}>
+                <Download className="size-3.5 mr-1" /> Export CSV
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => {
+                try {
+                  const jsonData = schedules.map((s: any) => ({
+                    routeNumber: s.route?.routeNumber ?? s.routeNumber ?? '',
+                    date: s.date ?? selectedDate,
+                    departureTime: s.departureTime ?? s.time ?? '',
+                    status: s.status ?? '',
+                    busRegistration: s.route?.busRegistration ?? s.busNumber ?? '',
+                  }));
+                  const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `schedules_${selectedDate}.json`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast({ title: 'Export Successful', description: `Exported ${schedules.length} schedules as JSON` });
+                } catch {
+                  toast({ title: 'Export Failed', description: 'Could not generate JSON file', variant: 'destructive' });
+                }
+              }}>
+                <Download className="size-3.5 mr-1" /> Export JSON
               </Button>
               <Button onClick={handleGenerate} disabled={generating} className="btn-press bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700">
                 {generating ? (
@@ -6657,6 +6700,172 @@ function UsersPage({ token }: { token: string }) {
 }
 
 /* ================================================================== */
+/*  Page: Approve IDs                                                  */
+/* ================================================================== */
+function ApproveIDsPage({ token }: { token: string }) {
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [processing, setProcessing] = useState<string | null>(null);
+
+  const fetchPendingUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const data = await apiFetch<any>('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'pendingUsers', token }),
+      });
+      setPendingUsers(Array.isArray(data.users) ? data.users : []);
+    } catch {
+      setPendingUsers([]);
+      toast({ title: 'Error', description: 'Failed to fetch pending users', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchPendingUsers();
+  }, [fetchPendingUsers]);
+
+  const handleApprove = async (userId: string, userName: string) => {
+    setProcessing(userId);
+    try {
+      await apiFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'approveUser', token, userId, status: 'approved' }),
+      });
+      toast({ title: 'Approved', description: `${userName} has been approved successfully` });
+      fetchPendingUsers();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: `Failed to approve: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const handleReject = async (userId: string, userName: string) => {
+    setProcessing(userId);
+    try {
+      await apiFetch('/api/auth', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'approveUser', token, userId, status: 'rejected' }),
+      });
+      toast({ title: 'Rejected', description: `${userName} has been rejected`, variant: 'destructive' });
+      fetchPendingUsers();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: `Failed to reject: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
+    } finally {
+      setProcessing(null);
+    }
+  };
+
+  const roleBadgeClass = (role: string) => {
+    switch (role) {
+      case 'admin': return 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300 border-red-200 dark:border-red-800';
+      case 'driver': return 'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300 border-amber-200 dark:border-amber-800';
+      case 'conductor': return 'bg-teal-100 text-teal-700 dark:bg-teal-950/40 dark:text-teal-300 border-teal-200 dark:border-teal-800';
+      default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Shield className="size-5" /> Approve IDs
+                {pendingUsers.length > 0 && (
+                  <Badge className="bg-amber-500 text-white ml-1">{pendingUsers.length} pending</Badge>
+                )}
+              </CardTitle>
+              <CardDescription>Review and approve or reject new user registrations</CardDescription>
+            </div>
+            <Button variant="outline" size="sm" onClick={fetchPendingUsers} disabled={loading}>
+              <RotateCcw className={`size-3.5 mr-1.5 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading ? (
+            <TableSkeletonShimmer rows={3} cols={5} />
+          ) : pendingUsers.length === 0 ? (
+            <EmptyState
+              icon={CheckCircle2}
+              title="All Caught Up!"
+              description="No pending user approvals. New registrations will appear here."
+            />
+          ) : (
+            <div className="max-h-[500px] overflow-y-auto rounded-md border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Registration Date</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {pendingUsers.map((u: any, idx: number) => (
+                    <TableRow key={u.id} className={`${idx % 2 === 0 ? '' : 'bg-muted/30'} hover:bg-muted/50 hover:shadow-[inset_3px_0_0_#10b981] transition-all`}>
+                      <TableCell className="font-medium">{u.name ?? '—'}</TableCell>
+                      <TableCell className="text-muted-foreground">{u.email ?? '—'}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={`text-xs ${roleBadgeClass(u.role)}`}>
+                          {u.role ? u.role.charAt(0).toUpperCase() + u.role.slice(1) : '—'}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">
+                        {u.createdAt ? formatDateTime(u.createdAt) : '—'}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            size="sm"
+                            className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 h-7"
+                            disabled={processing === u.id}
+                            onClick={() => handleApprove(u.id, u.name ?? 'User')}
+                          >
+                            {processing === u.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <CheckCircle2 className="size-3.5" />
+                            )}
+                            Approve
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            className="text-xs gap-1 h-7"
+                            disabled={processing === u.id}
+                            onClick={() => handleReject(u.id, u.name ?? 'User')}
+                          >
+                            {processing === u.id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <XCircle className="size-3.5" />
+                            )}
+                            Reject
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  Main Export                                                        */
 /* ================================================================== */
 export default function AdminContent({ portal, userId, token, setPortal }: Props) {
@@ -6701,6 +6910,8 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
         return <DashboardPage token={token} setPortal={setPortal} />;
       case 'users':
         return <UsersPage token={token} />;
+      case 'approve':
+        return <ApproveIDsPage token={token} />;
       case 'routes':
         return <RoutesPage token={token} />;
       case 'schedules':

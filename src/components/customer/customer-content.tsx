@@ -2532,9 +2532,11 @@ function LoyaltyRewardsPanel() {
 function Dashboard({
   userId,
   setPortal,
+  onNavigateToSearch,
 }: {
   userId: string;
   setPortal: (p: string) => void;
+  onNavigateToSearch: (from?: string, to?: string) => void;
 }) {
   const [stats, setStats] = useState<SpendingStats | null>(null);
   const [recentJourneys, setRecentJourneys] = useState<Journey[]>([]);
@@ -2593,8 +2595,8 @@ function Dashboard({
   if (loading) return <DashboardSkeleton />;
   if (error) {
     return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="py-8 text-center text-red-600">
+      <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
+        <CardContent className="py-8 text-center text-red-600 dark:text-red-400">
           <p className="font-medium">Failed to load dashboard</p>
           <p className="mt-1 text-sm">{error}</p>
         </CardContent>
@@ -2694,7 +2696,7 @@ function Dashboard({
           title: 'Searching Routes...',
           description: `Finding routes from ${from} to ${to}`,
         });
-        setPortal('search');
+        handleNavigateToSearch(from, to);
       }} />
 
       {/* Recent Searches */}
@@ -2703,7 +2705,7 @@ function Dashboard({
           title: 'Searching Routes...',
           description: `Finding routes from ${from} to ${to}`,
         });
-        setPortal('search');
+        handleNavigateToSearch(from, to);
       }} />
 
       {/* Commute Statistics + Travel Tips */}
@@ -2720,7 +2722,7 @@ function Dashboard({
           title: 'Searching Routes...',
           description: `Finding routes from ${from} to ${to}`,
         });
-        setPortal('search');
+        handleNavigateToSearch(from, to);
       }} />
 
       {/* Trip Planner */}
@@ -2820,7 +2822,7 @@ function Dashboard({
               <Button
                 variant="outline"
                 className="mt-4"
-                onClick={() => setPortal('search')}
+                onClick={() => handleNavigateToSearch()}
               >
                 <Search className="size-4" />
                 Find Routes
@@ -2865,7 +2867,7 @@ function Dashboard({
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card
           className="group cursor-pointer border-dashed border-2 hover:border-primary/50 hover:bg-primary/5 transition-all"
-          onClick={() => setPortal('search')}
+          onClick={() => handleNavigateToSearch()}
         >
           <CardContent className="flex items-center justify-between py-6">
             <div className="flex items-center gap-3">
@@ -3113,8 +3115,16 @@ function SmartRouteSuggestions({ onSelect }: { onSelect: (route: { from: string;
 
 function SearchRoutes({
   userId,
+  token,
+  initialFrom,
+  initialTo,
+  onInitialSearchApplied,
 }: {
   userId: string;
+  token: string;
+  initialFrom?: string;
+  initialTo?: string;
+  onInitialSearchApplied?: () => void;
 }) {
   const [locations, setLocations] = useState<string[]>([]);
   const [allRoutes, setAllRoutes] = useState<RouteResult[]>([]);
@@ -3230,6 +3240,36 @@ function SearchRoutes({
     fetchLocations();
   }, []);
 
+  // Apply initial search params from dashboard navigation (e.g., Quick Book)
+  const initialSearchApplied = useRef(false);
+  useEffect(() => {
+    if (initialFrom && initialTo && !initialSearchApplied.current && locations.length > 0) {
+      initialSearchApplied.current = true;
+      setStartLocation(initialFrom);
+      setEndLocation(initialTo);
+      onInitialSearchApplied?.();
+    }
+  }, [initialFrom, initialTo, locations.length, onInitialSearchApplied]);
+
+  // Auto-trigger search when initial values are applied
+  const prevStartRef = useRef(startLocation);
+  const prevEndRef = useRef(endLocation);
+  useEffect(() => {
+    if (
+      initialSearchApplied.current &&
+      prevStartRef.current === '' && startLocation !== '' &&
+      prevEndRef.current === '' && endLocation !== ''
+    ) {
+      // Values were just set by the initial search effect, trigger search
+      const timer = setTimeout(() => {
+        handleSearchRef.current?.();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+    prevStartRef.current = startLocation;
+    prevEndRef.current = endLocation;
+  }, [startLocation, endLocation]);
+
   const popularRoutes = useMemo(() => {
     // Take top 5 routes sorted by fare (cheapest popular routes)
     return [...allRoutes].sort((a, b) => (a.fare ?? 0) - (b.fare ?? 0)).slice(0, 5);
@@ -3268,6 +3308,10 @@ function SearchRoutes({
     }
   }, [startLocation, endLocation, city]);
 
+  // Ref for auto-trigger
+  const handleSearchRef = useRef(handleSearch);
+  handleSearchRef.current = handleSearch;
+
   const handleBook = useCallback(async (route: RouteResult, seats?: string[]) => {
     try {
       setBookingId(route.id);
@@ -3287,6 +3331,7 @@ function SearchRoutes({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'book',
+          token,
           customerId: userId,
           routeId: route.id,
           scheduleId: schedule.id,
@@ -4310,8 +4355,8 @@ function RouteMapView() {
 
   if (error && routes.length === 0) {
     return (
-      <Card className="border-red-200 bg-red-50">
-        <CardContent className="py-8 text-center text-red-600">
+      <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
+        <CardContent className="py-8 text-center text-red-600 dark:text-red-400">
           <p className="font-medium">Failed to load route map</p>
           <p className="mt-1 text-sm">{error}</p>
         </CardContent>
@@ -4746,7 +4791,7 @@ function BookingStatusTimeline({ status }: { status: string | undefined }) {
 
 // ─── My Bookings ─────────────────────────────────────────────────────────────
 
-function MyBookings({ userId, setPortal }: { userId: string; setPortal?: (p: string) => void }) {
+function MyBookings({ userId, token, setPortal }: { userId: string; token: string; setPortal?: (p: string) => void }) {
   const [bookings, setBookings] = useState<Journey[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -4775,7 +4820,7 @@ function MyBookings({ userId, setPortal }: { userId: string; setPortal?: (p: str
       const res = await fetch('/api/journeys', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'cancel', id: journey.id }),
+        body: JSON.stringify({ action: 'cancel', token, id: journey.id }),
       });
       if (!res.ok) throw new Error('Cancellation failed');
       setBookings(prev => prev.filter(j => j.id !== journey.id));
@@ -5174,7 +5219,7 @@ function TravelInsights({ userId, journeys }: { userId: string; journeys: Journe
 
 // ─── Journey History ─────────────────────────────────────────────────────────
 
-function JourneyHistory({ userId }: { userId: string }) {
+function JourneyHistory({ userId, token }: { userId: string; token: string }) {
   const [journeys, setJourneys] = useState<Journey[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -5252,6 +5297,7 @@ function JourneyHistory({ userId }: { userId: string }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'rate',
+          token,
           id: journeyId,
           rating,
           feedback: feedbacks[journeyId] ?? '',
@@ -5858,7 +5904,7 @@ const FAQ_ITEMS = [
   },
 ];
 
-function SupportPage({ userId }: { userId: string }) {
+function SupportPage({ userId, token }: { userId: string; token: string }) {
   // SupportTicket Interface (matches DB model)
   interface SupportTicket {
     id: string;
@@ -5996,6 +6042,7 @@ function SupportPage({ userId }: { userId: string }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          token,
           userId,
           title: newTicket.title.trim(),
           description: newTicket.description.trim(),
@@ -6900,9 +6947,22 @@ function RouteComparisonDialog({
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function CustomerContent({ portal, userId, token, setPortal }: Props) {
-  // token is available if needed for authorized requests
-  const _token = token;
-  void _token;
+  // Track pending search params from dashboard quick actions
+  const [pendingSearch, setPendingSearch] = React.useState<{ from: string; to: string } | null>(null);
+
+  const handleNavigateToSearch = React.useCallback((from?: string, to?: string) => {
+    if (from && to) {
+      setPendingSearch({ from, to });
+    } else {
+      setPendingSearch(null);
+    }
+    setPortal('search');
+  }, [setPortal]);
+
+  // Clear pending search once consumed
+  const handleSearchConsumed = React.useCallback(() => {
+    setPendingSearch(null);
+  }, []);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6 p-4 md:p-6 lg:p-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -6927,12 +6987,12 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
       </div>
 
       {/* Content */}
-      {portal === 'dashboard' && <Dashboard userId={userId} setPortal={setPortal} />}
-      {portal === 'search' && <SearchRoutes userId={userId} />}
+      {portal === 'dashboard' && <Dashboard userId={userId} setPortal={setPortal} onNavigateToSearch={handleNavigateToSearch} />}
+      {portal === 'search' && <SearchRoutes userId={userId} token={token} initialFrom={pendingSearch?.from} initialTo={pendingSearch?.to} onInitialSearchApplied={handleSearchConsumed} />}
       {portal === 'map' && <RouteMapView />}
-      {portal === 'bookings' && <MyBookings userId={userId} setPortal={setPortal} />}
-      {portal === 'history' && <JourneyHistory userId={userId} />}
-      {portal === 'support' && <SupportPage userId={userId} />}
+      {portal === 'bookings' && <MyBookings userId={userId} token={token} setPortal={setPortal} />}
+      {portal === 'history' && <JourneyHistory userId={userId} token={token} />}
+      {portal === 'support' && <SupportPage userId={userId} token={token} />}
     </div>
   );
 }

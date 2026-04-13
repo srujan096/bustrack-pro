@@ -68,7 +68,7 @@ model Route {
   fare                 Float    @default(0)
   trafficLevel         String   @default("low") // low, medium, high
   autoScheduleEnabled  Boolean  @default(false)
-  startTime            String   @default("06:00")
+  startTime            String   @default("05:00")
   endTime              String   @default("22:00")
   frequencyMinutes     Int      @default(30)
   busRegistration      String   @default("")

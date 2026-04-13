@@ -229,19 +229,19 @@ function isThisWeek(dateStr: string): boolean {
 function getStatusColor(status: string): string {
   switch (status) {
     case 'pending':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700';
     case 'accepted':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700';
     case 'declined':
-      return 'bg-red-100 text-red-800 border-red-300';
+      return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700';
     case 'completed':
-      return 'bg-green-100 text-green-800 border-green-300';
+      return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700';
     case 'approved':
-      return 'bg-green-100 text-green-800 border-green-300';
+      return 'bg-green-100 text-green-800 border-green-300 dark:bg-green-900/50 dark:text-green-300 dark:border-green-700';
     case 'rejected':
-      return 'bg-red-100 text-red-800 border-red-300';
+      return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700';
     case 'scheduled':
-      return 'bg-slate-100 text-slate-800 border-slate-300';
+      return 'bg-slate-100 text-slate-800 border-slate-300 dark:bg-slate-800 dark:text-slate-200 dark:border-slate-600';
     default:
       return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
@@ -250,11 +250,11 @@ function getStatusColor(status: string): string {
 function getAvailabilityColor(status: string): string {
   switch (status) {
     case 'available':
-      return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+      return 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700';
     case 'on_leave':
-      return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      return 'bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700';
     case 'unavailable':
-      return 'bg-red-100 text-red-800 border-red-300';
+      return 'bg-red-100 text-red-800 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700';
     default:
       return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
@@ -278,9 +278,9 @@ function getInitials(name: string): string {
 function getSpecializationColor(spec: string): string {
   switch (spec) {
     case 'driver':
-      return 'bg-emerald-100 text-emerald-700 border-emerald-300';
+      return 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700';
     case 'conductor':
-      return 'bg-violet-100 text-violet-700 border-violet-300';
+      return 'bg-violet-100 text-violet-700 border-violet-300 dark:bg-violet-900/50 dark:text-violet-300 dark:border-violet-700';
     default:
       return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
@@ -1104,7 +1104,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
                 </Button>
               )}
               {tripStatus === 'completed' && (
-                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs"><CheckCircle2 className="mr-1 h-3 w-3" />Completed</Badge>
+                <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-xs dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700"><CheckCircle2 className="mr-1 h-3 w-3" />Completed</Badge>
               )}
             </div>
           </div>
@@ -1419,9 +1419,9 @@ function RoutePerformance({ crewName }: { crewName: string }) {
   const weeklyData = useMemo(() => getWeeklyOnTimeData(crewName), [crewName]);
 
   const statusBadge = (status: string) => {
-    if (status === 'early') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 text-[10px]">Early</Badge>;
-    if (status === 'late') return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px]">Late</Badge>;
-    return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]">On Time</Badge>;
+    if (status === 'early') return <Badge className="bg-sky-100 text-sky-700 border-sky-200 text-[10px] dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-700">Early</Badge>;
+    if (status === 'late') return <Badge className="bg-red-100 text-red-700 border-red-200 text-[10px] dark:bg-red-900/50 dark:text-red-300 dark:border-red-700">Late</Badge>;
+    return <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px] dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700">On Time</Badge>;
   };
 
   const maxTotal = Math.max(...weeklyData.map((d) => d.total));
@@ -1548,7 +1548,7 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
                 onClick={() => toggleItem(item.id)}
                 className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all duration-300 ${
                   item.defaultChecked
-                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
+                    ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-700 dark:hover:bg-emerald-900/60'
                     : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
@@ -1600,10 +1600,10 @@ function QuickCommunication() {
   ];
 
   const colorMap: Record<string, { bg: string; iconBg: string; iconText: string; hover: string }> = {
-    amber: { bg: 'bg-amber-50 border-amber-100', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:bg-amber-100 hover:border-amber-200' },
-    emerald: { bg: 'bg-emerald-50 border-emerald-100', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:bg-emerald-100 hover:border-emerald-200' },
-    red: { bg: 'bg-red-50 border-red-100', iconBg: 'bg-red-100', iconText: 'text-red-600', hover: 'hover:bg-red-100 hover:border-red-200' },
-    violet: { bg: 'bg-violet-50 border-violet-100', iconBg: 'bg-violet-100', iconText: 'text-violet-600', hover: 'hover:bg-violet-100 hover:border-violet-200' },
+    amber: { bg: 'bg-amber-50 border-amber-100 dark:bg-amber-950/40 dark:border-amber-800', iconBg: 'bg-amber-100 dark:bg-amber-900/50', iconText: 'text-amber-600 dark:text-amber-400', hover: 'hover:bg-amber-100 hover:border-amber-200 dark:hover:bg-amber-900/60 dark:hover:border-amber-700' },
+    emerald: { bg: 'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800', iconBg: 'bg-emerald-100 dark:bg-emerald-900/50', iconText: 'text-emerald-600 dark:text-emerald-400', hover: 'hover:bg-emerald-100 hover:border-emerald-200 dark:hover:bg-emerald-900/60 dark:hover:border-emerald-700' },
+    red: { bg: 'bg-red-50 border-red-100 dark:bg-red-950/40 dark:border-red-800', iconBg: 'bg-red-100 dark:bg-red-900/50', iconText: 'text-red-600 dark:text-red-400', hover: 'hover:bg-red-100 hover:border-red-200 dark:hover:bg-red-900/60 dark:hover:border-red-700' },
+    violet: { bg: 'bg-violet-50 border-violet-100 dark:bg-violet-950/40 dark:border-violet-800', iconBg: 'bg-violet-100 dark:bg-violet-900/50', iconText: 'text-violet-600 dark:text-violet-400', hover: 'hover:bg-violet-100 hover:border-violet-200 dark:hover:bg-violet-900/60 dark:hover:border-violet-700' },
   };
 
   return (
@@ -2502,7 +2502,7 @@ function PerformanceScorecard({ crewName }: { crewName: string }) {
   ];
 
   const getBarColor = (v: number) => v >= 80 ? 'bg-emerald-500' : v >= 60 ? 'bg-amber-500' : 'bg-red-500';
-  const getBarBg = (v: number) => v >= 80 ? 'bg-emerald-100' : v >= 60 ? 'bg-amber-100' : 'bg-red-100';
+  const getBarBg = (v: number) => v >= 80 ? 'bg-emerald-100 dark:bg-emerald-900/50' : v >= 60 ? 'bg-amber-100 dark:bg-amber-900/50' : 'bg-red-100 dark:bg-red-900/50';
   const getTextColor = (v: number) => v >= 80 ? 'text-emerald-600' : v >= 60 ? 'text-amber-600' : 'text-red-600';
 
   const radius = 54;
@@ -2616,10 +2616,10 @@ function QuickActions() {
   ];
 
   const colorMap: Record<string, { bg: string; iconBg: string; iconText: string; hover: string }> = {
-    emerald: { bg: 'bg-emerald-50 border-emerald-100', iconBg: 'bg-emerald-100', iconText: 'text-emerald-600', hover: 'hover:bg-emerald-100 hover:border-emerald-200' },
-    red: { bg: 'bg-red-50 border-red-100', iconBg: 'bg-red-100', iconText: 'text-red-600', hover: 'hover:bg-red-100 hover:border-red-200' },
-    amber: { bg: 'bg-amber-50 border-amber-100', iconBg: 'bg-amber-100', iconText: 'text-amber-600', hover: 'hover:bg-amber-100 hover:border-amber-200' },
-    violet: { bg: 'bg-violet-50 border-violet-100', iconBg: 'bg-violet-100', iconText: 'text-violet-600', hover: 'hover:bg-violet-100 hover:border-violet-200' },
+    emerald: { bg: 'bg-emerald-50 border-emerald-100 dark:bg-emerald-950/40 dark:border-emerald-800', iconBg: 'bg-emerald-100 dark:bg-emerald-900/50', iconText: 'text-emerald-600 dark:text-emerald-400', hover: 'hover:bg-emerald-100 hover:border-emerald-200 dark:hover:bg-emerald-900/60 dark:hover:border-emerald-700' },
+    red: { bg: 'bg-red-50 border-red-100 dark:bg-red-950/40 dark:border-red-800', iconBg: 'bg-red-100 dark:bg-red-900/50', iconText: 'text-red-600 dark:text-red-400', hover: 'hover:bg-red-100 hover:border-red-200 dark:hover:bg-red-900/60 dark:hover:border-red-700' },
+    amber: { bg: 'bg-amber-50 border-amber-100 dark:bg-amber-950/40 dark:border-amber-800', iconBg: 'bg-amber-100 dark:bg-amber-900/50', iconText: 'text-amber-600 dark:text-amber-400', hover: 'hover:bg-amber-100 hover:border-amber-200 dark:hover:bg-amber-900/60 dark:hover:border-amber-700' },
+    violet: { bg: 'bg-violet-50 border-violet-100 dark:bg-violet-950/40 dark:border-violet-800', iconBg: 'bg-violet-100 dark:bg-violet-900/50', iconText: 'text-violet-600 dark:text-violet-400', hover: 'hover:bg-violet-100 hover:border-violet-200 dark:hover:bg-violet-900/60 dark:hover:border-violet-700' },
   };
 
   return (
@@ -3548,8 +3548,8 @@ function DashboardPage({
               </div>
 
               {/* Completion Rate */}
-              <div className="flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-gray-50 to-white p-5 border border-gray-100">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100">
+              <div className="flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-5 border border-gray-100 dark:border-gray-700">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
                   <CheckCircle2 className="h-6 w-6 text-emerald-600" />
                 </div>
                 <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -4006,10 +4006,10 @@ function AssignmentsPage({
     }, [assignment.id, assignment.schedule.date]);
 
     const statusBadgeClass = (status: string) => {
-      if (status === 'accepted') return 'bg-emerald-100 text-emerald-700 border-emerald-200';
-      if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200';
-      if (status === 'declined') return 'bg-red-100 text-red-700 border-red-200';
-      if (status === 'completed') return 'bg-sky-100 text-sky-700 border-sky-200';
+      if (status === 'accepted') return 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700';
+      if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700';
+      if (status === 'declined') return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700';
+      if (status === 'completed') return 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-700';
       return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600';
     };
     const statusBorderColor = (status: string) => {
@@ -4648,7 +4648,7 @@ function CalendarPage({
           {/* Legend */}
           <div className="mt-5 flex flex-wrap gap-4 text-xs text-gray-500">
             <div className="flex items-center gap-1.5">
-              <span className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-300" />
+              <span className="h-3 w-3 rounded bg-emerald-100 ring-1 ring-emerald-300 dark:bg-emerald-900/50 dark:ring-emerald-800" />
               Today
             </div>
             <div className="flex items-center gap-1.5">
@@ -4680,7 +4680,7 @@ function CalendarPage({
         <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-emerald-100">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/50">
                 <CalendarIcon className="h-4 w-4 text-emerald-600" />
               </div>
               <div>
@@ -4924,6 +4924,7 @@ function LeaveRequestsPage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'create',
+          token,
           crewId: userId,
           startDate,
           endDate,
@@ -5077,9 +5078,9 @@ function LeaveRequestsPage({
 
       {/* Leave Balance Card */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <Card className="glass-card rounded-xl bg-gradient-to-br from-emerald-50 to-white border-emerald-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
+        <Card className="glass-card rounded-xl bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/40 dark:to-gray-800 border-emerald-100 dark:border-emerald-800 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
           <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 mx-auto mb-2">
               <CalendarIcon className="h-5 w-5 text-emerald-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-emerald-700">{availableDays}</p>
@@ -5216,7 +5217,7 @@ function LeaveRequestsPage({
                   key={`cal-day-${day}`}
                   className={`aspect-square relative flex flex-col items-center justify-center rounded-lg text-xs transition-all ${
                     isTodayCell
-                      ? 'bg-emerald-100 ring-1 ring-emerald-300 font-bold text-emerald-800'
+                      ? 'bg-emerald-100 ring-1 ring-emerald-300 font-bold text-emerald-800 dark:bg-emerald-900/50 dark:ring-emerald-800 dark:text-emerald-300'
                       : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                   }`}
                 >
@@ -5349,10 +5350,10 @@ function LeaveRequestsPage({
                 {/* Visual type selector with icons */}
                 <div className="grid grid-cols-2 gap-2">
                   {[
-                    { value: 'sick', label: 'Sick Leave', icon: Thermometer, iconColor: 'text-rose-500', bgColor: 'bg-rose-50 border-rose-200', activeBg: 'bg-rose-100 border-rose-400 ring-rose-300', desc: 'Illness / Medical' },
-                    { value: 'vacation', label: 'Vacation', icon: TreePalm, iconColor: 'text-sky-500', bgColor: 'bg-sky-50 border-sky-200', activeBg: 'bg-sky-100 border-sky-400 ring-sky-300', desc: 'Holiday / Travel' },
-                    { value: 'personal', label: 'Personal', icon: User, iconColor: 'text-amber-500', bgColor: 'bg-amber-50 border-amber-200', activeBg: 'bg-amber-100 border-amber-400 ring-amber-300', desc: 'Personal matters' },
-                    { value: 'emergency', label: 'Emergency', icon: AlertTriangle, iconColor: 'text-red-500', bgColor: 'bg-red-50 border-red-200', activeBg: 'bg-red-100 border-red-400 ring-red-300', desc: 'Urgent situations' },
+                    { value: 'sick', label: 'Sick Leave', icon: Thermometer, iconColor: 'text-rose-500', bgColor: 'bg-rose-50 border-rose-200 dark:bg-rose-950/40 dark:border-rose-800', activeBg: 'bg-rose-100 border-rose-400 ring-rose-300 dark:bg-rose-900/50 dark:border-rose-600', desc: 'Illness / Medical' },
+                    { value: 'vacation', label: 'Vacation', icon: TreePalm, iconColor: 'text-sky-500', bgColor: 'bg-sky-50 border-sky-200 dark:bg-sky-950/40 dark:border-sky-800', activeBg: 'bg-sky-100 border-sky-400 ring-sky-300 dark:bg-sky-900/50 dark:border-sky-600', desc: 'Holiday / Travel' },
+                    { value: 'personal', label: 'Personal', icon: User, iconColor: 'text-amber-500', bgColor: 'bg-amber-50 border-amber-200 dark:bg-amber-950/40 dark:border-amber-800', activeBg: 'bg-amber-100 border-amber-400 ring-amber-300 dark:bg-amber-900/50 dark:border-amber-600', desc: 'Personal matters' },
+                    { value: 'emergency', label: 'Emergency', icon: AlertTriangle, iconColor: 'text-red-500', bgColor: 'bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-800', activeBg: 'bg-red-100 border-red-400 ring-red-300 dark:bg-red-900/50 dark:border-red-600', desc: 'Urgent situations' },
                   ].map((t) => {
                     const Icon = t.icon;
                     const isActive = leaveType === t.value;
@@ -5842,9 +5843,9 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                     eff = dist > 0 && entry.liters > 0 ? parseFloat((dist / entry.liters).toFixed(1)) : null;
                   }
                   const effColor = eff !== null ? (eff >= 8 ? 'text-emerald-600' : eff >= 6 ? 'text-amber-600' : 'text-red-600') : '';
-                  const typeColor = entry.fuelType === 'Diesel' ? 'bg-amber-100 text-amber-700'
-                    : entry.fuelType === 'CNG' ? 'bg-sky-100 text-sky-700'
-                    : 'bg-emerald-100 text-emerald-700';
+                  const typeColor = entry.fuelType === 'Diesel' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                    : entry.fuelType === 'CNG' ? 'bg-sky-100 text-sky-700 dark:bg-sky-900/50 dark:text-sky-300'
+                    : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300';
                   const fuelPct = Math.min(100, Math.max(0, (entry.liters / 60) * 100));
                   const fuelLevelColor = fuelPct > 50 ? 'bg-emerald-500' : fuelPct >= 25 ? 'bg-amber-500' : 'bg-red-500';
                   return (
@@ -5980,6 +5981,7 @@ function ProfilePage({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'updateProfile',
+          token,
           userId,
           name: editName,
           availability: editAvailability,
@@ -6102,9 +6104,9 @@ function ProfilePage({
 
       {/* Stats Row: Total Trips, Rating, Experience */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-950/40 dark:to-gray-800 border-emerald-100 dark:border-emerald-800">
           <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50 mx-auto mb-2">
               <Bus className="h-5 w-5 text-emerald-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{completedCount}</p>
@@ -6431,6 +6433,7 @@ export default function CrewContent({ portal, userId, token }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'respond',
+          token,
           assignmentId,
           status,
         }),
@@ -6465,6 +6468,7 @@ export default function CrewContent({ portal, userId, token }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'updateProfile',
+          token,
           userId,
           name: crewProfile?.profile?.name || '',
           availability: available ? 'available' : 'unavailable',

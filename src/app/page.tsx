@@ -342,32 +342,36 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden animate-gradient-mesh-bg">
-      {/* Animated gradient mesh background */}
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden" style={{ background: 'linear-gradient(160deg, #0a0e27 0%, #0f1a3d 30%, #0c2d5e 60%, #0a1628 100%)' }}>
+      {/* Deep navy background with subtle star-like dots */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-mesh-blob-1" />
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-mesh-blob-2" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-mesh-blob-1" />
-        <div className="absolute top-10 left-1/4 w-60 h-60 bg-violet-500/8 rounded-full blur-3xl animate-mesh-blob-2" />
-        <div className="absolute bottom-10 right-1/4 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-mesh-blob-1" />
-      </div>
-
-      {/* Floating particles (CSS only) — enhanced with more particles */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-float-particle" style={{ top: '15%', left: '10%', animationDelay: '0s', animationDuration: '6s' }} />
-        <div className="absolute w-1.5 h-1.5 bg-emerald-400/30 rounded-full animate-float-particle" style={{ top: '25%', right: '15%', animationDelay: '1s', animationDuration: '8s' }} />
-        <div className="absolute w-2.5 h-2.5 bg-cyan-400/20 rounded-full animate-float-particle" style={{ bottom: '30%', left: '20%', animationDelay: '2s', animationDuration: '7s' }} />
-        <div className="absolute w-1 h-1 bg-blue-300/40 rounded-full animate-float-particle" style={{ top: '60%', right: '25%', animationDelay: '0.5s', animationDuration: '9s' }} />
-        <div className="absolute w-2 h-2 bg-emerald-300/25 rounded-full animate-float-particle" style={{ bottom: '15%', right: '10%', animationDelay: '1.5s', animationDuration: '6.5s' }} />
-        <div className="absolute w-1.5 h-1.5 bg-sky-400/30 rounded-full animate-float-particle" style={{ top: '40%', left: '80%', animationDelay: '3s', animationDuration: '7.5s' }} />
-        <div className="absolute w-1 h-1 bg-violet-400/25 rounded-full animate-float-particle" style={{ top: '80%', left: '30%', animationDelay: '4s', animationDuration: '10s' }} />
-        <div className="absolute w-2 h-2 bg-teal-400/20 rounded-full animate-float-particle" style={{ top: '5%', left: '60%', animationDelay: '2.5s', animationDuration: '8.5s' }} />
-        <div className="absolute w-1.5 h-1.5 bg-amber-400/15 rounded-full animate-float-particle" style={{ top: '70%', left: '5%', animationDelay: '3.5s', animationDuration: '7.2s' }} />
-        <div className="absolute w-2.5 h-2.5 bg-blue-400/15 rounded-full animate-float-particle" style={{ top: '50%', right: '5%', animationDelay: '5s', animationDuration: '11s' }} />
+        {/* Star dots */}
+        {Array.from({ length: 60 }).map((_, i) => {
+          const x = ((i * 17 + 31) % 100);
+          const y = ((i * 23 + 47) % 100);
+          const size = (i % 3 === 0) ? 'w-1.5 h-1.5' : (i % 3 === 1) ? 'w-1 h-1' : 'w-0.5 h-0.5';
+          const opacity = ((i * 7 + 13) % 40 + 10) / 100;
+          return (
+            <div
+              key={`star-${i}`}
+              className={`absolute ${size} bg-white rounded-full animate-pulse`}
+              style={{
+                top: `${y}%`,
+                left: `${x}%`,
+                opacity,
+                animationDelay: `${(i * 0.3) % 5}s`,
+                animationDuration: `${3 + (i % 4)}s`,
+              }}
+            />
+          );
+        })}
+        {/* Subtle gradient orbs */}
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-blue-900/20 rounded-full blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-indigo-900/15 rounded-full blur-3xl" />
       </div>
 
       {/* Bus Route Background Animation */}
-      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-10" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
+      <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-5" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice">
         <defs>
           <filter id="glow">
             <feGaussianBlur stdDeviation="2" result="coloredBlur" />
@@ -537,17 +541,11 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
           <p className="text-slate-400 mt-2">Route &amp; Crew Management System</p>
         </div>
 
-        {/* Login Card — glass-morphism with rotating conic gradient border */}
-        <div className="relative p-[2px] rounded-[1.125rem] conic-border-login">
-          <div className="absolute inset-0 rounded-[1.125rem] bg-white/[0.08] backdrop-blur-2xl"></div>
-        <div className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-8 shadow-2xl shadow-black/20 relative overflow-hidden">
-          {/* Glass highlight on top edge */}
-          <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
-          <div className="absolute top-0 left-1/4 right-1/4 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
-          {/* Shimmer sweep overlay */}
-          <div className="absolute inset-0 pointer-events-none z-10 overflow-hidden rounded-2xl">
-            <div className="animate-shimmer-sweep absolute -inset-1/2 w-[200%] h-[200%]" />
-          </div>
+        {/* Login Card — solid deep blue card */}
+        <div className="rounded-2xl shadow-2xl shadow-black/40 relative overflow-hidden" style={{ background: 'linear-gradient(180deg, rgba(15, 30, 60, 0.95) 0%, rgba(10, 20, 45, 0.98) 100%)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          {/* Subtle top edge glow */}
+          <div className="absolute top-0 left-0 right-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), rgba(16, 185, 129, 0.3), transparent)' }} />
+          <div className="p-8">
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Email Address</label>
@@ -658,15 +656,15 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
             </div>
             <p className="text-xs text-slate-500 mt-3 text-center">Password: password123</p>
 
-            {/* Feature Highlights */}
+            {/* Feature Highlights — more prominent */}
             <div className="mt-5 pt-5 border-t border-white/10">
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 {featureHighlights.map((feat) => (
-                  <div key={feat.label} className="flex flex-col items-center gap-1.5 text-center">
-                    <div className="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center text-slate-400">
-                      {feat.icon}
+                  <div key={feat.label} className="flex flex-col items-center gap-2 text-center py-2 px-1 rounded-lg bg-white/[0.03] border border-white/[0.06]">
+                    <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.2), rgba(16,185,129,0.2))' }}>
+                      <span className="text-blue-400">{feat.icon}</span>
                     </div>
-                    <span className="text-[10px] text-slate-500 leading-tight">{feat.label}</span>
+                    <span className="text-[11px] text-slate-300 leading-tight font-medium">{feat.label}</span>
                   </div>
                 ))}
               </div>
@@ -2139,6 +2137,73 @@ function ThemeToggle() {
 // ============================================================
 // App Shell - Navigation + Content Layout — ENHANCED
 // ============================================================
+// ============================================================
+// Greeting + Live Clock Card (shown at top of all portals)
+// ============================================================
+function GreetingClockCard({ userName, userRole, configLabel }: { userName: string; userRole: string; configLabel: string }) {
+  const [time, setTime] = useState('');
+  const [date, setDate] = useState('');
+  const [greeting, setGreeting] = useState('');
+
+  useEffect(() => {
+    const update = () => {
+      const now = new Date();
+      const ist = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Kolkata' }));
+      const h = ist.getHours();
+      const m = ist.getMinutes().toString().padStart(2, '0');
+      const s = ist.getSeconds().toString().padStart(2, '0');
+      setTime(`${h.toString().padStart(2, '0')}:${m}:${s}`);
+
+      const dateOpts: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+      setDate(ist.toLocaleDateString('en-IN', dateOpts));
+
+      if (h < 12) setGreeting('Good Morning');
+      else if (h < 17) setGreeting('Good Afternoon');
+      else setGreeting('Good Evening');
+    };
+    update();
+    const interval = setInterval(update, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const roleSubtext: Record<string, string> = {
+    admin: "Here's an overview of your transit operations for today.",
+    driver: "Here's your shift summary and route information for today.",
+    conductor: "Here are your assignments and schedule for today.",
+    customer: "Here's your travel dashboard for today.",
+  };
+  const subtext = roleSubtext[userRole] || roleSubtext.customer;
+
+  return (
+    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-5 p-4 rounded-xl bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border border-primary/10">
+      {/* Left: Greeting */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
+          {userName.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h2 className="text-base sm:text-lg font-bold text-foreground">
+            {greeting}, <span className="text-primary">{userName}</span>!
+          </h2>
+          <p className="text-xs sm:text-sm text-muted-foreground">{subtext}</p>
+        </div>
+      </div>
+      {/* Right: Clock card */}
+      <div className="flex items-center gap-3 bg-background/80 rounded-lg px-4 py-2.5 border border-border shadow-sm self-start sm:self-center">
+        <Clock className="w-4 h-4 text-primary" />
+        <div className="flex flex-col">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">IST Time</span>
+          <span className="font-mono text-lg font-bold text-foreground tabular-nums leading-tight">{time}</span>
+          <span className="text-[10px] text-muted-foreground leading-tight">{date}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// App Shell — Main layout with sidebar, header, and content
+// ============================================================
 function AppShell({
   user,
   token,
@@ -2242,6 +2307,7 @@ function AppShell({
           pages: [
             { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
             { id: 'users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
+            { id: 'approve', label: 'Approve IDs', icon: 'M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z' },
           ],
         },
         {
@@ -2576,14 +2642,38 @@ function AppShell({
           <div className="flex items-center gap-3">
             <HamburgerButton
               isOpen={isMobile ? sidebarOpen : false}
-              onClick={() => setSidebarOpen(!sidebarOpen)}
+              onClick={() => {
+                if (isMobile) {
+                  setSidebarOpen(!sidebarOpen);
+                } else {
+                  setSidebarCollapsed(!sidebarCollapsed);
+                }
+              }}
             />
-            <div className="hidden sm:block" key={`breadcrumb-${portal}`}>
-              <Breadcrumbs currentPageLabel={currentPageLabel} roleName={config.label} />
+            {/* Navigation bar: Home icon + text, Role badge, Current page label */}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => handleSetPortal('dashboard')}
+                className="flex items-center gap-1.5 px-2 py-1 rounded-lg text-sm text-gray-600 dark:text-gray-400 hover:text-primary hover:bg-primary/5 transition-colors"
+                title="Go to Dashboard"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span className="hidden md:inline font-medium">Home</span>
+              </button>
+              <svg className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 hidden sm:block" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="hidden sm:inline-flex items-center px-2 py-0.5 rounded-md bg-gradient-to-r text-white text-xs font-semibold" style={{ background: `linear-gradient(135deg, var(--tw-gradient-stops))`, backgroundImage: config.color.includes('red') ? 'linear-gradient(135deg, #ef4444, #f97316)' : config.color.includes('amber') ? 'linear-gradient(135deg, #f59e0b, #f97316)' : config.color.includes('teal') ? 'linear-gradient(135deg, #14b8a6, #06b6d4)' : 'linear-gradient(135deg, #10b981, #14b8a6)' }}>
+                {config.label}
+              </span>
+              <svg className="w-3.5 h-3.5 text-gray-300 dark:text-gray-600 hidden sm:block" fill="none" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+              <span className="hidden sm:inline text-sm font-semibold text-gray-800 dark:text-gray-200">{currentPageLabel}</span>
+              <span className="sm:hidden text-sm font-semibold text-gray-900 dark:text-white">{currentPageLabel}</span>
             </div>
-            <h1 className="text-lg font-semibold text-gray-900 dark:text-white sm:hidden">
-              {currentPageLabel}
-            </h1>
             {/* Live Clock */}
             <LiveClock />
           </div>
@@ -2621,6 +2711,26 @@ function AppShell({
           </div>
         </header>
 
+        {/* Shortcut Bar - numbered navigation 1-9 */}
+        <div className="px-4 py-1.5 bg-muted/30 border-b border-border/50 flex items-center gap-2 overflow-x-auto flex-shrink-0">
+          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex-shrink-0">Shortcuts:</span>
+          {allPages.slice(0, 9).map((page, i) => (
+            <button
+              key={page.id}
+              onClick={() => handleSetPortal(page.id)}
+              className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs flex-shrink-0 transition-colors ${
+                portal === page.id
+                  ? 'bg-primary text-primary-foreground font-semibold shadow-sm'
+                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+              }`}
+              title={`Press ${i + 1} to go to ${page.label}`}
+            >
+              <kbd className="font-mono text-[10px] opacity-70">{i + 1}</kbd>
+              <span className="hidden lg:inline">{page.label}</span>
+            </button>
+          ))}
+        </div>
+
         {/* Command Palette */}
         <CommandPalette
           key={paletteKey}
@@ -2635,6 +2745,8 @@ function AppShell({
 
         {/* Content */}
         <div id="main-scroll-area" className="flex-1 overflow-y-auto p-4 md:p-6">
+          {/* Greeting + Live Clock Card */}
+          <GreetingClockCard userName={user.name} userRole={user.role} configLabel={config.label} />
           {user.role === 'admin' && <AdminPortal portal={portal} user={user} token={token} setPortal={setPortal} />}
           {(user.role === 'driver' || user.role === 'conductor') && <CrewPortal portal={portal} user={user} token={token} />}
           {user.role === 'customer' && <CustomerPortal portal={portal} user={user} token={token} setPortal={setPortal} />}
