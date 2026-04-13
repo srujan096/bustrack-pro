@@ -236,7 +236,7 @@ function getStatusColor(status: string): string {
     case 'scheduled':
       return 'bg-slate-100 text-slate-800 border-slate-300';
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-300';
+      return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
 }
 
@@ -249,7 +249,7 @@ function getAvailabilityColor(status: string): string {
     case 'unavailable':
       return 'bg-red-100 text-red-800 border-red-300';
     default:
-      return 'bg-gray-100 text-gray-800 border-gray-300';
+      return 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
 }
 
@@ -275,7 +275,7 @@ function getSpecializationColor(spec: string): string {
     case 'conductor':
       return 'bg-violet-100 text-violet-700 border-violet-300';
     default:
-      return 'bg-gray-100 text-gray-700 border-gray-300';
+      return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-300 dark:border-gray-600';
   }
 }
 
@@ -570,7 +570,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
   };
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white overflow-hidden">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 overflow-hidden">
       <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 px-5 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -611,7 +611,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
             </div>
             <span className="text-xs font-bold text-gray-900">{totalPassengers}/{busCapacity} <span className="text-gray-400 font-normal">({occupancyPct}%)</span></span>
           </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
             <div
               className={`h-full rounded-full transition-all duration-700 ${occupancyPct > 85 ? 'bg-red-500' : occupancyPct > 60 ? 'bg-amber-500' : 'bg-emerald-500'}`}
               style={{ width: `${occupancyPct}%` }}
@@ -629,13 +629,13 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
                   <div className={`h-3 w-3 rounded-full border-2 transition-all duration-500 ${
                     isDotFilled(i)
                       ? 'bg-emerald-500 border-emerald-300 shadow-sm shadow-emerald-200 scale-110'
-                      : 'bg-gray-100 border-gray-200'
+                      : 'bg-gray-100 dark:bg-gray-700 border-gray-200 dark:border-gray-600'
                   }`} style={{ animationDelay: `${i * 150}ms` }} />
                   <span className="mt-1 text-[8px] text-gray-400 leading-tight truncate max-w-[32px]">{stop.name.split(' ')[0]}</span>
                 </div>
                 {i < stops.length - 1 && (
                   <div className="flex-1 min-w-[8px]">
-                    <div className="h-0.5 w-full bg-gray-100 relative">
+                    <div className="h-0.5 w-full bg-gray-100 dark:bg-gray-700 relative">
                       <div
                         className={`absolute inset-y-0 left-0 bg-emerald-400 transition-all duration-500 ${isDotFilled(i) ? 'w-full' : 'w-0'}`}
                         style={{ transitionDelay: `${i * 150}ms` }}
@@ -746,7 +746,7 @@ function ShiftTimer() {
   const offset = circumference - (progressPct / 100) * circumference;
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <Timer className="h-5 w-5 text-gray-500" />
@@ -898,7 +898,7 @@ function BreakTimer() {
     : breakType === 'tea' ? '#fef3c7' : '#e0f2fe';
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -1002,7 +1002,7 @@ function RoutePerformance({ crewName }: { crewName: string }) {
   const maxTotal = Math.max(...weeklyData.map((d) => d.total));
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <TrendingUp className="h-5 w-5 text-gray-500" />
@@ -1037,7 +1037,7 @@ function RoutePerformance({ crewName }: { crewName: string }) {
                 return (
                   <div key={d.day} className="flex flex-col items-center gap-1 flex-1">
                     <span className="text-[10px] text-gray-400">{Math.round(rate)}%</span>
-                    <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '80px' }}>
+                    <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-t-md relative" style={{ height: '80px' }}>
                       <div
                         className={`absolute bottom-0 left-0 right-0 rounded-t-md transition-all ${
                           rate >= 80 ? 'bg-emerald-500' : rate >= 60 ? 'bg-amber-400' : 'bg-red-400'
@@ -1045,7 +1045,7 @@ function RoutePerformance({ crewName }: { crewName: string }) {
                         style={{ height: `${Math.max(rate, d.total > 0 ? 8 : 0)}%` }}
                       />
                     </div>
-                    <span className="text-[10px] font-medium text-gray-500">{d.day}</span>
+                    <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400">{d.day}</span>
                   </div>
                 );
               })}
@@ -1085,7 +1085,7 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
   const pct = Math.round((completedCount / totalCount) * 100);
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -1105,7 +1105,7 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
       </CardHeader>
       <CardContent>
         {/* Progress bar */}
-        <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+        <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden mb-4">
           <div
             className={`h-full rounded-full transition-all duration-500 ${pct === 100 ? 'bg-emerald-500' : pct >= 50 ? 'bg-amber-500' : 'bg-gray-400'}`}
             style={{ width: `${pct}%` }}
@@ -1121,13 +1121,13 @@ function PreTripChecklist({ crewName }: { crewName: string }) {
                 className={`w-full flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-all duration-300 ${
                   item.defaultChecked
                     ? 'bg-emerald-50 border-emerald-200 hover:bg-emerald-100'
-                    : 'bg-white border-gray-100 hover:border-gray-200 hover:bg-gray-50'
+                    : 'bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 hover:border-gray-200 hover:bg-gray-50 dark:hover:bg-gray-700'
                 }`}
               >
                 <div className={`flex h-6 w-6 items-center justify-center rounded-full border-2 transition-all duration-300 shrink-0 ${
                   item.defaultChecked
                     ? 'bg-emerald-500 border-emerald-500'
-                    : 'border-gray-300 bg-white'
+                    : 'border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800'
                 }`}>
                   {item.defaultChecked && (
                     <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
@@ -1179,7 +1179,7 @@ function QuickCommunication() {
   };
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <MessageSquare className="h-5 w-5 text-gray-500" />
@@ -1358,7 +1358,7 @@ function OvertimePayCalculator({ crewName }: { crewName: string }) {
     : new Date(new Date().getFullYear(), new Date().getMonth() - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between flex-wrap gap-2">
           <div>
@@ -1370,13 +1370,13 @@ function OvertimePayCalculator({ crewName }: { crewName: string }) {
           </div>
           <div className="flex gap-0.5 rounded-lg border border-gray-200 p-0.5">
             <button
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'current' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'current' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               onClick={() => setSelectedMonth('current')}
             >
               This Month
             </button>
             <button
-              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'previous' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-3 py-1 rounded-md text-xs font-medium transition-colors ${selectedMonth === 'previous' ? 'bg-emerald-600 text-white' : 'text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700'}`}
               onClick={() => setSelectedMonth('previous')}
             >
               Previous
@@ -1415,10 +1415,10 @@ function OvertimePayCalculator({ crewName }: { crewName: string }) {
 
         {/* Pay Breakdown Table */}
         <div className="rounded-lg border border-gray-100 overflow-hidden">
-          <div className="bg-gray-50 px-4 py-2">
+          <div className="bg-gray-50 dark:bg-gray-800 px-4 py-2">
             <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{monthLabel}</p>
           </div>
-          <div className="divide-y divide-gray-50">
+          <div className="divide-y divide-gray-50 dark:divide-gray-700">
             {[
               { label: 'Base Pay', value: basePay, color: 'text-gray-900' },
               { label: `Overtime (${thisMonthOT}h × ₹${otRate}/hr)`, value: otPay, color: 'text-gray-900' },
@@ -1476,7 +1476,7 @@ function ShiftSummaryCard({ dateStr, assignments, crewName }: { dateStr: string;
   if (!morningTime && !eveningTime) return null;
 
   return (
-    <div className={`rounded-lg border p-3 ${hasOvertime ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 bg-white'}`}>
+    <div className={`rounded-lg border p-3 ${hasOvertime ? 'border-amber-200 bg-amber-50/50' : 'border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800'}`}>
       <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-2">{formatDate(dateStr)}</p>
       {morningTime && (
         <div className="flex items-center gap-2 mb-1.5">
@@ -1540,7 +1540,7 @@ function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
   const totalChartHeight = (barHeight + barGap) * 7 - barGap;
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -1559,7 +1559,7 @@ function WeeklyHoursBarChart({ crewName }: { crewName: string }) {
         </div>
       </CardHeader>
       <CardContent>
-        <svg viewBox={`0 0 ${chartWidth} ${totalChartHeight}`} className="w-full" preserveAspectRatio="none">
+        <svg viewBox={`0 0 ${chartWidth} ${totalChartHeight}`} className="w-full" preserveAspectRatio="xMidYMid meet">
           {hours.map((h, i) => {
             const y = i * (barHeight + barGap);
             const barWidth = (h / maxHours) * (chartWidth - labelWidth - valueWidth);
@@ -1663,7 +1663,7 @@ function ShiftLogbook({ crewName }: { crewName: string }) {
     if (color === 'emerald') return { bg: 'bg-emerald-100', text: 'text-emerald-600', ring: 'ring-emerald-200' };
     if (color === 'amber') return { bg: 'bg-amber-100', text: 'text-amber-600', ring: 'ring-amber-200' };
     if (color === 'red') return { bg: 'bg-red-100', text: 'text-red-600', ring: 'ring-red-200' };
-    return { bg: 'bg-gray-100', text: 'text-gray-600', ring: 'ring-gray-200' };
+    return { bg: 'bg-gray-100 dark:bg-gray-700', text: 'text-gray-600 dark:text-gray-300', ring: 'ring-gray-200 dark:ring-gray-600' };
   };
 
   const handleAddEntry = () => {
@@ -1687,7 +1687,7 @@ function ShiftLogbook({ crewName }: { crewName: string }) {
   };
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -1725,7 +1725,7 @@ function ShiftLogbook({ crewName }: { crewName: string }) {
                           ? 'bg-emerald-100 text-emerald-700 border-emerald-200 text-[10px]'
                           : entry.status === 'Just Added'
                             ? 'bg-sky-100 text-sky-700 border-sky-200 text-[10px]'
-                            : 'bg-gray-100 text-gray-500 border-gray-200 text-[10px]'
+                            : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700 text-[10px]'
                       }>
                         {entry.status}
                       </Badge>
@@ -1925,7 +1925,7 @@ function PerformanceScorecard({ crewName }: { crewName: string }) {
   const scoreBg = data.overallScore >= 80 ? '#d1fae5' : data.overallScore >= 60 ? '#fef3c7' : '#fee2e2';
 
   return (
-    <Card className="transit-card rounded-xl shadow-sm bg-white">
+    <Card className="transit-card rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
@@ -2313,7 +2313,7 @@ function WeeklyPerformanceScore({ crewName }: { crewName: string }) {
   ];
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white animate-fade-in-up">
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 animate-fade-in-up">
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
           <Trophy className="h-5 w-5 text-amber-500" />
@@ -2362,7 +2362,7 @@ function WeeklyPerformanceScore({ crewName }: { crewName: string }) {
             {miniStats.map((stat) => {
               const Icon = stat.icon;
               return (
-                <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-gray-100 px-3 py-2 bg-gray-50/50">
+                <div key={stat.label} className="flex items-center gap-2 rounded-lg border border-gray-100 dark:border-gray-700 px-3 py-2 bg-gray-50/50 dark:bg-gray-800/50">
                   <Icon className="h-4 w-4 text-gray-400 shrink-0" />
                   <div className="min-w-0">
                     <p className="text-xs font-bold text-gray-900">{stat.value}</p>
@@ -2445,7 +2445,7 @@ function DashboardPage({
               </div>
             </div>
             {/* Quick Status Toggle */}
-            <div className="flex items-center gap-3 rounded-lg bg-white/80 border border-emerald-200 px-4 py-2.5">
+            <div className="flex items-center gap-3 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-emerald-200 dark:border-emerald-700 px-4 py-2.5">
               <Power className={`h-4 w-4 ${isAvailable ? 'text-emerald-600' : 'text-gray-400'}`} />
               <div className="flex flex-col">
                 <span className="text-xs font-medium text-gray-500">Availability</span>
@@ -2490,7 +2490,7 @@ function DashboardPage({
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
@@ -2506,7 +2506,7 @@ function DashboardPage({
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-violet-50">
@@ -2522,7 +2522,7 @@ function DashboardPage({
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-amber-50">
@@ -2538,7 +2538,7 @@ function DashboardPage({
           </CardContent>
         </Card>
 
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-rose-50">
@@ -2558,7 +2558,7 @@ function DashboardPage({
       {/* This Week Stats Row */}
       {crewProfile && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-emerald-500 stat-accent-emerald p-4">
+          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-emerald-500 stat-accent-emerald p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
                 <Navigation className="h-4 w-4 text-emerald-600" />
@@ -2571,7 +2571,7 @@ function DashboardPage({
               </div>
             </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-sky-500 stat-accent-blue p-4">
+          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-sky-500 stat-accent-blue p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50">
                 <Timer className="h-4 w-4 text-sky-600" />
@@ -2584,7 +2584,7 @@ function DashboardPage({
               </div>
             </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-amber-500 stat-accent-amber p-4">
+          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-amber-500 stat-accent-amber p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50">
                 <Gauge className="h-4 w-4 text-amber-600" />
@@ -2597,7 +2597,7 @@ function DashboardPage({
               </div>
             </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white border-t-4 border-t-rose-500 stat-accent-rose p-4">
+          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-rose-500 stat-accent-rose p-4">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50">
                 <Fuel className="h-4 w-4 text-rose-600" />
@@ -2623,7 +2623,7 @@ function DashboardPage({
 
       {/* Today's Route Preview */}
       {todayAssignments.length > 0 && (
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <MapPin className="h-5 w-5 text-emerald-600" />
@@ -2702,7 +2702,7 @@ function DashboardPage({
 
       {/* No assignments today */}
       {todayAssignments.length === 0 && (
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardContent className="py-10">
             <div className="flex flex-col items-center justify-center text-gray-400">
               <div className="flex h-16 w-16 items-center justify-center rounded-full bg-emerald-50 mb-3">
@@ -2717,7 +2717,7 @@ function DashboardPage({
 
       {/* Performance Overview Card */}
       {crewProfile && (
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="text-lg">Performance Overview</CardTitle>
           </CardHeader>
@@ -2797,7 +2797,7 @@ function DashboardPage({
 
       {/* Upcoming Assignments Timeline */}
       {upcomingAssignments.length > 0 && (
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardHeader>
             <CardTitle className="text-lg">Upcoming Assignments</CardTitle>
             <CardDescription>
@@ -2809,7 +2809,7 @@ function DashboardPage({
               {upcomingAssignments.map((assignment) => (
                 <div
                   key={assignment.id}
-                  className="flex gap-3 rounded-lg border border-gray-100 p-3 transition-colors hover:bg-gray-50"
+                  className="flex gap-3 rounded-lg border border-gray-100 dark:border-gray-700 p-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700"
                 >
                   {/* Timeline dot */}
                   <div className="flex flex-col items-center shrink-0 pt-1">
@@ -2967,7 +2967,7 @@ function AssignmentsPage({
       if (status === 'pending') return 'bg-amber-100 text-amber-700 border-amber-200';
       if (status === 'declined') return 'bg-red-100 text-red-700 border-red-200';
       if (status === 'completed') return 'bg-sky-100 text-sky-700 border-sky-200';
-      return 'bg-gray-100 text-gray-700 border-gray-200';
+      return 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 border-gray-200 dark:border-gray-600';
     };
     const statusBorderColor = (status: string) => {
       if (status === 'accepted' || status === 'active') return 'border-l-4 border-l-emerald-400';
@@ -3014,7 +3014,7 @@ function AssignmentsPage({
               {capitalize(assignment.status)}
             </Badge>
             {/* Weather indicator */}
-            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-50 border border-gray-100 ${weatherData.textColor}`}>
+            <span className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full bg-gray-50 dark:bg-gray-800 border border-gray-100 dark:border-gray-700 ${weatherData.textColor}`}>
               <span>{weatherData.icon}</span>
               <span>{weatherData.label}</span>
               <span>{weatherData.temp}°C</span>
@@ -3193,7 +3193,7 @@ function AssignmentsPage({
 
         <TabsContent value="upcoming">
           {upcomingAll.length === 0 ? (
-            <Card className="rounded-xl shadow-sm bg-white">
+            <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
               <CardContent className="py-12">
                 <div className="flex flex-col items-center justify-center text-gray-400">
                   <CalendarIcon className="mb-2 h-10 w-10" />
@@ -3303,7 +3303,7 @@ function AssignmentsPage({
         </TabsContent>
 
         <TabsContent value="history">
-          <Card className="rounded-xl shadow-sm bg-white">
+          <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
             <CardContent className="p-4">
               {historyAssignments.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 text-gray-400">
@@ -3489,7 +3489,7 @@ function CalendarPage({
         </p>
       </div>
 
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardContent className="p-4 sm:p-6">
           {/* Month Navigation */}
           <div className="mb-5 flex items-center justify-between">
@@ -3566,10 +3566,10 @@ function CalendarPage({
                         : isTodayCell
                           ? 'bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300'
                           : count > 0
-                            ? 'bg-gray-50 text-gray-700 font-medium hover:bg-gray-100'
+                            ? 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-100 dark:hover:bg-gray-600'
                             : weekend
                               ? 'bg-amber-50/50 text-gray-500 hover:bg-amber-50'
-                              : 'text-gray-600 hover:bg-gray-50'
+                              : 'text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700'
                       }
                     `}
                   >
@@ -3621,7 +3621,7 @@ function CalendarPage({
 
       {/* Selected Day Details */}
       {selectedDate && (
-        <Card className="rounded-xl shadow-sm bg-white border-emerald-100">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-emerald-100">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-100">
@@ -3924,7 +3924,7 @@ function LeaveRequestsPage({
       </div>
 
       {/* Leave Balance Progress Ring */}
-      <Card className="rounded-xl shadow-sm bg-white glass animate-fade-in-up">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 glass animate-fade-in-up">
         <CardContent className="p-6">
           <div className="flex flex-col sm:flex-row items-center gap-6">
             {/* Circular progress ring */}
@@ -4009,7 +4009,7 @@ function LeaveRequestsPage({
                 </div>
               </div>
               {/* Linear progress bar */}
-              <div className="h-3 bg-gray-100 rounded-full overflow-hidden flex">
+              <div className="h-3 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden flex">
                 <div className="bg-red-400 h-full transition-all" style={{ width: `${(usedDays / totalAllowance) * 100}%` }} />
                 <div className="bg-amber-500 h-full transition-all" style={{ width: `${(pendingDays / totalAllowance) * 100}%` }} />
                 <div className="bg-emerald-500 h-full transition-all" style={{ width: `${(availableDays / totalAllowance) * 100}%` }} />
@@ -4123,7 +4123,7 @@ function LeaveRequestsPage({
       </Card>
 
       {/* Calendar Mini View with Leave Dots */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <CalendarIcon className="h-5 w-5 text-gray-500" />
@@ -4152,7 +4152,7 @@ function LeaveRequestsPage({
                   className={`aspect-square relative flex flex-col items-center justify-center rounded-lg text-xs transition-all ${
                     isTodayCell
                       ? 'bg-emerald-100 ring-1 ring-emerald-300 font-bold text-emerald-800'
-                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400'
+                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-700'
                   }`}
                 >
                   <span className="leading-none">{day}</span>
@@ -4558,7 +4558,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
 
       {/* Add Entry Form */}
       {showForm && (
-        <Card className="rounded-xl shadow-sm bg-white border-emerald-100">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-emerald-100">
           <CardHeader className="pb-3">
             <CardTitle className="text-lg flex items-center gap-2">
               <Plus className="h-5 w-5 text-emerald-600" />
@@ -4614,7 +4614,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
       )}
 
       {/* Total Fuel Summary Card */}
-      <Card className="rounded-xl shadow-sm bg-white glass animate-fade-in-up">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 glass animate-fade-in-up">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Fuel className="h-5 w-5 text-emerald-600" />
@@ -4640,7 +4640,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
       </Card>
 
       {/* SVG Bar Chart — Last 7 entries fuel amounts */}
-      <Card className="rounded-xl shadow-sm bg-white animate-fade-in-up">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 animate-fade-in-up">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Gauge className="h-5 w-5 text-violet-600" />
@@ -4658,7 +4658,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
               return (
                 <div key={entry.id} className="flex flex-col items-center gap-1 flex-1">
                   <span className="text-[10px] text-gray-500 font-semibold">{entry.liters}L</span>
-                  <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '100px' }}>
+                  <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-t-md relative" style={{ height: '100px' }}>
                     <div className={`absolute bottom-0 left-0 right-0 rounded-t-md transition-all ${barColor}`} style={{ height: `${Math.max(pct, 5)}%` }} />
                   </div>
                   <span className="text-[10px] text-gray-400 font-medium">{label}</span>
@@ -4692,7 +4692,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
 
       {/* Efficiency Trend Chart */}
       {vals.length > 1 && (
-        <Card className="rounded-xl shadow-sm bg-white">
+        <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-emerald-600" />
@@ -4740,7 +4740,7 @@ function FuelLogPage({ crewName }: { crewName: string }) {
       )}
 
       {/* Fuel Log Table */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader className="pb-3">
           <CardTitle className="text-lg flex items-center gap-2">
             <Fuel className="h-5 w-5 text-gray-500" />
@@ -4958,7 +4958,7 @@ function ProfilePage({
   return (
     <div className="space-y-6">
       {/* Cover Gradient Banner + Avatar (Social Media Style) */}
-      <Card className="rounded-xl shadow-sm bg-white overflow-hidden">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 overflow-hidden">
         <div className="h-32 sm:h-40 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 relative">
           {/* Decorative pattern */}
           <div className="absolute inset-0 opacity-10">
@@ -4974,7 +4974,7 @@ function ProfilePage({
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
             {/* Avatar with gradient border */}
             <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 p-1 shadow-lg shrink-0">
-              <div className="flex h-full w-full items-center justify-center rounded-full bg-white text-2xl sm:text-3xl font-bold text-emerald-600">
+              <div className="flex h-full w-full items-center justify-center rounded-full bg-white dark:bg-gray-800 text-2xl sm:text-3xl font-bold text-emerald-600">
                 {getInitials(crewProfile.profile.name)}
               </div>
             </div>
@@ -5068,7 +5068,7 @@ function ProfilePage({
       <OvertimePayCalculator crewName={crewProfile.profile?.name || ''} />
 
       {/* Performance History (Last 7 Days) */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <TrendingUp className="h-5 w-5 text-gray-500" />
@@ -5081,7 +5081,7 @@ function ProfilePage({
             {perfHistory.map((day) => (
               <div key={day.label} className="flex flex-col items-center gap-1 flex-1">
                 <span className="text-[10px] text-gray-400">{day.total > 0 ? `${Math.round(day.rate)}%` : '—'}</span>
-                <div className="w-full bg-gray-100 rounded-t-md relative" style={{ height: '80px' }}>
+                <div className="w-full bg-gray-100 dark:bg-gray-700 rounded-t-md relative" style={{ height: '80px' }}>
                   <div
                     className={`absolute bottom-0 left-0 right-0 rounded-t-md transition-all ${
                       day.rate === 100 ? 'bg-emerald-500' : day.rate > 0 ? 'bg-amber-400' : 'bg-gray-200'
@@ -5097,7 +5097,7 @@ function ProfilePage({
       </Card>
 
       {/* Activity Feed */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Flame className="h-5 w-5 text-amber-500" />
@@ -5143,7 +5143,7 @@ function ProfilePage({
       </Card>
 
       {/* Professional Details */}
-      <Card className="rounded-xl shadow-sm bg-white">
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <User className="h-5 w-5 text-gray-500" />

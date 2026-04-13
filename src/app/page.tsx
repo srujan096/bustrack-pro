@@ -248,7 +248,7 @@ function BusIcon({ className = 'w-10 h-10', animate = false }: { className?: str
 // ============================================================
 // Login Page Component — ENHANCED
 // ============================================================
-function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) => void }) {
+function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile, token: string) => void; onSwitchToCreate: () => void }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -622,6 +622,254 @@ function LoginPage({ onLogin }: { onLogin: (user: UserProfile, token: string) =>
         </div>
 
         <p className="text-center text-slate-500 text-sm mt-6">
+          Don&apos;t have an account?{' '}
+          <button onClick={onSwitchToCreate} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+            Create Account
+          </button>
+        </p>
+        <p className="text-center text-slate-500 text-sm mt-2">
+          &copy; 2025 BusTrack Pro. All rights reserved.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// Create Account Page Component
+// ============================================================
+function CreateAccountPage({ onSwitchToLogin }: { onSwitchToLogin: () => void }) {
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [role, setRole] = useState('customer');
+  const [phone, setPhone] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+
+    if (password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    if (!name.trim()) {
+      setError('Name is required');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'register', email, password, name, role, phone }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+        return;
+      }
+
+      if (data.user?.approvalStatus === 'pending') {
+        setSuccess(true);
+        toast({
+          title: 'Registration Submitted',
+          description: 'Your account is pending approval by an administrator. You will be notified once approved.',
+        });
+      } else {
+        setSuccess(true);
+        toast({
+          title: 'Account Created',
+          description: 'Your account has been created successfully! You can now log in.',
+        });
+      }
+    } catch {
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4 relative overflow-hidden animate-gradient-mesh-bg">
+      {/* Animated gradient mesh background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl animate-mesh-blob-1" />
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl animate-mesh-blob-2" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl animate-mesh-blob-1" />
+        <div className="absolute top-10 left-1/4 w-60 h-60 bg-violet-500/8 rounded-full blur-3xl animate-mesh-blob-2" />
+        <div className="absolute bottom-10 right-1/4 w-72 h-72 bg-teal-500/6 rounded-full blur-3xl animate-mesh-blob-1" />
+      </div>
+
+      {/* Floating particles */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute w-2 h-2 bg-blue-400/30 rounded-full animate-float-particle" style={{ top: '15%', left: '10%', animationDelay: '0s', animationDuration: '6s' }} />
+        <div className="absolute w-1.5 h-1.5 bg-emerald-400/30 rounded-full animate-float-particle" style={{ top: '25%', right: '15%', animationDelay: '1s', animationDuration: '8s' }} />
+        <div className="absolute w-2.5 h-2.5 bg-cyan-400/20 rounded-full animate-float-particle" style={{ bottom: '30%', left: '20%', animationDelay: '2s', animationDuration: '7s' }} />
+        <div className="absolute w-1 h-1 bg-blue-300/40 rounded-full animate-float-particle" style={{ top: '60%', right: '25%', animationDelay: '0.5s', animationDuration: '9s' }} />
+        <div className="absolute w-2 h-2 bg-emerald-300/25 rounded-full animate-float-particle" style={{ bottom: '15%', right: '10%', animationDelay: '1.5s', animationDuration: '6.5s' }} />
+      </div>
+
+      <div className="relative w-full max-w-md">
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-500 rounded-2xl mb-4 shadow-lg shadow-emerald-500/25">
+            <svg className="w-12 h-12 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+            </svg>
+          </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Create Account</h1>
+          <p className="text-slate-400 mt-2">Join BusTrack Pro today</p>
+        </div>
+
+        {success ? (
+          <div className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-8 shadow-2xl shadow-black/20">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-emerald-400/30 to-transparent" />
+            <div className="text-center">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+              </div>
+              <h2 className="text-xl font-bold text-white mb-2">Registration Successful!</h2>
+              <p className="text-slate-400 text-sm mb-6">
+                {(role === 'admin' || role === 'driver' || role === 'conductor')
+                  ? 'Your account is pending admin approval. You\'ll be notified once approved.'
+                  : 'Your account has been created. You can now sign in.'}
+              </p>
+              <button
+                onClick={onSwitchToLogin}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-500 hover:to-teal-500 transition-all shadow-lg shadow-emerald-500/25"
+              >
+                Go to Sign In
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-8 shadow-2xl shadow-black/20 relative overflow-hidden">
+            <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                  placeholder="Enter your full name"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Email Address</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Phone Number</label>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={e => setPhone(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                  placeholder="Enter your phone number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Role</label>
+                <select
+                  value={role}
+                  onChange={e => setRole(e.target.value)}
+                  className="w-full px-4 py-3 bg-[#0f1b3d]/80 border border-white/10 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all appearance-none cursor-pointer [&>option]:bg-[#0f1b3d] [&>option]:text-white [&>option]:py-2"
+                >
+                  <option value="admin">Admin</option>
+                  <option value="driver">Driver</option>
+                  <option value="conductor">Conductor</option>
+                  <option value="customer">Customer</option>
+                </select>
+                {(role === 'admin' || role === 'driver' || role === 'conductor') && (
+                  <p className="text-xs text-amber-400/80 mt-1.5 flex items-center gap-1">
+                    <AlertTriangle className="w-3 h-3" />
+                    This role requires admin approval before you can log in.
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                  placeholder="Min 6 characters"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={e => setConfirmPassword(e.target.value)}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-transparent transition-all"
+                  placeholder="Confirm your password"
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              {error && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-lg flex items-start gap-2">
+                  <XCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-red-400 text-sm">{error}</span>
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-semibold rounded-xl hover:from-emerald-500 hover:to-teal-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 transition-all disabled:opacity-50 shadow-lg shadow-emerald-500/25 mt-2"
+              >
+                {loading ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                    </svg>
+                    Creating Account...
+                  </span>
+                ) : 'Create Account'}
+              </button>
+            </form>
+          </div>
+        )}
+
+        <p className="text-center text-slate-500 text-sm mt-6">
+          Already have an account?{' '}
+          <button onClick={onSwitchToLogin} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+            Sign In
+          </button>
+        </p>
+        <p className="text-center text-slate-500 text-sm mt-2">
           &copy; 2025 BusTrack Pro. All rights reserved.
         </p>
       </div>
@@ -1347,6 +1595,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [portal, setPortal] = useState<string>('dashboard');
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [authView, setAuthView] = useState<'login' | 'createAccount'>('login');
 
   // Track scroll position for back-to-top button
   useEffect(() => {
@@ -1388,7 +1637,10 @@ export default function Home() {
   }
 
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    if (authView === 'createAccount') {
+      return <CreateAccountPage onSwitchToLogin={() => setAuthView('login')} />;
+    }
+    return <LoginPage onLogin={handleLogin} onSwitchToCreate={() => setAuthView('createAccount')} />;
   }
 
   const handleFooterLink = (label: string) => {
@@ -1785,6 +2037,7 @@ function AppShell({
           title: 'Main',
           pages: [
             { id: 'dashboard', label: 'Dashboard', icon: 'M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6' },
+            { id: 'users', label: 'Users', icon: 'M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z' },
           ],
         },
         {

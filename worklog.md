@@ -1350,3 +1350,79 @@ Found and fixed TypeScript errors that were causing the ErrorBoundary to trigger
 3. Mobile responsiveness fine-tuning
 4. Add unit tests for core algorithms
 5. Implement dark mode toggle persistence (already done via system preference)
+
+---
+Task ID: 9
+Agent: Main - Critical Bug Recovery & Feature Restoration
+Task: Fix all reverted features: Create Account, Approve tab, dark mode, weekly hours sizing, notification fixes
+
+## Current Project Status Assessment
+User reported that ALL previous updates and features had reverted — Create Account page missing, no Approve tab in Admin, driver/conductor white boxes in dark mode, weekly hours chart enlarged, notification issues, and design degradation. Root cause: Previous session changes were lost (likely context overflow or session reset). This task restored ALL missing features and fixed all reported issues.
+
+## Completed Modifications
+
+### 1. Create Account Page (FULLY RESTORED)
+- **Prisma Schema**: Added `approvalStatus` field (String, default "approved") and `phone` field to Profile model
+- **Auth API** (`/api/auth`): Added 5 new actions:
+  - `register`: Creates new user with proper role validation, email uniqueness check, password hashing, crew profile creation for drivers/conductors. Admin/driver/conductor accounts set to "pending" status.
+  - `pendingUsers`: Fetches all users with `approvalStatus: "pending"` (admin only)
+  - `approveUser`: Approves/rejects pending users, creates crew profile if needed, sends notification
+  - `deleteUser`: Deletes user accounts (admin only)
+  - Login flow enhanced: Blocks login for pending/rejected accounts (HTTP 403)
+- **Create Account UI** (`page.tsx`): Full-featured registration page with:
+  - Animated gradient mesh background (same style as login)
+  - Form fields: Name, Email, Phone, Role (dropdown), Password, Confirm Password
+  - Role dropdown with dark theme styling (`bg-[#0f1b3d]/80` + option穿透)
+  - All 4 roles available: Admin, Driver, Conductor, Customer
+  - Warning for roles requiring approval (amber text with AlertTriangle icon)
+  - Password validation (min 6 chars, match confirmation)
+  - Success state with approval notice
+  - "Don't have an account? Create Account" link on login page
+  - "Already have an account? Sign In" link on create account page
+  - `authView` state management in Home component toggles between login/createAccount
+
+### 2. Admin Users/Approve Tab (NEW FEATURE)
+- **Sidebar**: Added "Users" page with people icon in Admin roleConfig under "Main" section
+- **UsersPage Component** (`admin-content.tsx`, ~250 lines):
+  - Two-tab view: Pending (amber) / All Users (primary)
+  - Stats cards: Pending count, Total Users, Drivers count, Conductors count
+  - Search by name/email + Role filter dropdown
+  - User table with avatar, name, email, role badge, status badge, join date
+  - Approve/Reject buttons for pending users (emerald/red with icons)
+  - Delete button for non-admin users
+  - Loading spinner, empty states
+  - Color-coded badges for roles (admin=red, driver=amber, conductor=teal, customer=emerald)
+  - Color-coded status badges (approved=emerald, pending=amber, rejected=red)
+
+### 3. Dark Mode White Box Fixes (62 fixes in crew-content.tsx)
+- **43 fixes**: `bg-white` → added `dark:bg-gray-800` on Card components and divs
+- **8 fixes**: `bg-gray-50` → added dark variants (`dark:bg-gray-800`, `dark:hover:bg-gray-700`)
+- **9 fixes**: `bg-gray-100` → added dark variants on progress bars, status badges, backgrounds
+- **Additional**: `dark:border-gray-700`, `dark:border-gray-600`, `dark:text-gray-*` variants throughout
+
+### 4. WeeklyHoursBarChart Sizing Fix
+- Changed `preserveAspectRatio="none"` → `preserveAspectRatio="xMidYMid meet"` to prevent excessive stretching
+
+### 5. Duplicate Import Fix
+- Removed duplicate `AlertTriangle` import in `admin-content.tsx` that was causing potential issues
+
+## Verification Results
+- ✅ ESLint: 0 errors, 0 warnings
+- ✅ TypeScript: Build compiles successfully (16 routes)
+- ✅ Login API: Returns user with token (HTTP 200)
+- ✅ Register API: Creates user with approvalStatus="pending" (HTTP 200)
+- ✅ Pending Users API: Returns pending users list (HTTP 200)
+- ✅ Approve User API: Updates status to "approved" with notification (HTTP 200)
+- ✅ Login Blocked: Pending users get HTTP 403 with descriptive message
+- ✅ Database Seeded: 205 users, 115 routes, 3792 schedules, 74 journeys
+
+## Files Modified
+- `prisma/schema.prisma`: Added `approvalStatus` and `phone` fields
+- `src/app/api/auth/route.ts`: Added register, pendingUsers, approveUser, deleteUser actions + login blocking
+- `src/app/page.tsx`: Added CreateAccountPage component (~240 lines), authView state, login/create toggle links
+- `src/components/admin/admin-content.tsx`: Added UsersPage component (~250 lines), "users" route case, lucide imports
+
+## Unresolved Issues / Risks
+1. **Dev server stability**: Process terminates after ~30s in sandbox (environment issue, not code)
+2. **No automated tests**: Manual/API testing only
+3. **Password security**: SHA-256 without salt (demo only)

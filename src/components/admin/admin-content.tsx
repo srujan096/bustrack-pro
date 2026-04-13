@@ -4605,6 +4605,261 @@ function AdminFooter() {
 }
 
 /* ================================================================== */
+/*  Users Management Page — with approve/reject                        */
+/* ================================================================== */
+function UsersPage({ token }: { token: string }) {
+  const [users, setUsers] = useState<any[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'pending' | 'all'>('pending');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [roleFilter, setRoleFilter] = useState('all');
+
+  const fetchUsers = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [pendingRes, allRes] = await Promise.all([
+        fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'pendingUsers', token }) }),
+        fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'users', token }) }),
+      ]);
+      const pendingData = await pendingRes.json();
+      const allData = await allRes.json();
+      setPendingUsers(pendingData.users || []);
+      setUsers(allData.users || []);
+    } catch (e) {
+      console.error('Failed to fetch users:', e);
+      toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const handleApprove = async (userId: string, status: 'approved' | 'rejected') => {
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'approveUser', token, userId, status }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: `User ${status}`, description: `User has been ${status} successfully.` });
+      fetchUsers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to update user status', variant: 'destructive' });
+    }
+  };
+
+  const handleDelete = async (userId: string, userName: string) => {
+    if (!confirm(`Are you sure you want to delete ${userName}?`)) return;
+    try {
+      const res = await fetch('/api/auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'deleteUser', token, userId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        toast({ title: 'Error', description: data.error, variant: 'destructive' });
+        return;
+      }
+      toast({ title: 'User Deleted', description: `${userName} has been removed.` });
+      fetchUsers();
+    } catch {
+      toast({ title: 'Error', description: 'Failed to delete user', variant: 'destructive' });
+    }
+  };
+
+  const filteredUsers = (activeTab === 'pending' ? pendingUsers : users).filter(u => {
+    const matchSearch = !searchTerm || u.name?.toLowerCase().includes(searchTerm.toLowerCase()) || u.email?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchRole = roleFilter === 'all' || u.role === roleFilter;
+    return matchSearch && matchRole;
+  });
+
+  const statusBadge = (status: string) => {
+    const styles: Record<string, string> = {
+      approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+      pending: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+      rejected: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
+    };
+    return styles[status] || styles.pending;
+  };
+
+  const roleBadge = (role: string) => {
+    const styles: Record<string, string> = {
+      admin: 'bg-red-100 text-red-700 dark:bg-red-950/60 dark:text-red-300',
+      driver: 'bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300',
+      conductor: 'bg-teal-100 text-teal-700 dark:bg-teal-950/60 dark:text-teal-300',
+      customer: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
+    };
+    return styles[role] || '';
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-foreground">User Management</h2>
+          <p className="text-sm text-muted-foreground mt-1">Manage accounts, approve registrations, and monitor user activity</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setActiveTab('pending')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'pending' ? 'bg-amber-500 text-white shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+          >
+            <span className="flex items-center gap-1.5">
+              <AlertTriangle className="w-4 h-4" />
+              Pending
+              {pendingUsers.length > 0 && (
+                <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs font-bold">{pendingUsers.length}</span>
+              )}
+            </span>
+          </button>
+          <button
+            onClick={() => setActiveTab('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === 'all' ? 'bg-primary text-primary-foreground shadow-md' : 'bg-muted text-muted-foreground hover:bg-muted/80'}`}
+          >
+            <span className="flex items-center gap-1.5">
+              <Users className="w-4 h-4" />
+              All Users
+              <span className="ml-1 px-1.5 py-0.5 bg-white/20 rounded-full text-xs font-bold">{users.length}</span>
+            </span>
+          </button>
+        </div>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="rounded-xl p-4 bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/10 border border-amber-200/50 dark:border-amber-800/30">
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400 uppercase tracking-wider">Pending</p>
+          <p className="text-2xl font-bold text-amber-700 dark:text-amber-300 mt-1">{pendingUsers.length}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/10 border border-emerald-200/50 dark:border-emerald-800/30">
+          <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Total Users</p>
+          <p className="text-2xl font-bold text-emerald-700 dark:text-emerald-300 mt-1">{users.length}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/10 border border-blue-200/50 dark:border-blue-800/30">
+          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">Drivers</p>
+          <p className="text-2xl font-bold text-blue-700 dark:text-blue-300 mt-1">{users.filter(u => u.role === 'driver').length}</p>
+        </div>
+        <div className="rounded-xl p-4 bg-gradient-to-br from-teal-50 to-teal-100/50 dark:from-teal-950/30 dark:to-teal-900/10 border border-teal-200/50 dark:border-teal-800/30">
+          <p className="text-xs font-medium text-teal-600 dark:text-teal-400 uppercase tracking-wider">Conductors</p>
+          <p className="text-2xl font-bold text-teal-700 dark:text-teal-300 mt-1">{users.filter(u => u.role === 'conductor').length}</p>
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <input
+            type="text"
+            placeholder="Search by name or email..."
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
+        </div>
+        <select
+          value={roleFilter}
+          onChange={e => setRoleFilter(e.target.value)}
+          className="px-4 py-2.5 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          <option value="all">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="driver">Driver</option>
+          <option value="conductor">Conductor</option>
+          <option value="customer">Customer</option>
+        </select>
+      </div>
+
+      {/* User Table */}
+      <div className="rounded-xl border border-border overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="bg-muted/50 border-b border-border">
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">User</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Role</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Joined</th>
+                <th className="text-right px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {loading ? (
+                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <svg className="animate-spin h-6 w-6 mx-auto mb-2" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" /><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  Loading users...
+                </td></tr>
+              ) : filteredUsers.length === 0 ? (
+                <tr><td colSpan={5} className="text-center py-12 text-muted-foreground">
+                  <CheckCircle2 className="w-10 h-10 mx-auto mb-2 text-muted-foreground/50" />
+                  {activeTab === 'pending' ? 'No pending approvals' : 'No users found'}
+                </td></tr>
+              ) : (
+                filteredUsers.map(u => (
+                  <tr key={u.id} className="hover:bg-muted/30 transition-colors">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary/80 to-primary flex items-center justify-center text-primary-foreground text-sm font-bold flex-shrink-0">
+                          {(u.name || 'U').charAt(0).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-foreground truncate">{u.name}</p>
+                          <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${roleBadge(u.role)}`}>
+                        {u.role}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${statusBadge(u.approvalStatus)}`}>
+                        {u.approvalStatus || 'approved'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-xs text-muted-foreground">{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '-'}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-2">
+                        {u.approvalStatus === 'pending' && (
+                          <>
+                            <button onClick={() => handleApprove(u.id, 'approved')} className="px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Approve
+                            </button>
+                            <button onClick={() => handleApprove(u.id, 'rejected')} className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded-lg transition-colors flex items-center gap-1">
+                              <XCircle className="w-3.5 h-3.5" /> Reject
+                            </button>
+                          </>
+                        )}
+                        {u.role !== 'admin' && (
+                          <button onClick={() => handleDelete(u.id, u.name)} className="px-3 py-1.5 bg-muted hover:bg-muted/80 text-muted-foreground text-xs font-medium rounded-lg transition-colors">
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ================================================================== */
 /*  Main Export                                                        */
 /* ================================================================== */
 export default function AdminContent({ portal, userId, token, setPortal }: Props) {
@@ -4647,6 +4902,8 @@ export default function AdminContent({ portal, userId, token, setPortal }: Props
     switch (portal) {
       case 'dashboard':
         return <DashboardPage token={token} setPortal={setPortal} />;
+      case 'users':
+        return <UsersPage token={token} />;
       case 'routes':
         return <RoutesPage token={token} />;
       case 'schedules':

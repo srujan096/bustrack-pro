@@ -13,6 +13,8 @@ model Profile {
   password  String
   role      String   @default("customer") // admin, driver, conductor, customer
   name      String
+  approvalStatus String @default("approved") // pending, approved, rejected
+  phone     String   @default("")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
