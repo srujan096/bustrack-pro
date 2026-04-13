@@ -67,6 +67,7 @@ import {
   Fuel,
   CircleDot,
   Plus,
+  Minus,
   Cloud,
   CloudRain,
   CloudLightning,
@@ -2062,6 +2063,148 @@ function QuickActions() {
   );
 }
 
+// ──────────────────────────── Passenger Counter ────────────────────────────
+
+function PassengerCounter() {
+  const [count, setCount] = useState(0);
+  const CAPACITY = 40;
+  const [stopHistory, setStopHistory] = useState<{ time: string; count: number }[]>([]);
+
+  const percentage = Math.round((count / CAPACITY) * 100);
+  const progressColor = percentage > 85
+    ? 'bg-red-500'
+    : percentage >= 60
+      ? 'bg-amber-500'
+      : 'bg-emerald-500';
+  const progressTrackColor = 'bg-gray-200 dark:bg-gray-700';
+
+  const recordStop = () => {
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('en-IN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+    setStopHistory((prev) =>
+      [{ time: timeStr, count }, ...prev].slice(0, 5)
+    );
+    toast({
+      title: 'Stop Recorded',
+      description: `${count} passenger${count !== 1 ? 's' : ''} logged at ${timeStr}.`,
+    });
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <Users className="h-5 w-5 text-emerald-600" />
+          Passenger Counter
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Current Count Display */}
+        <div className="flex flex-col items-center">
+          <span className="text-6xl font-bold tabular-nums text-gray-900 dark:text-gray-100">
+            {count}
+          </span>
+          <span className="text-xs text-gray-400 mt-1">passengers on board</span>
+        </div>
+
+        {/* +1 / -1 Circular Buttons */}
+        <div className="flex items-center justify-center gap-5">
+          <button
+            type="button"
+            onClick={() => setCount((c) => Math.max(0, c - 1))}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-950 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors"
+          >
+            <Minus className="h-5 w-5" />
+          </button>
+          <button
+            type="button"
+            onClick={() => setCount((c) => c + 1)}
+            className="flex h-12 w-12 items-center justify-center rounded-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 shadow-sm hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:border-emerald-700 dark:hover:text-emerald-400 transition-colors"
+          >
+            <Plus className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* +5 / -5 Quick Buttons */}
+        <div className="flex items-center justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => setCount((c) => Math.max(0, c - 5))}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm hover:bg-red-50 hover:border-red-300 hover:text-red-600 dark:hover:bg-red-950 dark:hover:border-red-700 dark:hover:text-red-400 transition-colors"
+          >
+            −5
+          </button>
+          <button
+            type="button"
+            onClick={() => setCount((c) => c + 5)}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-200 shadow-sm hover:bg-emerald-50 hover:border-emerald-300 hover:text-emerald-600 dark:hover:bg-emerald-950 dark:hover:border-emerald-700 dark:hover:text-emerald-400 transition-colors"
+          >
+            +5
+          </button>
+        </div>
+
+        {/* Capacity Indicator */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              Capacity: {count} / {CAPACITY}
+            </span>
+            <span className={`text-xs font-semibold ${percentage > 85 ? 'text-red-600' : percentage >= 60 ? 'text-amber-600' : 'text-emerald-600'}`}>
+              {percentage}%
+            </span>
+          </div>
+          <div className={`h-2.5 ${progressTrackColor} rounded-full overflow-hidden`}>
+            <div
+              className={`h-full ${progressColor} rounded-full transition-all duration-300 ease-out`}
+              style={{ width: `${Math.min(percentage, 100)}%` }}
+            />
+          </div>
+        </div>
+
+        {/* Record Stop Button */}
+        <Button
+          onClick={recordStop}
+          className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
+        >
+          <Save className="mr-2 h-4 w-4" />
+          Record Stop
+        </Button>
+
+        {/* Stop History */}
+        {stopHistory.length > 0 && (
+          <div>
+            <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2">
+              Stop History
+            </p>
+            <div className="space-y-1.5 max-h-48 overflow-y-auto">
+              {stopHistory.map((stop, i) => (
+                <div
+                  key={`${stop.time}-${stop.count}-${i}`}
+                  className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-700/60 px-3 py-2"
+                >
+                  <div className="flex items-center gap-2">
+                    <CircleDot className="h-3 w-3 text-emerald-500" />
+                    <span className="text-sm text-gray-700 dark:text-gray-300 font-mono">
+                      {stop.time}
+                    </span>
+                  </div>
+                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
+                    {stop.count} <span className="text-xs font-normal text-gray-500">pax</span>
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function CircularProgress({ value, size = 80, strokeWidth = 6, color = 'emerald' }: { value: number; size?: number; strokeWidth?: number; color?: string }) {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
@@ -2772,10 +2915,13 @@ function DashboardPage({
         <WeeklyHoursBarChart crewName={crewProfile.profile?.name || ''} />
       )}
 
-      {/* Quick Actions */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h2>
-        <QuickActions />
+      {/* Passenger Counter + Quick Actions grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <PassengerCounter />
+        <div>
+          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">Quick Actions</h2>
+          <QuickActions />
+        </div>
       </div>
 
       {/* Digital Trip Manifest + Shift Timer grid */}

@@ -415,10 +415,10 @@ function getWeatherForCity(city: string | undefined): {
   advisory: string;
 } {
   const c = city?.toUpperCase() ?? '';
-  if (c.includes('DEL')) return { emoji: '🔥', label: 'Hot', bg: 'bg-gradient-to-r from-red-50 to-orange-50', text: 'text-red-700', advisory: 'Expect 5-10 min delay' };
-  if (c.includes('MUM')) return { emoji: '🌧️', label: 'Rainy', bg: 'bg-gradient-to-r from-blue-50 to-sky-50', text: 'text-blue-700', advisory: 'Expect 5-10 min delay' };
-  if (c.includes('CHN')) return { emoji: '⛅', label: 'Cloudy', bg: 'bg-gradient-to-r from-gray-50 to-slate-100', text: 'text-gray-700', advisory: '' };
-  return { emoji: '☀️', label: 'Sunny', bg: 'bg-gradient-to-r from-amber-50 to-yellow-50', text: 'text-amber-700', advisory: '' };
+  if (c.includes('DEL')) return { emoji: '🔥', label: 'Hot', bg: 'bg-gradient-to-r from-red-50 to-orange-50 dark:from-red-950/40 dark:to-orange-950/40', text: 'text-red-700 dark:text-red-300', advisory: 'Expect 5-10 min delay' };
+  if (c.includes('MUM')) return { emoji: '🌧️', label: 'Rainy', bg: 'bg-gradient-to-r from-blue-50 to-sky-50 dark:from-blue-950/40 dark:to-sky-950/40', text: 'text-blue-700 dark:text-blue-300', advisory: 'Expect 5-10 min delay' };
+  if (c.includes('CHN')) return { emoji: '⛅', label: 'Cloudy', bg: 'bg-gradient-to-r from-gray-50 to-slate-100 dark:from-gray-800 dark:to-slate-800', text: 'text-gray-700 dark:text-gray-300', advisory: '' };
+  return { emoji: '☀️', label: 'Sunny', bg: 'bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950/40 dark:to-yellow-950/40', text: 'text-amber-700 dark:text-amber-300', advisory: '' };
 }
 
 function WeatherBadge({ city }: { city: string | undefined }) {
@@ -642,10 +642,10 @@ function RouteDetailPanel({
               const isFirst = idx === 0;
               const isLast = idx === displayStops.length - 1;
               const dotColor = isFirst
-                ? 'bg-emerald-500 ring-emerald-200'
+                ? 'bg-emerald-500 ring-emerald-200 dark:ring-emerald-800'
                 : isLast
-                  ? 'bg-red-500 ring-red-200'
-                  : 'bg-amber-400 ring-amber-200';
+                  ? 'bg-red-500 ring-red-200 dark:ring-red-800'
+                  : 'bg-amber-400 ring-amber-200 dark:ring-amber-800';
               return (
                 <div key={idx} className="flex items-center gap-3 pl-1">
                   <div className={`relative z-10 h-[10px] w-[10px] rounded-full shrink-0 ring-2 ${dotColor}`} />
@@ -668,7 +668,7 @@ function RouteDetailPanel({
               key={i}
               className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs ${
                 a.available
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300'
                   : 'border-muted bg-muted/50 text-muted-foreground'
               }`}
             >
@@ -938,7 +938,7 @@ function TripPlanner({ onFindRoutes }: { onFindRoutes: () => void }) {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <p className="text-lg font-bold text-emerald-700">{formatCurrency(suggestion.fare * passengers)}</p>
+                    <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(suggestion.fare * passengers)}</p>
                     <Button
                       size="sm"
                       variant="outline"
@@ -1050,7 +1050,7 @@ function QuickTripPlanner({ onFindRoutes }: { onFindRoutes: (from: string, to: s
                     <ArrowRight className="size-3 shrink-0 text-muted-foreground" />
                     <span className="font-medium truncate">{route.end}</span>
                   </div>
-                  <p className="text-xs font-semibold text-emerald-700 mt-0.5">{formatCurrency(route.fare)}</p>
+                  <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-400 mt-0.5">{formatCurrency(route.fare)}</p>
                 </div>
               </div>
             ))}
@@ -1318,7 +1318,7 @@ function SeatSelection({
   const getSeatStyle = (seat: string) => {
     if (bookedSeats.has(seat)) return 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50';
     if (selectedSeats.has(seat)) return 'bg-emerald-500 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300';
-    return 'border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 cursor-pointer';
+    return 'border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 cursor-pointer dark:text-emerald-300 dark:hover:bg-emerald-950/50 dark:border-emerald-500';
   };
 
   const grid: { seat: string; row: number; col: number; label: string }[] = [];
@@ -1665,28 +1665,28 @@ function CommuteStatistics({ userId }: { userId: string }) {
       label: 'Total Commutes',
       value: String(stats.totalCommutes),
       icon: Bus,
-      iconBg: 'bg-sky-100',
+      iconBg: 'bg-sky-100 dark:bg-sky-900/40',
       iconColor: 'text-sky-600',
     },
     {
       label: 'Favorite Route',
       value: stats.favoriteRoute,
       icon: Bus,
-      iconBg: 'bg-violet-100',
+      iconBg: 'bg-violet-100 dark:bg-violet-900/40',
       iconColor: 'text-violet-600',
     },
     {
       label: 'Avg Daily Fare',
       value: formatCurrency(stats.avgFare),
       icon: IndianRupee,
-      iconBg: 'bg-amber-100',
+      iconBg: 'bg-amber-100 dark:bg-amber-900/40',
       iconColor: 'text-amber-600',
     },
     {
       label: 'Monthly Savings',
       value: `${stats.savingsPct}%`,
       icon: TrendingUp,
-      iconBg: 'bg-emerald-100',
+      iconBg: 'bg-emerald-100 dark:bg-emerald-900/40',
       iconColor: 'text-emerald-600',
     },
   ];
@@ -2431,7 +2431,7 @@ function FareCalculator() {
         {estimated !== null && (
           <div className="rounded-lg bg-white/70 px-3 py-2">
             <p className="text-xs text-muted-foreground">Estimated fare:</p>
-            <p className="text-lg font-bold text-emerald-700">{formatCurrency(estimated)}</p>
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(estimated)}</p>
             <p className="text-xs text-muted-foreground">₹5 base + ₹2/km</p>
           </div>
         )}
@@ -2745,7 +2745,7 @@ function SearchRoutes({
 
       {/* Error */}
       {error && (
-        <Card className="border-red-200 bg-red-50">
+        <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
           <CardContent className="flex items-center gap-2 py-3 text-sm text-red-600">
             <XCircle className="size-4 shrink-0" />
             {error}
@@ -2979,7 +2979,7 @@ function SearchRoutes({
                           </div>
 
                           <div className="flex items-center gap-2 sm:flex-col sm:items-end sm:gap-1">
-                            <p className="text-xl font-bold text-emerald-700">{formatCurrency(route.fare)}</p>
+                            <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(route.fare)}</p>
                             <div className="flex items-center gap-1">
                               <Button
                                 variant="outline"
@@ -3541,8 +3541,8 @@ function RouteMapView() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <Card className="hover:shadow-sm transition-shadow">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100">
-                <Route className="size-4 text-violet-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/40">
+                <Route className="size-4 text-violet-600 dark:text-violet-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Route</p>
@@ -3552,8 +3552,8 @@ function RouteMapView() {
           </Card>
           <Card className="hover:shadow-sm transition-shadow">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100">
-                <Navigation className="size-4 text-sky-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-sky-100 dark:bg-sky-900/40">
+                <Navigation className="size-4 text-sky-600 dark:text-sky-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Distance</p>
@@ -3563,8 +3563,8 @@ function RouteMapView() {
           </Card>
           <Card className="hover:shadow-sm transition-shadow">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100">
-                <Clock className="size-4 text-amber-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/40">
+                <Clock className="size-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Duration</p>
@@ -3574,8 +3574,8 @@ function RouteMapView() {
           </Card>
           <Card className="hover:shadow-sm transition-shadow">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100">
-                <IndianRupee className="size-4 text-emerald-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-100 dark:bg-emerald-900/40">
+                <IndianRupee className="size-4 text-emerald-600 dark:text-emerald-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Fare</p>
@@ -3585,8 +3585,8 @@ function RouteMapView() {
           </Card>
           <Card className="col-span-2 sm:col-span-1 hover:shadow-sm transition-shadow">
             <CardContent className="flex items-center gap-3 py-4">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100">
-                <MapPin className="size-4 text-rose-600" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-900/40">
+                <MapPin className="size-4 text-rose-600 dark:text-rose-400" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Stops</p>
@@ -3677,9 +3677,9 @@ function TravelTimeline({ userId }: { userId: string }) {
   }, [userId]);
 
   const statusDot: Record<string, string> = {
-    completed: 'bg-emerald-500 ring-emerald-200',
-    planned: 'bg-amber-500 ring-amber-200',
-    cancelled: 'bg-red-500 ring-red-200',
+    completed: 'bg-emerald-500 ring-emerald-200 dark:ring-emerald-800',
+    planned: 'bg-amber-500 ring-amber-200 dark:ring-amber-800',
+    cancelled: 'bg-red-500 ring-red-200 dark:ring-red-800',
   };
 
   return (
@@ -3717,7 +3717,7 @@ function TravelTimeline({ userId }: { userId: string }) {
                       <ArrowRight className="size-3 text-muted-foreground" />
                       <span className="font-medium">{entry.to}</span>
                     </div>
-                    <div className="mt-1.5 text-xs font-medium text-emerald-700">
+                    <div className="mt-1.5 text-xs font-medium text-emerald-700 dark:text-emerald-400">
                       {formatCurrency(entry.fare)}
                     </div>
                   </div>
@@ -3863,13 +3863,13 @@ function MyBookings({ userId }: { userId: string }) {
     const s = status?.toLowerCase() ?? 'planned';
     switch (s) {
       case 'confirmed':
-        return { label: 'Confirmed', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300' };
+        return { label: 'Confirmed', cls: 'bg-emerald-100 text-emerald-700 border-emerald-300 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700' };
       case 'completed':
-        return { label: 'Completed', cls: 'bg-sky-100 text-sky-700 border-sky-300' };
+        return { label: 'Completed', cls: 'bg-sky-100 text-sky-700 border-sky-300 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-700' };
       case 'cancelled':
-        return { label: 'Cancelled', cls: 'bg-red-100 text-red-700 border-red-300' };
+        return { label: 'Cancelled', cls: 'bg-red-100 text-red-700 border-red-300 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700' };
       default:
-        return { label: 'Planned', cls: 'bg-amber-100 text-amber-700 border-amber-300' };
+        return { label: 'Planned', cls: 'bg-amber-100 text-amber-700 border-amber-300 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700' };
     }
   }
 
@@ -3889,7 +3889,7 @@ function MyBookings({ userId }: { userId: string }) {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
               <XCircle className="size-4 shrink-0" />
               {error}
               <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
@@ -3976,7 +3976,7 @@ function MyBookings({ userId }: { userId: string }) {
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Fare</p>
-                          <p className="text-sm font-bold text-emerald-700">{formatCurrency(j.cost)}</p>
+                          <p className="text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(j.cost)}</p>
                         </div>
                       </div>
                       <Separator orientation="vertical" className="mx-4" />
@@ -4572,7 +4572,7 @@ function JourneyHistory({ userId }: { userId: string }) {
         </CardHeader>
         <CardContent>
           {error && (
-            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">
+            <div className="mb-4 flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
               <XCircle className="size-4 shrink-0" />
               {error}
               <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
@@ -4870,14 +4870,14 @@ interface Complaint {
 const COMPLAINT_CATEGORIES = ['Delay', 'Overcrowding', 'Cleanliness', 'Driver Behavior', 'Safety', 'Other'];
 const SEVERITY_OPTIONS = ['Low', 'Medium', 'High'];
 const SEVERITY_COLORS: Record<string, string> = {
-  Low: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  Medium: 'bg-amber-100 text-amber-700 border-amber-200',
-  High: 'bg-red-100 text-red-700 border-red-200',
+  Low: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700',
+  Medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700',
+  High: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300 dark:border-red-700',
 };
 const STATUS_COLORS: Record<string, string> = {
-  Open: 'bg-sky-100 text-sky-700 border-sky-200',
-  'In Progress': 'bg-amber-100 text-amber-700 border-amber-200',
-  Resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  Open: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-700',
+  'In Progress': 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:text-amber-300 dark:border-amber-700',
+  Resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-700',
 };
 
 const FAQ_ITEMS = [

@@ -1803,6 +1803,121 @@ function ActivityTimeline({ events }: { events: TimelineEvent[] }) {
 }
 
 /* ================================================================== */
+/*  Live Activity Feed Component                                      */
+/* ================================================================== */
+
+interface FeedItem {
+  id: string;
+  type: 'success' | 'warning' | 'info' | 'error';
+  action: string;
+  description: string;
+  timeAgo: string;
+}
+
+function LiveActivityFeed() {
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [fadeOut, setFadeOut] = useState(false);
+
+  const generateFeedItems = useCallback((): FeedItem[] => {
+    const now = Date.now();
+    const daySeed = Math.floor(now / (24 * 60 * 60 * 1000));
+    const seed = (daySeed * 17) % 100;
+    const pseudo = (i: number) => ((seed * 31 + i * 47) % 100);
+
+    const actions: Array<{ type: FeedItem['type']; action: string; description: string; timeAgo: string }> = [
+      { type: 'success', action: 'Trip', description: 'Driver Rajesh completed Route BLR-101', timeAgo: '2 min ago' },
+      { type: 'info', action: 'User', description: 'New registration: customer@bus.com', timeAgo: '5 min ago' },
+      { type: 'warning', action: 'Schedule', description: 'Schedule updated for Route MUM-205', timeAgo: '8 min ago' },
+      { type: 'success', action: 'Payment', description: '₹350 fare collected on Route DEL-112', timeAgo: '12 min ago' },
+      { type: 'info', action: 'Crew', description: 'Conductor Priya assigned to Route CHN-302', timeAgo: '15 min ago' },
+      { type: 'error', action: 'Alert', description: 'Traffic congestion reported on BLR-455', timeAgo: '22 min ago' },
+      { type: 'success', action: 'Maint.', description: 'Bus KA-01-1234 servicing completed', timeAgo: '30 min ago' },
+      { type: 'info', action: 'Route', description: 'Route InterCity-701 departed on time', timeAgo: '35 min ago' },
+      { type: 'warning', action: 'System', description: 'GPS signal lost for Bus MH-02-5678', timeAgo: '42 min ago' },
+      { type: 'success', action: 'Review', description: '4.8★ rating received from passenger', timeAgo: '50 min ago' },
+    ];
+
+    const seeded = actions.map((a, i) => ({ ...a, id: `feed-${pseudo(i)}` }));
+    return seeded;
+  }, []);
+
+  useEffect(() => {
+    setItems(generateFeedItems());
+  }, [generateFeedItems]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFadeOut(true);
+      setTimeout(() => {
+        setItems((prev) => {
+          const shuffled = [...prev];
+          for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+          }
+          // Rotate one item to simulate new activity
+          const rotated = [...shuffled.slice(1), shuffled[0]];
+          return rotated;
+        });
+        setFadeOut(false);
+      }, 500);
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const colorMap: Record<FeedItem['type'], { border: string; bg: string; text: string }> = {
+    success: { border: 'border-l-emerald-500', bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-300' },
+    warning: { border: 'border-l-amber-500', bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-300' },
+    info: { border: 'border-l-sky-500', bg: 'bg-sky-100 dark:bg-sky-900/30', text: 'text-sky-700 dark:text-sky-300' },
+    error: { border: 'border-l-red-500', bg: 'bg-red-100 dark:bg-red-900/30', text: 'text-red-700 dark:text-red-300' },
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Activity className="size-5" /> Live Activity Feed
+          </CardTitle>
+          <div className="flex items-center gap-1.5">
+            <span className="relative flex size-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex rounded-full size-2 bg-emerald-500" />
+            </span>
+            <span className="text-xs text-muted-foreground">Live</span>
+          </div>
+        </div>
+        <CardDescription>Real-time system events and updates</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div
+          className={`max-h-96 overflow-y-auto space-y-1 transition-opacity duration-500 ${fadeOut ? 'opacity-0' : 'opacity-100'}`}
+          style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}
+        >
+          {items.map((item) => {
+            const colors = colorMap[item.type];
+            return (
+              <div
+                key={item.id}
+                className={`flex items-start gap-3 border-l-4 ${colors.border} rounded-r-md px-3 py-2.5 transition-colors hover:bg-muted/40`}
+              >
+                <div className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${colors.bg} ${colors.text}`}>
+                  {item.action.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm leading-snug">{item.description}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{item.timeAgo}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
 function DashboardPage({
@@ -2083,6 +2198,11 @@ function DashboardPage({
       <BroadcastMessaging />
       </div>
 
+      {/* Live Activity Feed */}
+      <div className="page-section">
+      <LiveActivityFeed />
+      </div>
+
       {/* Recent Activity + Traffic Alerts side by side on desktop */}
       <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2342,6 +2462,31 @@ function BroadcastMessaging() {
 }
 
 /* ================================================================== */
+/*  Route City Badge Component                                         */
+/* ================================================================== */
+
+function RouteCityBadge({ city, routeNumber }: { city?: string; routeNumber?: string }) {
+  const detectCity = (c?: string, rn?: string): { label: string; color: string } => {
+    const upper = (c ?? '').toUpperCase();
+    const prefix = (rn ?? '').toUpperCase();
+    if (upper === 'BLR' || prefix.startsWith('BLR')) return { label: 'Bangalore', color: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800' };
+    if (upper === 'MUM' || prefix.startsWith('MUM')) return { label: 'Mumbai', color: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300 border-amber-200 dark:border-amber-800' };
+    if (upper === 'DEL' || prefix.startsWith('DEL')) return { label: 'Delhi', color: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300 border-rose-200 dark:border-rose-800' };
+    if (upper === 'CHN' || prefix.startsWith('CHN')) return { label: 'Chennai', color: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300 border-sky-200 dark:border-sky-800' };
+    if (upper === 'INTERCITY' || upper === 'INTER-CITY' || prefix.startsWith('INTERCITY') || prefix.startsWith('INT')) return { label: 'Inter-City', color: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300 border-violet-200 dark:border-violet-800' };
+    return { label: upper || '—', color: 'bg-muted text-muted-foreground border-muted' };
+  };
+
+  const { label, color } = detectCity(city, routeNumber);
+
+  return (
+    <span className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${color}`}>
+      {label}
+    </span>
+  );
+}
+
+/* ================================================================== */
 /*  Page: Routes                                                       */
 /* ================================================================== */
 function RoutesPage({ token }: { token: string }) {
@@ -2471,6 +2616,7 @@ function RoutesPage({ token }: { token: string }) {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Route #</TableHead>
+                      <TableHead>City</TableHead>
                       <TableHead>Start → End</TableHead>
                       <TableHead>Distance</TableHead>
                       <TableHead>Fare</TableHead>
@@ -2491,6 +2637,9 @@ function RoutesPage({ token }: { token: string }) {
                         >
                           <TableCell className="font-medium">
                             {r.routeNumber ?? '—'}
+                          </TableCell>
+                          <TableCell>
+                            <RouteCityBadge city={r.city} routeNumber={r.routeNumber} />
                           </TableCell>
                           <TableCell>
                             {/* FIX #3: startLocation / endLocation */}

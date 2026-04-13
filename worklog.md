@@ -1426,3 +1426,94 @@ User reported that ALL previous updates and features had reverted — Create Acc
 1. **Dev server stability**: Process terminates after ~30s in sandbox (environment issue, not code)
 2. **No automated tests**: Manual/API testing only
 3. **Password security**: SHA-256 without salt (demo only)
+
+---
+Task ID: 10
+Agent: Main - QA Round 10 + Dark Mode Polish + New Features
+Task: Comprehensive QA, dark mode fixes across all portals, new features (Passenger Counter, Activity Feed, Route Badges)
+
+## Current Project Status Assessment
+The BusTrack Pro application is stable at 20,587 total lines across 5 core files. Previous sessions established Create Account, Admin Users/Approve tab, crew dark mode fixes, and weekly hours chart fix. This session focused on: (1) comprehensive QA testing via agent-browser, (2) completing dark mode coverage for customer portal and admin sidebar, (3) adding 3 new features.
+
+## Completed Modifications
+
+### 1. QA Testing (Agent-Browser)
+- Login page: All elements present (email/password inputs, Sign In, Quick Demo Access buttons, "Don't have an account? Create Account" link)
+- Create Account page: Full form with Name, Email, Phone, Role dropdown (Admin/Driver/Conductor/Customer), Password, Confirm Password
+- Form filling and submission tested successfully
+- Screenshots saved to `/home/z/my-project/download/qa-login.png` and `qa-create-account.png`
+
+### 2. Customer Portal Dark Mode Fixes (24 fixes in customer-content.tsx)
+- **Background colors (10)**: Weather badges (4 cities), error cards (3), amenities, commute stats, route info cards
+- **Text colors (9)**: Fare displays, bookings, trip planner, bus tracker, fare calculator, timeline, weather badges
+- **Ring colors (2)**: Route detail timeline dots, travel timeline status dots
+- **Border colors (1)**: Seat selection available seats
+- **Badge/Status colors (10)**: `receiptStatus()` helper (4 statuses), severity colors (3), status colors (3)
+
+### 3. Admin Sidebar Dark Theme Polish (3 fixes in page.tsx)
+- Portal label text → added `dark:text-gray-400`
+- User email text → added `dark:text-gray-400`
+- Sign Out button → added `dark:text-gray-400 dark:hover:text-red-400`
+
+### 4. Passenger Counter Feature (Crew Portal - crew-content.tsx)
+- **New `PassengerCounter` component** (~140 lines) added to Dashboard
+- Large count display with `text-6xl font-bold tabular-nums`
+- Circular `+1`/`-1` buttons (48×48 rounded-full) with color transitions
+- `+5`/`-5` batch count quick buttons
+- Capacity indicator: "Capacity: X / 40" with percentage
+- Color-coded progress bar: green (<60%), amber (60-85%), red (>85%)
+- "Record Stop" button that logs count + timestamp to stop history (max 5 entries)
+- Stop history with CircleDot icon, monospaced timestamp, pax count
+- Full dark mode support throughout
+- Integrated into Dashboard grid alongside QuickActions in 2-column layout
+
+### 5. Live Activity Feed (Admin Dashboard - admin-content.tsx)
+- **New `LiveActivityFeed` component** added to Dashboard grid
+- 10 deterministic activity items generated from day-based seed
+- Color-coded left borders: emerald (success), amber (warning), sky (info), red (error)
+- Colored circle icons with action type initial letter
+- Relative timestamps ("2 min ago" through "50 min ago")
+- Auto-refresh every 30s with smooth fade-out/fade-in transition
+- Live indicator with pulsing green dot + "Live" label in header
+- Max height with custom scrollbar (`max-h-96 overflow-y-auto`)
+- Full dark mode support
+
+### 6. Route City Badges (Admin Routes Page - admin-content.tsx)
+- **New `RouteCityBadge` component** as a new "City" column in routes table
+- BLR → Emerald badge: "Bangalore"
+- MUM → Amber badge: "Mumbai"
+- DEL → Rose badge: "Delhi"
+- CHN → Sky badge: "Chennai"
+- Inter-City → Violet badge: "Inter-City"
+- Fallback for unknown cities: muted style
+- Smart detection: checks both `city` field AND route number prefix
+
+## Verification Results
+- ✅ ESLint: 0 errors, 0 warnings
+- ✅ Build: All 16 routes compile successfully (static + dynamic)
+- ✅ Agent-browser: Login page renders correctly, Create Account page with all fields
+- ✅ API tests: Login (HTTP 200), Register (pending status), Routes (50 routes)
+- ✅ Total codebase: 20,587 lines
+  - page.tsx: 2,445 lines
+  - admin-content.tsx: 5,118 lines (+149 from Activity Feed + Route Badges)
+  - customer-content.tsx: 5,799 lines (dark mode fixes)
+  - crew-content.tsx: 5,625 lines (+146 from Passenger Counter)
+  - globals.css: 1,150 lines
+
+## Files Modified
+- `src/components/customer/customer-content.tsx`: 24 dark mode fixes
+- `src/components/admin/admin-content.tsx`: LiveActivityFeed + RouteCityBadge components
+- `src/components/crew/crew-content.tsx`: PassengerCounter component + grid layout integration
+- `src/app/page.tsx`: Sidebar dark mode text fixes (3 fixes)
+
+## Unresolved Issues / Risks
+1. **Dev server stability**: Process dies after ~30s in sandbox (environment limitation, not code)
+2. **No automated tests**: Manual/API testing only
+3. **Password security**: SHA-256 without salt (demo only)
+
+## Priority Recommendations for Next Phase
+1. Add WebSocket/Socket.IO real-time updates for live data
+2. Add route search autocomplete with debounced API calls
+3. Mobile responsiveness fine-tuning across all portals
+4. Add unit tests for core algorithms
+5. Implement dark mode toggle button (persists user preference)

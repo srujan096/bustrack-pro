@@ -2202,7 +2202,7 @@ function AppShell({
             </div>
             <div>
               <h2 className="font-bold text-gray-900 dark:text-white text-sm">BusTrack Pro</h2>
-              <span className="text-xs text-gray-500">{config.label} Portal</span>
+              <span className="text-xs text-gray-500 dark:text-gray-400">{config.label} Portal</span>
             </div>
           </div>
         )}
@@ -2262,7 +2262,7 @@ function AppShell({
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">{user.name}</p>
-              <p className="text-xs text-gray-500 truncate">{user.email}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{user.email}</p>
             </div>
           </div>
         )}
@@ -2277,7 +2277,7 @@ function AppShell({
         ) : (
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/10 rounded-lg transition-colors"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
