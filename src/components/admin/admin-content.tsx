@@ -2063,6 +2063,7 @@ function SystemHealthPanel({ lastSync }: { lastSync: string }) {
           <Activity className="size-5 text-emerald-500" /> System Health
         </CardTitle>
         <CardDescription>Real-time service status monitoring</CardDescription>
+        <div className="section-accent-line" />
       </CardHeader>
       <CardContent>
         <div className="space-y-2.5">
@@ -2578,7 +2579,7 @@ function DashboardPage({
           </>
         ) : (
           stats.map((s) => (
-            <Card key={s.label} className="stat-card-premium transition-shadow hover:shadow-md group">
+            <Card key={s.label} className="stat-card-premium hover-glow transition-shadow hover:shadow-md group">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -2838,7 +2839,7 @@ function BroadcastMessaging() {
   };
 
   return (
-    <Card>
+    <Card className="card-shine-sweep">
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
@@ -3097,7 +3098,7 @@ function RoutesPage({ token }: { token: string }) {
             </div>
             <Button
               onClick={() => { setEditingRoute(null); setShowRouteDialog(true); }}
-              className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5"
+              className="btn-press bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5"
             >
               <Plus className="size-4" /> Add Route
             </Button>
@@ -3924,7 +3925,7 @@ function SchedulesPage({ token }: { token: string }) {
               <Button variant={timelineView ? 'default' : 'outline'} size="sm" onClick={() => setTimelineView(true)}>
                 <LayoutList className="size-3.5 mr-1" /> Timeline
               </Button>
-              <Button onClick={handleGenerate} disabled={generating} className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700">
+              <Button onClick={handleGenerate} disabled={generating} className="btn-press bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700">
                 {generating ? (
                   <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
                 ) : (
@@ -4206,7 +4207,7 @@ function CrewPage({ token }: { token: string }) {
               </CardTitle>
               <CardDescription>Manage drivers, conductors and assignments</CardDescription>
             </div>
-            <Button onClick={handleAutoAssign} disabled={assigning}>
+            <Button onClick={handleAutoAssign} disabled={assigning} className="btn-press">
               {assigning ? (
                 <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
               ) : (

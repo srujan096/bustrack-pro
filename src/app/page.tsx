@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useSyncExternalStore, Component } from 'react';
 import { UserProfile } from '@/types';
 import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History, Cloud, CloudRain, CloudSun, Download, MapPin, MessageSquare, LayoutDashboard, Settings2, BarChart3, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
@@ -624,7 +624,7 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-emerald-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25"
+              className="btn-press w-full py-3 bg-gradient-to-r from-blue-600 to-emerald-600 text-white font-semibold rounded-xl hover:from-blue-500 hover:to-emerald-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all disabled:opacity-50 shadow-lg shadow-blue-500/25"
             >
               {loading ? (
                 <span className="flex items-center justify-center gap-2">
@@ -1087,7 +1087,7 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
         </svg>
         {unreadCount > 0 && (
-          <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[1.25rem] animate-badge-pulse">
+          <span className="badge-count-pulse absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center min-w-[1.25rem] animate-badge-pulse">
             {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
@@ -1623,7 +1623,7 @@ function SidebarSection({ title, pages, portal, setPortal, configColor, collapse
               onClick={() => setPortal(page.id)}
               onMouseEnter={() => setTooltipTarget(page.id)}
               onMouseLeave={() => setTooltipTarget(null)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              className={`btn-press w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
                 portal === page.id
                   ? `bg-gradient-to-r ${configColor}/10 text-gray-900 dark:text-white shadow-sm sidebar-active-indicator`
                   : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -2086,6 +2086,12 @@ function WeatherWidget() {
 // ============================================================
 function ThemeToggle() {
   const { resolvedTheme, setTheme } = useTheme();
+  // Detect client mount using useSyncExternalStore (avoids hydration mismatch + lint warning)
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
   const [isAnimating, setIsAnimating] = useState(false);
   const [flashKey, setFlashKey] = useState(0);
 
@@ -2093,8 +2099,7 @@ function ThemeToggle() {
     const newTheme = resolvedTheme === 'dark' ? 'light' : 'dark';
     setIsAnimating(true);
     setTheme(newTheme);
-    // Store theme preference in localStorage
-    try { localStorage.setItem('bt_theme', newTheme); } catch {}
+    // next-themes handles localStorage persistence automatically
     // Trigger flash/ripple effect
     setFlashKey(k => k + 1);
     setTimeout(() => setIsAnimating(false), 500);
@@ -2114,11 +2119,14 @@ function ThemeToggle() {
       )}
       <button
         onClick={handleToggle}
-        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-all duration-300 group"
+        className="relative p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-300 group"
         aria-label="Toggle theme"
-        suppressHydrationWarning
+        title={mounted ? (resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode') : 'Toggle theme'}
       >
-        {resolvedTheme === 'dark' ? (
+        {!mounted ? (
+          // Placeholder while hydrating to avoid mismatch
+          <div className="w-5 h-5 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        ) : resolvedTheme === 'dark' ? (
           <Sun className={`w-5 h-5 text-amber-400 transition-transform duration-500 ${isAnimating ? 'rotate-180' : 'group-hover:rotate-45'}`} />
         ) : (
           <Moon className={`w-5 h-5 text-gray-600 transition-transform duration-500 ${isAnimating ? '-rotate-180' : 'group-hover:-rotate-12'}`} />

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Info, AlertTriangle, CheckCircle2, X, AlertCircle } from 'lucide-react';
 
 interface Announcement {
@@ -80,34 +80,62 @@ const typeConfig: Record<string, {
   },
 };
 
-function getDismissedIds(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
-  try {
-    const stored = localStorage.getItem('bus_dismissed_announcements');
-    if (stored) return new Set(JSON.parse(stored));
-  } catch { /* ignore */ }
-  return new Set();
+const DISMISSED_KEY = 'bt_dismissed_announcements';
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000; // ms
+
+interface DismissedMap {
+  [announcementId: string]: number; // id -> timestamp
 }
 
-function addDismissedId(id: string) {
-  const ids = getDismissedIds();
-  ids.add(id);
+/** Read dismissed map from localStorage, removing expired entries */
+function getDismissedMap(): DismissedMap {
+  if (typeof window === 'undefined') return {};
   try {
-    localStorage.setItem('bus_dismissed_announcements', JSON.stringify([...ids]));
+    const raw = localStorage.getItem(DISMISSED_KEY);
+    if (!raw) return {};
+    const map: DismissedMap = JSON.parse(raw);
+    const now = Date.now();
+    let changed = false;
+    for (const id of Object.keys(map)) {
+      if (now - map[id] > TWENTY_FOUR_HOURS) {
+        delete map[id];
+        changed = true;
+      }
+    }
+    if (changed) {
+      localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
+    }
+    return map;
+  } catch { /* ignore */ }
+  return {};
+}
+
+/** Add an announcement ID to the dismissed set with current timestamp */
+function addDismissedId(id: string) {
+  const map = getDismissedMap();
+  map[id] = Date.now();
+  try {
+    localStorage.setItem(DISMISSED_KEY, JSON.stringify(map));
   } catch { /* ignore */ }
 }
 
 export default function AnnouncementBanner({ userRole }: AnnouncementBannerProps) {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  // Lazy-initialize dismissed IDs from localStorage to avoid effect
-  const [dismissed, setDismissed] = useState<Set<string>>(() => getDismissedIds());
+  // Lazy-initialize dismissed map from localStorage, cleaning up expired entries
+  const [dismissed, setDismissed] = useState<DismissedMap>(() => getDismissedMap());
   const [paused, setPaused] = useState(false);
   const mountedRef = useRef(false);
 
-  // Filter out dismissed announcements (derived, not state)
+  // Filter out announcements dismissed within the last 24 hours
   const visibleAnnouncements = useMemo(
-    () => announcements.filter(a => !dismissed.has(a.id)),
+    () => {
+      const now = Date.now();
+      return announcements.filter(a => {
+        const ts = dismissed[a.id];
+        return !ts || (now - ts) > TWENTY_FOUR_HOURS;
+      });
+    },
     [announcements, dismissed]
   );
 
@@ -152,10 +180,10 @@ export default function AnnouncementBanner({ userRole }: AnnouncementBannerProps
     mountedRef.current = true;
   }, []);
 
-  // Handle dismiss
+  // Handle dismiss — store with timestamp for 24h persistence
   const handleDismiss = (id: string) => {
     addDismissedId(id);
-    setDismissed(prev => new Set(prev).add(id));
+    setDismissed(prev => ({ ...prev, [id]: Date.now() }));
   };
 
   if (!hasVisible) return null;

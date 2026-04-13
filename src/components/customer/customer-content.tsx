@@ -694,7 +694,7 @@ function RouteDetailPanel({
 
       {/* Book Now button */}
       <Button
-        className="w-full animate-in fade-in slide-in-from-bottom-1 duration-500"
+        className="btn-press w-full animate-in fade-in slide-in-from-bottom-1 duration-500"
         onClick={() => onBook()}
         disabled={isBooking}
       >
@@ -1778,7 +1778,7 @@ function TravelStats({ journeys, visible }: { journeys: Journey[]; visible: bool
       <CardContent>
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {statCards.map((s) => (
-            <div key={s.label} className={`rounded-xl border ${s.border} ${s.bg} p-4 text-center transition-all hover:shadow-sm`}>
+            <div key={s.label} className={`rounded-xl border hover-glow-emerald ${s.border} ${s.bg} p-4 text-center transition-all hover:shadow-sm`}>
               <s.icon className={`mx-auto mb-2 size-6 ${s.color}`} />
               <p className={`text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
               <p className="mt-1 text-xs text-muted-foreground">{s.label}</p>
@@ -1808,14 +1808,42 @@ function AutocompleteInput({
   onChange: (val: string) => void;
 }) {
   const [query, setQuery] = useState(value);
-  const [suggestions, setSuggestions] = useState<{ type: 'route' | 'city'; text: string; sub: string }[]>([]);
+  const [suggestions, setSuggestions] = useState<{ type: 'route' | 'location'; text: string; sub: string }[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  // Sync external value changes
   useEffect(() => {
     setQuery(value);
   }, [value]);
+
+  // Close dropdown on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setShowDropdown(false);
+        inputRef.current?.blur();
+      }
+    };
+    if (showDropdown) {
+      document.addEventListener('keydown', handleKeyDown);
+      return () => document.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [showDropdown]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleInputChange = useCallback((inputVal: string) => {
     setQuery(inputVal);
@@ -1826,70 +1854,153 @@ function AutocompleteInput({
     if (inputVal.trim().length === 0) {
       setSuggestions([]);
       setShowDropdown(false);
+      setSuggestionLoading(false);
       return;
     }
 
-    debounceRef.current = setTimeout(() => {
-      const q = inputVal.toLowerCase();
-      const results: { type: 'route' | 'city'; text: string; sub: string }[] = [];
+    // Show loading state immediately
+    setSuggestionLoading(true);
 
-      // Match route numbers
-      const routeMatches = allRoutes.filter(r =>
-        r.routeNumber.toLowerCase().includes(q)
-      ).slice(0, 3);
-      for (const r of routeMatches) {
-        results.push({ type: 'route', text: r.routeNumber, sub: `${r.startLocation} → ${r.endLocation}` });
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const q = inputVal.trim();
+        const res = await fetch(`/api/routes?search=${encodeURIComponent(q)}&limit=20`);
+        if (!res.ok) throw new Error('Search failed');
+        const data = await res.json();
+
+        const apiRoutes: RouteResult[] = data.routes ?? [];
+
+        // Extract unique location names from API results
+        const locationSet = new Set<string>();
+        apiRoutes.forEach(r => {
+          if (r.startLocation) locationSet.add(r.startLocation);
+          if (r.endLocation) locationSet.add(r.endLocation);
+        });
+
+        // Also include matches from locally cached locations for broader coverage
+        locations.forEach(l => {
+          if (l.toLowerCase().includes(q.toLowerCase())) locationSet.add(l);
+        });
+
+        // Build suggestions: unique locations (max 5)
+        const matchedLocations = [...locationSet]
+          .filter(loc => loc.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 5);
+
+        // Also include matching route numbers (max 2)
+        const matchedRoutes = apiRoutes
+          .filter(r => r.routeNumber.toLowerCase().includes(q.toLowerCase()))
+          .slice(0, 2);
+
+        const results: { type: 'route' | 'location'; text: string; sub: string }[] = [];
+
+        // Add route matches first
+        for (const r of matchedRoutes) {
+          results.push({ type: 'route', text: r.routeNumber, sub: `${r.startLocation} → ${r.endLocation}` });
+        }
+
+        // Add location matches
+        for (const loc of matchedLocations) {
+          results.push({ type: 'location', text: loc, sub: 'Location' });
+        }
+
+        setSuggestions(results);
+        setShowDropdown(results.length > 0);
+      } catch {
+        // Fallback to local filtering if API fails
+        const q = inputVal.toLowerCase();
+        const results: { type: 'route' | 'location'; text: string; sub: string }[] = [];
+
+        const routeMatches = allRoutes.filter(r =>
+          r.routeNumber.toLowerCase().includes(q)
+        ).slice(0, 2);
+        for (const r of routeMatches) {
+          results.push({ type: 'route', text: r.routeNumber, sub: `${r.startLocation} → ${r.endLocation}` });
+        }
+
+        const locMatches = locations.filter(l =>
+          l.toLowerCase().includes(q)
+        ).slice(0, 5);
+        for (const loc of locMatches) {
+          results.push({ type: 'location', text: loc, sub: 'Location' });
+        }
+
+        setSuggestions(results);
+        setShowDropdown(results.length > 0);
+      } finally {
+        setSuggestionLoading(false);
       }
-
-      // Match location/city names
-      const cityMatches = locations.filter(l =>
-        l.toLowerCase().includes(q)
-      ).slice(0, 5);
-      for (const c of cityMatches) {
-        results.push({ type: 'city', text: c, sub: 'Location' });
-      }
-
-      setSuggestions(results);
-      setShowDropdown(results.length > 0);
     }, 300);
   }, [allRoutes, locations, onChange]);
 
+  const handleSelectSuggestion = useCallback((selectVal: string) => {
+    setQuery(selectVal);
+    onChange(selectVal);
+    setShowDropdown(false);
+    inputRef.current?.focus();
+  }, [onChange]);
+
   return (
-    <div className="relative">
+    <div ref={containerRef} className="relative">
       <label className="text-sm font-medium">{label}</label>
-      <Input
-        ref={inputRef}
-        placeholder={placeholder}
-        value={query}
-        onChange={e => handleInputChange(e.target.value)}
-        onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
-        onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
-      />
-      {showDropdown && suggestions.length > 0 && (
-        <div className="absolute z-50 top-full mt-1 w-full rounded-lg border bg-popover shadow-lg max-h-48 overflow-y-auto">
-          {suggestions.map((s, i) => (
-            <button
-              key={`${s.type}-${s.text}-${i}`}
-              className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors"
-              onMouseDown={(e) => {
-                e.preventDefault();
-                const selectVal = s.type === 'city' ? s.text : s.text;
-                setQuery(selectVal);
-                onChange(selectVal);
-                setShowDropdown(false);
-              }}
-            >
-              {s.type === 'route' ? (
-                <Route className="size-3.5 shrink-0 text-muted-foreground" />
-              ) : (
-                <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
-              )}
-              <div className="flex-1 min-w-0">
-                <p className="font-medium truncate">{s.text}</p>
-                <p className="text-xs text-muted-foreground truncate">{s.sub}</p>
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          placeholder={placeholder}
+          value={query}
+          onChange={e => handleInputChange(e.target.value)}
+          onFocus={() => { if (suggestions.length > 0) setShowDropdown(true); }}
+          className={showDropdown ? 'ring-2 ring-primary/30' : ''}
+        />
+        {/* Loading spinner inside input */}
+        {suggestionLoading && (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2">
+            <Loader2 className="size-4 animate-spin text-muted-foreground" />
+          </div>
+        )}
+      </div>
+
+      {/* Dropdown */}
+      {showDropdown && (
+        <div className="absolute z-50 top-full mt-1 w-full rounded-lg border bg-popover/80 backdrop-blur-lg shadow-lg max-h-48 overflow-y-auto">
+          {suggestionLoading && suggestions.length === 0 ? (
+            <div className="flex items-center justify-center gap-2 px-4 py-6 text-sm text-muted-foreground">
+              <Loader2 className="size-4 animate-spin" />
+              Searching locations...
+            </div>
+          ) : suggestions.length > 0 ? (
+            <>
+              {suggestions.map((s, i) => (
+                <button
+                  key={`${s.type}-${s.text}-${i}`}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-left hover:bg-muted/50 transition-colors first:rounded-t-[7px] last:rounded-b-[7px]"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSelectSuggestion(s.text);
+                  }}
+                >
+                  {s.type === 'route' ? (
+                    <Route className="size-3.5 shrink-0 text-muted-foreground" />
+                  ) : (
+                    <MapPin className="size-3.5 shrink-0 text-muted-foreground" />
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium truncate">{s.text}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.sub}</p>
+                  </div>
+                </button>
+              ))}
+              {/* Footer hint */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] text-muted-foreground/60 border-t bg-muted/20">
+                <X className="size-3" />
+                Press <kbd className="rounded border bg-muted px-1 py-px font-mono text-[10px]">Esc</kbd> to close
               </div>
-            </button>
-          ))}
+            </>
+          ) : !suggestionLoading && query.trim().length > 0 ? (
+            <div className="px-4 py-3 text-sm text-muted-foreground text-center">
+              No matching locations found
+            </div>
+          ) : null}
         </div>
       )}
     </div>
@@ -2503,7 +2614,7 @@ function Dashboard({
 
       {/* Favorite Routes */}
       {favoriteRoutes.length > 0 && (
-        <Card>
+        <Card className="card-shine-sweep">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Heart className="size-5 text-rose-500" />
@@ -3358,7 +3469,7 @@ function SearchRoutes({
             </div>
           </CardHeader>
           <CardContent>
-            <div className="max-h-[500px] overflow-y-auto space-y-3">
+            <div className="stagger-children max-h-[500px] overflow-y-auto space-y-3">
               {filteredSortedResults.map((route, routeIdx) => {
                 const isSelected = selectedForCompare.has(route.id);
                 const isFav = favs.has(route.id);
@@ -4525,7 +4636,7 @@ function MyBookings({ userId, setPortal }: { userId: string; setPortal?: (p: str
                 When you book a route, your planned trips will appear here
               </p>
               {setPortal && (
-                <Button className="mt-4" variant="outline" onClick={() => setPortal('search')}>
+                <Button className="btn-press mt-4" variant="outline" onClick={() => setPortal('search')}>
                   <Search className="size-4 mr-1" />
                   Search Routes
                 </Button>

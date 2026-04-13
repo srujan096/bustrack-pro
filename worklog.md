@@ -2473,3 +2473,114 @@ The BusTrack Pro application is at ~23,000 lines of code with 3 portals (Admin/C
 3. No automated tests
 4. OSRM route rendering depends on external service availability
 
+
+---
+Task ID: 13
+Agent: Main - Comprehensive Development Round (Styling + Features)
+Task: QA testing, styling polish, dark mode improvements, search autocomplete, and announcement persistence
+
+## Current Project Status Assessment
+BusTrack Pro is a mature application at ~23,800 lines of code with 3 fully functional portals (Admin/Crew/Customer). The project has 10+ API routes, 205 user accounts, 115 routes, and 2,128 schedules. This round focused on visual polish, micro-interactions, and quality-of-life improvements.
+
+## QA Testing Results
+- ✅ Login page renders correctly with all features (conic gradient border, password toggle, demo buttons, Terms/Privacy links)
+- ✅ Admin dashboard loads with all 10 pages, sidebar, announcements, command palette, live clock
+- ✅ Auth API verified for all roles (admin, driver1, conductor1, customer1)
+- ✅ ESLint: 0 errors, 0 warnings throughout all changes
+- ✅ Dev server compiles and serves cleanly (Turbopack)
+- Note: agent-browser fill command doesn't trigger React onChange properly — app works correctly via direct API calls
+
+## Completed Modifications
+
+### 1. Dark Mode Toggle Improvements (page.tsx)
+- Already existed with ThemeProvider, ThemeToggle, Sun/Moon icons
+- Fixed React 19 hydration issue: replaced `useState(false)` + `useEffect` with `useSyncExternalStore`
+- Removed redundant `localStorage.setItem('bt_theme')` (next-themes handles this)
+- Changed `transition-all` → `transition-colors` for smoother theme transitions
+- Added `mounted` guard to prevent icon flash during SSR hydration
+- Added `title` attributes for accessibility ("Switch to light/dark mode")
+
+### 2. Route Search Autocomplete (customer-content.tsx)
+- Upgraded existing `AutocompleteInput` with debounced API-based autocomplete
+- 300ms debounce via setTimeout/clearTimeout
+- Calls `/api/routes?search=<query>&limit=20` for location suggestions
+- Extracts unique startLocation/endLocation values (max 5)
+- Loading spinner (Loader2) during fetch
+- Glass-morphism dropdown with `bg-popover/80 backdrop-blur-lg`
+- Click outside and Escape key dismiss
+- Input ring highlight when dropdown open
+- Graceful fallback to local filtering if API fails
+
+### 3. CSS Styling Polish (globals.css, +135 lines)
+Added 6 new CSS utility classes:
+- `.section-accent-line`: Animated gradient line below section headers (emerald→cyan→violet, 60s loop)
+- `.hover-glow`: Soft primary-colored glow on hover with -2px lift
+- `.hover-glow-emerald`: Emerald variant for customer portal cards
+- `.table-row-hover-accent`: Enhanced table row with left border accent + translateY
+- `.badge-count-pulse`: Notification badge scale pulse (1→1.1→1, 2s interval)
+- `.btn-press`: Button press micro-interaction (active: scale 0.97, 0.1s ease)
+- `.card-shine-sweep`: Diagonal sheen sweep on card hover via ::after pseudo-element
+
+### 4. CSS Classes Applied to Components (all portals)
+**Admin Portal (6 changes)**:
+- Dashboard stat cards: `.hover-glow`
+- System Health section: `.section-accent-line`
+- Add Route, Generate Schedules, Auto Assign buttons: `.btn-press`
+- Broadcast Messaging cards: `.card-shine-sweep`
+
+**Customer Portal (3 changes)**:
+- Search Routes button: `.btn-press`
+- Search results container: `.stagger-children`
+- Stat cards & favorite routes: `.hover-glow-emerald`
+
+**Crew Portal (5 changes)**:
+- Quick Action cards: `.btn-press` + `.hover-glow`
+- Clock In/Out buttons: `.btn-press`
+- Digital Trip Manifest card: `.card-shine-sweep`
+- Shift Timer section: `.section-accent-line`
+
+**App Shell (3 changes)**:
+- Sign In button: `.btn-press`
+- All sidebar navigation buttons: `.btn-press`
+- Notification count badge: `.badge-count-pulse`
+
+### 5. Announcement Banner Dismiss Persistence (announcement-banner.tsx)
+- Changed from flat array to timestamp map: `{ [id]: timestamp }`
+- Dismissed announcements stay hidden for 24 hours
+- Auto-cleanup of expired entries on load
+- Uses `bt_dismissed_announcements` localStorage key (matching app convention)
+- No breaking changes to existing UI
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server: Running cleanly with no compilation errors
+- Total codebase: 23,813 lines (up from 23,262, +551 lines)
+  - page.tsx: 2,679 lines
+  - admin-content.tsx: 6,297 lines
+  - customer-content.tsx: 6,680 lines
+  - crew-content.tsx: 6,186 lines
+  - globals.css: 1,677 lines
+  - announcement-banner.tsx: 294 lines
+
+## Files Modified
+- `src/app/page.tsx`: Dark mode hydration fix, CSS class applications
+- `src/components/customer/customer-content.tsx`: Autocomplete upgrade, CSS class applications
+- `src/components/admin/admin-content.tsx`: CSS class applications
+- `src/components/crew/crew-content.tsx`: CSS class applications
+- `src/app/globals.css`: 6 new CSS utility classes (+135 lines)
+- `src/components/announcement-banner.tsx`: Dismiss persistence with 24h expiry
+
+## Unresolved Issues / Risks
+1. agent-browser fill command doesn't trigger React onChange (browser automation limitation, not app bug)
+2. Work orders/tickets in Customer Support stored in component state only (refresh loses data)
+3. Crew daily report notes stored in localStorage only
+4. OSRM route rendering depends on external service availability
+5. No automated tests
+
+## Priority Recommendations for Next Phase
+1. Persist Customer Support tickets to database via API
+2. Add WebSocket/Socket.IO real-time updates
+3. Add React error boundaries around portal components
+4. Implement responsive design testing on mobile viewports
+5. Add data visualization charts using Recharts (package already installed)
+6. Add bulk operations to Admin (bulk delete routes, bulk assign crew)

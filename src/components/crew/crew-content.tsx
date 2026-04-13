@@ -787,7 +787,7 @@ function DigitalTripManifest({ crewName, assignments }: { crewName: string; assi
   };
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 overflow-hidden">
+    <Card className="card-shine-sweep rounded-xl shadow-sm bg-white dark:bg-gray-800 overflow-hidden">
       <div className="bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-500 px-5 py-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -969,6 +969,7 @@ function ShiftTimer() {
           <Timer className="h-5 w-5 text-gray-500" />
           Shift Timer
         </CardTitle>
+        <div className="section-accent-line" />
       </CardHeader>
       <CardContent>
         <div className={`flex flex-col items-center gap-4 ${shiftState === 'running' ? 'ring-2 ring-emerald-500/30 animate-pulse rounded-xl p-3 -m-3' : ''}`}>
@@ -2263,7 +2264,7 @@ function QuickActions() {
         return (
           <Card
             key={action.label}
-            className={`rounded-xl shadow-sm cursor-pointer border transition-all ${colors.bg} ${colors.hover}`}
+            className={`btn-press rounded-xl shadow-sm cursor-pointer border transition-all hover-glow ${colors.bg} ${colors.hover}`}
             onClick={() => toast({ title: action.message, description: `${action.label} action triggered.` })}
           >
             <CardContent className="p-4 flex flex-col items-center text-center gap-2">
@@ -3360,7 +3361,7 @@ function QuickStatusActions() {
       </CardHeader>
       <CardContent className="space-y-2">
         <Button
-          className="w-full justify-start gap-3 bg-emerald-600 text-white hover:bg-emerald-700 h-11"
+          className="btn-press w-full justify-start gap-3 bg-emerald-600 text-white hover:bg-emerald-700 h-11"
           onClick={handleClockIn}
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
@@ -3384,7 +3385,7 @@ function QuickStatusActions() {
           </div>
         </Button>
         <Button
-          className="w-full justify-start gap-3 bg-red-600 text-white hover:bg-red-700 h-11"
+          className="btn-press w-full justify-start gap-3 bg-red-600 text-white hover:bg-red-700 h-11"
           onClick={handleClockOut}
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20">
