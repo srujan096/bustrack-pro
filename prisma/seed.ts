@@ -1,5 +1,13 @@
+// Deterministic PRNG (Lehmer/Park-Miller) — ensures reproducible seed data
+const _prngSeed = { value: 42 };
+function seededRandom(): number {
+  _prngSeed.value = (_prngSeed.value * 16807) % 2147483647;
+  return (_prngSeed.value - 1) / 2147483646;
+}
+
 import { PrismaClient } from '@prisma/client';
 import * as crypto from 'crypto';
+import * as fs from 'fs';
 
 const db = new PrismaClient();
 
@@ -139,15 +147,15 @@ const INDIAN_LAST_NAMES = ["Kumar", "Sharma", "Patel", "Singh", "Rao", "Reddy", 
 const BUS_PREFIXES = ["KA-01", "KA-02", "KA-03", "KA-05", "MH-01", "MH-02", "MH-03", "DL-01", "DL-02", "DL-03", "TN-01", "TN-02", "TN-03", "TN-04"];
 
 function randomBetween(min: number, max: number) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
+  return min + Math.floor(seededRandom() * (max - min + 1));
 }
 
 function randomFloat(min: number, max: number, decimals = 2) {
-  return parseFloat((Math.random() * (max - min) + min).toFixed(decimals));
+  return parseFloat((seededRandom() * (max - min) + min).toFixed(decimals));
 }
 
 function pickRandom<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
+  return arr[Math.floor(seededRandom() * arr.length)];
 }
 
 function generateRouteNumber(city: string, index: number): string {
@@ -171,8 +179,8 @@ function generateStops(startLoc: { name: string; lat: number; lng: number }, end
     const t = i / (numStops - 1);
     stops.push({
       name: `Stop ${i}`,
-      lat: startLoc.lat + (endLoc.lat - startLoc.lat) * t + (Math.random() - 0.5) * 0.005,
-      lng: startLoc.lng + (endLoc.lng - startLoc.lng) * t + (Math.random() - 0.5) * 0.005,
+      lat: startLoc.lat + (endLoc.lat - startLoc.lat) * t + (seededRandom() - 0.5) * 0.005,
+      lng: startLoc.lng + (endLoc.lng - startLoc.lng) * t + (seededRandom() - 0.5) * 0.005,
     });
   }
   stops.push({ name: endLoc.name, lat: endLoc.lat, lng: endLoc.lng });
@@ -181,16 +189,16 @@ function generateStops(startLoc: { name: string; lat: number; lng: number }, end
 
 function getTrafficLevel(city: string): string {
   if (city === "BLR" || city === "MUM" || city === "DEL") {
-    const r = Math.random();
+    const r = seededRandom();
     return r < 0.3 ? "high" : r < 0.7 ? "medium" : "low";
   }
-  return Math.random() < 0.5 ? "medium" : "low";
+  return seededRandom() < 0.5 ? "medium" : "low";
 }
 
 function generateBusNumber(prefix: string): string {
   const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
   const num = String(randomBetween(1000, 9999));
-  const letter = letters[Math.floor(Math.random() * letters.length)];
+  const letter = letters[Math.floor(seededRandom() * letters.length)];
   return `${prefix}-${letter}${num}`;
 }
 
@@ -226,7 +234,7 @@ async function main() {
   const crewProfiles: { id: string; role: string; name: string; email: string }[] = [];
   
   for (let i = 1; i <= 60; i++) {
-    const gender = Math.random() > 0.1 ? "M" : "F";
+    const gender = seededRandom() > 0.1 ? "M" : "F";
     const firstName = gender === "M" ? pickRandom(INDIAN_FIRST_NAMES_M) : pickRandom(INDIAN_FIRST_NAMES_F);
     const lastName = pickRandom(INDIAN_LAST_NAMES);
     const name = `${firstName} ${lastName}`;
@@ -252,7 +260,7 @@ async function main() {
         licenseNo: `DL${randomBetween(10000000, 99999999)}${randomBetween(1000, 9999)}`,
         experienceYears: randomBetween(1, 20),
         performanceRating: randomFloat(3.5, 5.0),
-        availability: Math.random() > 0.15 ? "available" : "on_leave",
+        availability: seededRandom() > 0.15 ? "available" : "on_leave",
         maxDailyHours: 8,
         busNumber: generateBusNumber(prefix),
       },
@@ -262,7 +270,7 @@ async function main() {
   }
 
   for (let i = 1; i <= 44; i++) {
-    const gender = Math.random() > 0.2 ? "M" : "F";
+    const gender = seededRandom() > 0.2 ? "M" : "F";
     const firstName = gender === "M" ? pickRandom(INDIAN_FIRST_NAMES_M) : pickRandom(INDIAN_FIRST_NAMES_F);
     const lastName = pickRandom(INDIAN_LAST_NAMES);
     const name = `${firstName} ${lastName}`;
@@ -284,7 +292,7 @@ async function main() {
         licenseNo: `CL${randomBetween(10000000, 99999999)}`,
         experienceYears: randomBetween(1, 15),
         performanceRating: randomFloat(3.5, 5.0),
-        availability: Math.random() > 0.15 ? "available" : "on_leave",
+        availability: seededRandom() > 0.15 ? "available" : "on_leave",
         maxDailyHours: 8,
         busNumber: "",
       },
@@ -297,7 +305,7 @@ async function main() {
   // 3. Create Customers (100)
   const customerProfiles: { id: string; name: string; email: string }[] = [];
   for (let i = 1; i <= 100; i++) {
-    const gender = Math.random() > 0.4 ? "M" : "F";
+    const gender = seededRandom() > 0.4 ? "M" : "F";
     const firstName = gender === "M" ? pickRandom(INDIAN_FIRST_NAMES_M) : pickRandom(INDIAN_FIRST_NAMES_F);
     const lastName = pickRandom(INDIAN_LAST_NAMES);
     const name = `${firstName} ${lastName}`;
@@ -327,8 +335,8 @@ async function main() {
 
     while (created < count && attempts < count * 10) {
       attempts++;
-      const startIdx = Math.floor(Math.random() * locations.length);
-      let endIdx = Math.floor(Math.random() * locations.length);
+      const startIdx = Math.floor(seededRandom() * locations.length);
+      let endIdx = Math.floor(seededRandom() * locations.length);
       if (startIdx === endIdx) continue;
       
       const pairKey = `${Math.min(startIdx, endIdx)}-${Math.max(startIdx, endIdx)}`;
@@ -346,7 +354,7 @@ async function main() {
       const stops = generateStops(startLoc, endLoc, numStops);
       const startTime = `${String(randomBetween(5, 8)).padStart(2, "0")}:00`;
       const endTime = `${String(randomBetween(20, 23)).padStart(2, "0")}:00`;
-      const frequency = [15, 20, 30, 45, 60][Math.floor(Math.random() * 5)];
+      const frequency = [15, 20, 30, 45, 60][Math.floor(seededRandom() * 5)];
 
       const prefix = BUS_PREFIXES.find(p => p.startsWith(city[0])) || "KA-01";
 
@@ -360,7 +368,7 @@ async function main() {
           durationMin,
           fare,
           trafficLevel: traffic,
-          autoScheduleEnabled: Math.random() > 0.3,
+          autoScheduleEnabled: seededRandom() > 0.3,
           startTime,
           endTime,
           frequencyMinutes: frequency,
@@ -435,7 +443,7 @@ async function main() {
         distanceKm: Math.round(distance * 10) / 10,
         durationMin,
         fare,
-        trafficLevel: Math.random() > 0.5 ? "medium" : "high",
+        trafficLevel: seededRandom() > 0.5 ? "medium" : "high",
         autoScheduleEnabled: true,
         startTime: "06:00",
         endTime: "23:00",
@@ -468,15 +476,15 @@ async function main() {
     for (const date of [yesterday, today]) {
       for (let hour = startTime; hour < endTime; hour++) {
         for (let min = 0; min < 60; min += freq) {
-          if (Math.random() > 0.7) continue; // Don't create all possible schedules
+          if (seededRandom() > 0.7) continue; // Don't create all possible schedules
           const timeStr = `${String(hour).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
           
           let status = "scheduled";
           if (date === yesterday) {
-            status = Math.random() > 0.2 ? "completed" : "cancelled";
+            status = seededRandom() > 0.2 ? "completed" : "cancelled";
           } else {
             const currentHour = new Date().getHours();
-            if (hour < currentHour - 1) status = Math.random() > 0.1 ? "completed" : "cancelled";
+            if (hour < currentHour - 1) status = seededRandom() > 0.1 ? "completed" : "cancelled";
             else if (hour === currentHour) status = "in_progress";
           }
 
@@ -501,15 +509,15 @@ async function main() {
   let assignmentCount = 0;
 
   for (const scheduleId of schedulesCreated) {
-    if (Math.random() > 0.6) continue;
+    if (seededRandom() > 0.6) continue;
     
     const driver = pickRandom(drivers);
     const conductor = pickRandom(conductors);
 
     await db.crewAssignment.createMany({
       data: [
-        { scheduleId, crewId: driver.id, status: Math.random() > 0.2 ? "accepted" : "pending" },
-        { scheduleId, crewId: conductor.id, status: Math.random() > 0.2 ? "accepted" : "pending" },
+        { scheduleId, crewId: driver.id, status: seededRandom() > 0.2 ? "accepted" : "pending" },
+        { scheduleId, crewId: conductor.id, status: seededRandom() > 0.2 ? "accepted" : "pending" },
       ],
     });
     assignmentCount++;
@@ -519,7 +527,7 @@ async function main() {
   // 7. Create some journeys
   let journeyCount = 0;
   for (const route of allRoutes.slice(0, 80)) {
-    if (Math.random() > 0.4) continue;
+    if (seededRandom() > 0.4) continue;
     
     const customer = pickRandom(customerProfiles);
     const routeSchedules = await db.schedule.findMany({
@@ -628,7 +636,7 @@ async function main() {
         delayMinutes: randomBetween(5, 45),
         message: `Traffic ${pickRandom(["congestion", "delay", "issue"])} reported on this route`,
         createdAt: new Date(Date.now() - randomBetween(0, 86400000)),
-        resolvedAt: Math.random() > 0.5 ? new Date(Date.now() - randomBetween(0, 43200000)) : null,
+        resolvedAt: seededRandom() > 0.5 ? new Date(Date.now() - randomBetween(0, 43200000)) : null,
       },
     });
   }
@@ -643,7 +651,7 @@ async function main() {
         type: pickRandom(types),
         title: "Schedule Update",
         message: "Your schedule has been updated. Please check your dashboard.",
-        isRead: Math.random() > 0.5,
+        isRead: seededRandom() > 0.5,
         createdAt: new Date(Date.now() - randomBetween(0, 86400000 * 3)),
       },
     });
@@ -671,7 +679,7 @@ async function main() {
         type: notif.type as "info" | "warning" | "success" | "error",
         title: notif.title,
         message: notif.message,
-        isRead: Math.random() > 0.6,
+        isRead: seededRandom() > 0.6,
         createdAt: new Date(Date.now() - randomBetween(0, 86400000 * 5)),
       },
     });
@@ -746,12 +754,36 @@ async function main() {
         endDate: new Date(Date.now() + randomBetween(86400000 * 2, 86400000 * 21)).toISOString().split("T")[0],
         reason: pickRandom(["Personal leave", "Family function", "Medical", "Travel", "Festival"]),
         status: pickRandom(["pending", "pending", "pending", "approved", "rejected"]),
-        reviewedBy: Math.random() > 0.5 ? adminProfile.id : null,
-        reviewedAt: Math.random() > 0.5 ? new Date() : null,
+        reviewedBy: seededRandom() > 0.5 ? adminProfile.id : null,
+        reviewedAt: seededRandom() > 0.5 ? new Date() : null,
       },
     });
   }
   console.log("✅ Holiday requests created");
+
+  // 13. Generate CREDENTIALS.txt
+  const allProfiles = await db.profile.findMany({
+    orderBy: [{ role: 'asc' }, { id: 'asc' }],
+    select: { id: true, email: true, name: true, role: true }
+  });
+
+  let credText = `BusTrack Pro — Account Credentials\nGenerated: ${new Date().toISOString()}\nUniversal Password: password123\n${'='.repeat(60)}\n\n`;
+
+  const roleGroups: Record<string, typeof allProfiles> = {};
+  allProfiles.forEach(p => {
+    if (!roleGroups[p.role]) roleGroups[p.role] = [];
+    roleGroups[p.role].push(p);
+  });
+
+  for (const [role, profiles] of Object.entries(roleGroups)) {
+    credText += `\n=== ${role.toUpperCase()} (${profiles.length} accounts) ===\n`;
+    profiles.forEach((p, i) => {
+      credText += `  ${i + 1}. ${p.email} — ${p.name}\n`;
+    });
+  }
+
+  fs.writeFileSync('CREDENTIALS.txt', credText);
+  console.log(`✅ Credentials written to CREDENTIALS.txt (${allProfiles.length} accounts)`);
 
   console.log("\n🎉 Database seeding completed!");
   console.log(`📊 Summary:`);

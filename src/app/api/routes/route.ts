@@ -127,14 +127,14 @@ export async function GET(request: NextRequest) {
     if (autoSchedule === 'true') where.autoScheduleEnabled = true;
     if (startLocation && endLocation) {
       where.OR = [
-        { startLocation: { contains: startLocation }, endLocation: { contains: endLocation } },
-        { startLocation: { contains: endLocation }, endLocation: { contains: startLocation } },
+        { startLocation: { contains: startLocation, mode: 'insensitive' }, endLocation: { contains: endLocation, mode: 'insensitive' } },
+        { startLocation: { contains: endLocation, mode: 'insensitive' }, endLocation: { contains: startLocation, mode: 'insensitive' } },
       ];
     } else if (search) {
       where.OR = [
-        { routeNumber: { contains: search } },
-        { startLocation: { contains: search } },
-        { endLocation: { contains: search } },
+        { routeNumber: { contains: search, mode: 'insensitive' } },
+        { startLocation: { contains: search, mode: 'insensitive' } },
+        { endLocation: { contains: search, mode: 'insensitive' } },
       ];
     }
 
@@ -159,10 +159,10 @@ export async function GET(request: NextRequest) {
       // Find connecting routes: routes starting at `from` and routes ending at `to`
       const [outgoingRoutes, incomingRoutes] = await Promise.all([
         db.route.findMany({
-          where: { startLocation: { contains: startLocation } },
+          where: { startLocation: { contains: startLocation, mode: 'insensitive' } },
         }),
         db.route.findMany({
-          where: { endLocation: { contains: endLocation } },
+          where: { endLocation: { contains: endLocation, mode: 'insensitive' } },
         }),
       ]);
 

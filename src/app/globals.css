@@ -1259,14 +1259,176 @@ body,
 }
 
 /* ============================================================
+   Glass Card Utilities (Customer Portal)
+   ============================================================ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.65);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+.glass-card-primary {
+  background: rgba(16, 185, 129, 0.08);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+.dark .glass-card-primary {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.15);
+}
+.glass-header {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+@keyframes spinSlow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-slow {
+  animation: spinSlow 8s linear infinite;
+}
+.dark .glass-header {
+  background: rgba(15, 23, 42, 0.8);
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+/* ============================================================
+   Hover Lift Utility
+   ============================================================ */
+.hover-lift {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.1);
+}
+.dark .hover-lift:hover {
+  box-shadow: 0 8px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   Stagger Children Animation
+   ============================================================ */
+.stagger-children > * {
+  opacity: 0;
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+.stagger-children > *:nth-child(1) { animation-delay: 0.05s; }
+.stagger-children > *:nth-child(2) { animation-delay: 0.1s; }
+.stagger-children > *:nth-child(3) { animation-delay: 0.15s; }
+.stagger-children > *:nth-child(4) { animation-delay: 0.2s; }
+.stagger-children > *:nth-child(5) { animation-delay: 0.25s; }
+.stagger-children > *:nth-child(6) { animation-delay: 0.3s; }
+.stagger-children > *:nth-child(7) { animation-delay: 0.35s; }
+.stagger-children > *:nth-child(8) { animation-delay: 0.4s; }
+.stagger-children > *:nth-child(9) { animation-delay: 0.45s; }
+.stagger-children > *:nth-child(10) { animation-delay: 0.5s; }
+
+/* ============================================================
+   Sticky Table Headers
+   ============================================================ */
+.sticky-table-header thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: hsl(var(--background));
+}
+.dark .sticky-table-header thead th {
+  background: hsl(var(--background));
+}
+
+/* ============================================================
+   Leaflet Touch-Friendly Controls
+   ============================================================ */
+.leaflet-control-zoom a {
+  width: 44px !important;
+  height: 44px !important;
+  line-height: 44px !important;
+  font-size: 18px !important;
+}
+.leaflet-bar {
+  border-radius: 8px !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15) !important;
+}
+.leaflet-control-attribution {
+  font-size: 10px !important;
+}
+
+/* ============================================================
+   Shimmer Sweep (Login Loading)
+   ============================================================ */
+@keyframes shimmerSweep {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(200%) rotate(25deg); }
+}
+.animate-shimmer-sweep {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.animate-shimmer-sweep::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.06), transparent);
+  animation: shimmerSweep 3s ease-in-out infinite;
+}
+
+/* ============================================================
+   Input Focus Glow
+   ============================================================ */
+.input-focus-glow {
+  transition: all 0.25s ease;
+}
+.input-focus-glow:focus {
+  box-shadow: 0 0 0 3px oklch(0.55 0.2 260 / 15%), 0 0 12px oklch(0.55 0.2 260 / 10%);
+  border-color: oklch(0.55 0.2 260 / 50%);
+}
+.dark .input-focus-glow:focus {
+  box-shadow: 0 0 0 3px oklch(0.7 0.18 260 / 20%), 0 0 12px oklch(0.7 0.18 260 / 15%);
+  border-color: oklch(0.7 0.18 260 / 50%);
+}
+
+/* ============================================================
+   Heart Pulse Animation (Favorites toggle)
+   ============================================================ */
+@keyframes heartPulse {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.3); }
+  50% { transform: scale(1); }
+  75% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+.animate-heart-pulse {
+  animation: heartPulse 0.5s ease-in-out;
+}
+
+/* ============================================================
+   Gradient Slide Animation (ribbon underline)
+   ============================================================ */
+@keyframes gradientSlide {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* ============================================================
    Task 19-a: Advanced Styling Polish & Dark Mode Fixes
    ============================================================ */
 
-/* Shimmer sweep for login card */
-@keyframes shimmerSweep {
-  0% { transform: translateX(-100%) translateY(-100%) rotate(45deg); }
-  100% { transform: translateX(200%) translateY(200%) rotate(45deg); }
-}
+/* Shimmer sweep for login card — keyframes defined in Shimmer Sweep section above */
 .animate-shimmer-sweep {
   animation: shimmerSweep 6s ease-in-out infinite;
   background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.05) 50%, transparent 100%);
@@ -1375,3 +1537,5 @@ body,
   to { opacity: 1; transform: translateX(0); }
 }
 .animate-breadcrumb-fade { animation: breadcrumbFade 0.3s ease-out forwards; }
+
+/* Gradient slide animation for QuickStatsRibbon underline (defined above, reference only) */

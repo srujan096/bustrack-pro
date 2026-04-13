@@ -99,9 +99,25 @@ import {
   ArrowUp,
   ArrowDown,
   Lightbulb,
+  ChevronDown,
+  ChevronUp,
+  Pencil,
+  Trash2,
+  Loader2,
+  Info,
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface Props {
   portal: string;
@@ -263,7 +279,7 @@ function EmptyState({
 }) {
   return (
     <div className="py-12 text-center text-muted-foreground">
-      <div className="mx-auto mb-3 flex size-16 items-center justify-center rounded-full bg-muted">
+      <div className="mx-auto mb-3 flex size-16 items-center justify-center rounded-full bg-muted animate-bounce">
         <Icon className="size-8 opacity-30" />
       </div>
       <p className="font-medium text-foreground/70">{title}</p>
@@ -392,14 +408,19 @@ function QuickStatsRibbon() {
     { label: 'On-Time Rate', value: stats.onTimeRate ?? '…', icon: TrendingUp, color: 'text-sky-600' },
   ];
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {pills.map((p) => (
-        <div key={p.label} className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
-          <p.icon className={`size-3.5 ${p.color}`} />
-          <span className="text-muted-foreground">{p.label}:</span>
-          <span className="font-semibold">{p.value}</span>
-        </div>
-      ))}
+    <div>
+      <div className="flex flex-wrap gap-2 mb-4">
+        {pills.map((p) => (
+          <div key={p.label} className="flex items-center gap-1.5 rounded-full border bg-muted/40 px-3 py-1 text-xs">
+            <p.icon className={`size-3.5 ${p.color}`} />
+            <span className="text-muted-foreground">{p.label}:</span>
+            <span className="font-semibold">{p.value}</span>
+          </div>
+        ))}
+      </div>
+      <div className="h-0.5 mt-2 rounded-full overflow-hidden">
+        <div className="h-full w-[30%] bg-gradient-to-r from-emerald-500 via-cyan-500 to-violet-500 bg-[length:200%_100%] animate-[gradientSlide_3s_ease-in-out_infinite]" />
+      </div>
     </div>
   );
 }
@@ -2708,7 +2729,7 @@ function DashboardPage({
                 description="No active traffic alerts — all routes are running smoothly."
               />
             ) : (
-              <div className="max-h-72 overflow-y-auto rounded-md border">
+              <div className="sticky-table-header max-h-72 overflow-y-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2961,6 +2982,12 @@ function RoutesPage({ token }: { token: string }) {
   const [toggling, setToggling] = useState<string | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<any>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [showRouteDialog, setShowRouteDialog] = useState(false);
+  const [editingRoute, setEditingRoute] = useState<any>(null);
+  const [dialogLoading, setDialogLoading] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingRoute, setDeletingRoute] = useState<any>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   const filteredRoutes = useMemo(() => {
     if (!searchQuery.trim()) return routes;
@@ -3014,18 +3041,67 @@ function RoutesPage({ token }: { token: string }) {
     }
   };
 
+  const handleSaveRoute = async (data: Record<string, unknown>) => {
+    setDialogLoading(true);
+    try {
+      const action = editingRoute ? 'update' : 'create';
+      const payload = editingRoute ? { action, id: editingRoute.id ?? editingRoute._id, ...data } : { action, ...data };
+      await apiFetch('/api/routes', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+      toast({ title: 'Success', description: `Route ${action === 'update' ? 'updated' : 'created'} successfully` });
+      setShowRouteDialog(false);
+      setEditingRoute(null);
+      fetchRoutes();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: `Failed to ${editingRoute ? 'update' : 'create'} route: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
+    } finally {
+      setDialogLoading(false);
+    }
+  };
+
+  const handleDeleteRoute = async () => {
+    if (!deletingRoute) return;
+    setDeleteLoading(true);
+    try {
+      await apiFetch('/api/routes', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'delete', id: deletingRoute.id ?? deletingRoute._id }),
+      });
+      toast({ title: 'Success', description: `Route ${deletingRoute.routeNumber ?? ''} deleted successfully` });
+      setDeleteConfirmOpen(false);
+      setDeletingRoute(null);
+      fetchRoutes();
+    } catch (err: unknown) {
+      toast({ title: 'Error', description: `Failed to delete route: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const cities = ['BLR', 'MUM', 'DEL', 'CHN', 'intercity'];
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-lg">
-            <Route className="size-5" /> Routes Management
-          </CardTitle>
-          <CardDescription>
-            View and manage bus routes across cities
-          </CardDescription>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <Route className="size-5" /> Routes Management
+              </CardTitle>
+              <CardDescription>
+                View and manage bus routes across cities
+              </CardDescription>
+            </div>
+            <Button
+              onClick={() => { setEditingRoute(null); setShowRouteDialog(true); }}
+              className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5"
+            >
+              <Plus className="size-4" /> Add Route
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Search & Filter Bar — pill style */}
@@ -3073,7 +3149,7 @@ function RoutesPage({ token }: { token: string }) {
             />
           ) : (
             <>
-              <div className="max-h-[500px] overflow-y-auto rounded-md border">
+              <div className="sticky-table-header max-h-[500px] overflow-y-auto rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -3085,6 +3161,7 @@ function RoutesPage({ token }: { token: string }) {
                       <TableHead>Traffic</TableHead>
                       <TableHead>Bus</TableHead>
                       <TableHead>Auto-Schedule</TableHead>
+                      <TableHead className="w-[80px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -3132,6 +3209,26 @@ function RoutesPage({ token }: { token: string }) {
                               onCheckedChange={(checked) => toggleSchedule(id, checked)}
                               onClick={(e) => e.stopPropagation()}
                             />
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1">
+                              <button
+                                type="button"
+                                className="p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                                onClick={(e) => { e.stopPropagation(); setEditingRoute(r); setShowRouteDialog(true); }}
+                                aria-label="Edit route"
+                              >
+                                <Pencil className="size-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                className="p-1.5 rounded-md hover:bg-red-50 dark:hover:bg-red-950/40 transition-colors text-muted-foreground hover:text-red-600"
+                                onClick={(e) => { e.stopPropagation(); setDeletingRoute(r); setDeleteConfirmOpen(true); }}
+                                aria-label="Delete route"
+                              >
+                                <Trash2 className="size-3.5" />
+                              </button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       );
@@ -3185,7 +3282,314 @@ function RoutesPage({ token }: { token: string }) {
 
       {/* NEW: Route Details Dialog */}
       <RouteDetailsDialog route={selectedRoute} open={detailOpen} onOpenChange={setDetailOpen} />
+
+      {/* NEW: Route Form Dialog (Add/Edit) */}
+      <RouteFormDialog
+        key={editingRoute ? (editingRoute.id ?? editingRoute._id) : 'new'}
+        open={showRouteDialog}
+        onOpenChange={(open) => { if (!open) { setShowRouteDialog(false); setEditingRoute(null); } else { setShowRouteDialog(true); } }}
+        editingRoute={editingRoute}
+        onSave={handleSaveRoute}
+        loading={dialogLoading}
+      />
+
+      {/* NEW: Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Route</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete route <span className="font-semibold">{deletingRoute?.routeNumber ?? ''}</span>?
+              This action cannot be undone. All associated schedules and crew assignments may be affected.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => { setDeleteConfirmOpen(false); setDeletingRoute(null); }}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRoute}
+              disabled={deleteLoading}
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {deleteLoading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin mr-1.5" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
+  );
+}
+
+/* ================================================================== */
+/*  Route Form Dialog (Add/Edit)                                       */
+/* ================================================================== */
+function RouteFormDialog({
+  open,
+  onOpenChange,
+  editingRoute,
+  onSave,
+  loading,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  editingRoute: any;
+  onSave: (data: Record<string, unknown>) => void;
+  loading: boolean;
+}) {
+  const isEdit = !!editingRoute;
+
+  // Initialize form from editingRoute (re-mounts via key prop, so lazy init works)
+  const [routeNumber, setRouteNumber] = useState(() => {
+    if (editingRoute?.routeNumber) return editingRoute.routeNumber;
+    const prefix = 'KIA';
+    const num = Math.floor(100 + Math.random() * 900);
+    return `${prefix}-${num}`;
+  });
+  const [startLocation, setStartLocation] = useState(() => editingRoute?.startLocation ?? '');
+  const [endLocation, setEndLocation] = useState(() => editingRoute?.endLocation ?? '');
+  const [city, setCity] = useState(() => editingRoute?.city ?? 'Bangalore');
+  const [distanceKm, setDistanceKm] = useState(() => String(editingRoute?.distanceKm ?? ''));
+  const [durationMin, setDurationMin] = useState(() => String(editingRoute?.durationMin ?? ''));
+  const [fare, setFare] = useState(() => String(editingRoute?.fare ?? ''));
+  const [startTime, setStartTime] = useState(() => editingRoute?.startTime ?? '06:00');
+  const [endTime, setEndTime] = useState(() => editingRoute?.endTime ?? '22:00');
+  const [frequencyMinutes, setFrequencyMinutes] = useState(() => String(editingRoute?.frequencyMinutes ?? '60'));
+  const [trafficLevel, setTrafficLevel] = useState(() => editingRoute?.trafficLevel ?? 'Medium');
+  const [busRegistration, setBusRegistration] = useState(() => editingRoute?.busRegistration ?? '');
+  const [autoSchedule, setAutoSchedule] = useState(() => !!editingRoute?.autoScheduleEnabled);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!routeNumber.trim() || !startLocation.trim() || !endLocation.trim()) {
+      toast({ title: 'Validation Error', description: 'Route number, start location, and end location are required', variant: 'destructive' });
+      return;
+    }
+    onSave({
+      routeNumber: routeNumber.trim(),
+      startLocation: startLocation.trim(),
+      endLocation: endLocation.trim(),
+      city,
+      distanceKm: distanceKm ? parseFloat(distanceKm) : null,
+      durationMin: durationMin ? parseInt(durationMin, 10) : null,
+      fare: fare ? parseFloat(fare) : null,
+      startTime,
+      endTime,
+      frequencyMinutes: parseInt(frequencyMinutes, 10),
+      trafficLevel,
+      busRegistration: busRegistration.trim(),
+      autoScheduleEnabled: autoSchedule,
+    });
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            {isEdit ? <Pencil className="size-5" /> : <Plus className="size-5" />}
+            {isEdit ? 'Edit Route' : 'Add New Route'}
+          </DialogTitle>
+          <DialogDescription>
+            {isEdit ? 'Modify route details below.' : 'Fill in the route information to create a new bus route.'}
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Row 1: Route Number + City */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-routeNumber">Route Number *</Label>
+              <Input
+                id="rf-routeNumber"
+                value={routeNumber}
+                onChange={(e) => setRouteNumber(e.target.value)}
+                placeholder="e.g., BLR-101"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-city">City</Label>
+              <Select value={city} onValueChange={setCity}>
+                <SelectTrigger id="rf-city">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Bangalore">Bangalore</SelectItem>
+                  <SelectItem value="Mumbai">Mumbai</SelectItem>
+                  <SelectItem value="Delhi">Delhi</SelectItem>
+                  <SelectItem value="Chennai">Chennai</SelectItem>
+                  <SelectItem value="Hyderabad">Hyderabad</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 2: Start + End Location */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-startLocation">Start Location *</Label>
+              <Input
+                id="rf-startLocation"
+                value={startLocation}
+                onChange={(e) => setStartLocation(e.target.value)}
+                placeholder="e.g., Majestic Bus Stand"
+                required
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-endLocation">End Location *</Label>
+              <Input
+                id="rf-endLocation"
+                value={endLocation}
+                onChange={(e) => setEndLocation(e.target.value)}
+                placeholder="e.g., Whitefield ITPL"
+                required
+              />
+            </div>
+          </div>
+
+          {/* Row 3: Distance, Duration, Fare */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-distance">Distance (km)</Label>
+              <Input
+                id="rf-distance"
+                type="number"
+                min="0"
+                step="0.1"
+                value={distanceKm}
+                onChange={(e) => setDistanceKm(e.target.value)}
+                placeholder="e.g., 25.5"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-duration">Duration (min)</Label>
+              <Input
+                id="rf-duration"
+                type="number"
+                min="0"
+                value={durationMin}
+                onChange={(e) => setDurationMin(e.target.value)}
+                placeholder="e.g., 45"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-fare">Fare (₹)</Label>
+              <Input
+                id="rf-fare"
+                type="number"
+                min="0"
+                step="0.5"
+                value={fare}
+                onChange={(e) => setFare(e.target.value)}
+                placeholder="e.g., 35"
+              />
+            </div>
+          </div>
+
+          {/* Row 4: Start Time, End Time, Frequency */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-startTime">Start Time</Label>
+              <Input
+                id="rf-startTime"
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-endTime">End Time</Label>
+              <Input
+                id="rf-endTime"
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Frequency</Label>
+              <Select value={frequencyMinutes} onValueChange={setFrequencyMinutes}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="45">45 minutes</SelectItem>
+                  <SelectItem value="60">60 minutes</SelectItem>
+                  <SelectItem value="90">90 minutes</SelectItem>
+                  <SelectItem value="120">120 minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Row 5: Traffic Level, Bus Registration, Auto-Schedule */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="space-y-1.5">
+              <Label>Traffic Level</Label>
+              <Select value={trafficLevel} onValueChange={setTrafficLevel}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Low">Low</SelectItem>
+                  <SelectItem value="Medium">Medium</SelectItem>
+                  <SelectItem value="High">High</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="rf-busReg">Bus Registration</Label>
+              <Input
+                id="rf-busReg"
+                value={busRegistration}
+                onChange={(e) => setBusRegistration(e.target.value)}
+                placeholder="e.g., KA-01-AB-1234"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-6">
+              <Label htmlFor="rf-autoSchedule" className="text-sm">Auto-Schedule</Label>
+              <Switch
+                id="rf-autoSchedule"
+                checked={autoSchedule}
+                onCheckedChange={setAutoSchedule}
+              />
+            </div>
+          </div>
+
+          <DialogFooter className="pt-4 border-t">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onOpenChange(false)}
+              disabled={loading}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading} className="bg-emerald-600 hover:bg-emerald-700 dark:bg-emerald-600 dark:hover:bg-emerald-700 gap-1.5">
+              {loading ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  {isEdit ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                <>
+                  <CheckCircle2 className="size-4" />
+                  {isEdit ? 'Update Route' : 'Create Route'}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -3413,6 +3817,11 @@ function SchedulesPage({ token }: { token: string }) {
   const [timelineView, setTimelineView] = useState(false);
   const [selectedDate, setSelectedDate] = useState(todayStr());
   const [statusFilter, setStatusFilter] = useState('all');
+  const [genStartTime, setGenStartTime] = useState('05:00');
+  const [genEndTime, setGenEndTime] = useState('22:00');
+  const [genFrequency, setGenFrequency] = useState('60');
+  const [useCustomSettings, setUseCustomSettings] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
   const statusFilters = ['all', 'scheduled', 'in_progress', 'completed', 'cancelled'];
 
@@ -3440,14 +3849,27 @@ function SchedulesPage({ token }: { token: string }) {
     fetchSchedules();
   }, [fetchSchedules]);
 
+  const handleResetSettings = () => {
+    setGenStartTime('05:00');
+    setGenEndTime('22:00');
+    setGenFrequency('60');
+    toast({ title: 'Settings Reset', description: 'Schedule generation settings reset to defaults (05:00–22:00, every 60 min)' });
+  };
+
   const handleGenerate = async () => {
     setGenerating(true);
     try {
+      const body: Record<string, string> = { action: 'generate', date: selectedDate };
+      if (useCustomSettings) {
+        body.globalStartTime = genStartTime;
+        body.globalEndTime = genEndTime;
+        body.globalFrequency = genFrequency;
+      }
       await apiFetch('/api/schedules', {
         method: 'POST',
-        body: JSON.stringify({ action: 'generate', date: selectedDate }),
+        body: JSON.stringify(body),
       });
-      toast({ title: 'Success', description: `Schedules generated for ${formatDate(selectedDate)}!` });
+      toast({ title: 'Success', description: `Schedules generated for ${formatDate(selectedDate)}${useCustomSettings ? ' with custom settings' : ''}!` });
       fetchSchedules();
     } catch (err: unknown) {
       toast({ title: 'Error', description: `Failed: ${err instanceof Error ? err.message : 'Unknown error'}`, variant: 'destructive' });
@@ -3515,6 +3937,86 @@ function SchedulesPage({ token }: { token: string }) {
           </div>
         </CardHeader>
         <CardContent>
+          {/* Schedule Settings Panel */}
+          <div className="mb-4 rounded-lg border bg-muted/30">
+            <button
+              type="button"
+              onClick={() => setShowSettings(!showSettings)}
+              className="flex w-full items-center justify-between p-3 text-sm font-medium hover:bg-muted/50 transition-colors rounded-lg"
+            >
+              <span className="flex items-center gap-2">
+                <Settings2 className="size-4 text-muted-foreground" />
+                Schedule Settings
+                {useCustomSettings && (
+                  <Badge className="bg-emerald-600 text-white text-[10px] px-1.5 py-0">Custom</Badge>
+                )}
+              </span>
+              {showSettings ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+            </button>
+            {showSettings && (
+              <div className="border-t px-4 pb-4 pt-3 space-y-4">
+                {/* Toggle custom settings */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Custom Schedule Generation</Label>
+                    <p className="text-xs text-muted-foreground mt-0.5">Override default route settings when generating schedules</p>
+                  </div>
+                  <Switch checked={useCustomSettings} onCheckedChange={setUseCustomSettings} />
+                </div>
+                {useCustomSettings && (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <div className="space-y-1.5">
+                        <Label htmlFor="genStartTime" className="text-xs">Start Time</Label>
+                        <Input
+                          id="genStartTime"
+                          type="time"
+                          value={genStartTime}
+                          onChange={(e) => setGenStartTime(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label htmlFor="genEndTime" className="text-xs">End Time</Label>
+                        <Input
+                          id="genEndTime"
+                          type="time"
+                          value={genEndTime}
+                          onChange={(e) => setGenEndTime(e.target.value)}
+                          className="text-sm"
+                        />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Frequency</Label>
+                        <Select value={genFrequency} onValueChange={setGenFrequency}>
+                          <SelectTrigger className="text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="15">Every 15 min</SelectItem>
+                            <SelectItem value="30">Every 30 min</SelectItem>
+                            <SelectItem value="60">Every 1 hour</SelectItem>
+                            <SelectItem value="120">Every 2 hours</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                        <Info className="size-4 mt-0.5 shrink-0" />
+                        <span>Override default route settings when generating schedules</span>
+                      </div>
+                      <Button variant="outline" size="sm" onClick={handleResetSettings} className="text-xs gap-1.5">
+                        <RotateCcw className="size-3" />
+                        Reset to Defaults
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Status Filter Pills */}
           <div className="flex flex-wrap gap-2 mb-4">
             {statusFilters.map((f) => (
@@ -3581,7 +4083,7 @@ function SchedulesPage({ token }: { token: string }) {
             </div>
           ) : (
             <>
-            <div className="max-h-[500px] overflow-y-auto rounded-md border">
+            <div className="sticky-table-header max-h-[500px] overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -3801,7 +4303,7 @@ function CrewPage({ token }: { token: string }) {
             />
           ) : (
             <>
-            <div className="max-h-[500px] overflow-y-auto rounded-md border">
+            <div className="sticky-table-header max-h-[500px] overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -4823,7 +5325,7 @@ function AnalyticsPage({ token }: { token: string }) {
               description="City-wise breakdown will appear once route analytics data is available."
             />
           ) : (
-            <div className="max-h-96 overflow-y-auto rounded-md border">
+            <div className="sticky-table-header max-h-96 overflow-y-auto rounded-md border">
               <Table>
                 <TableHeader>
                   <TableRow>

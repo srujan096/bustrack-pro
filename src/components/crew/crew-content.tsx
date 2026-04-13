@@ -2778,20 +2778,29 @@ function DashboardPage({
 
   return (
     <div className="space-y-6">
+      {/* Crew Portal Badge */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-8 w-1.5 rounded-full bg-amber-500" />
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Crew Portal</p>
+          <p className="text-xs text-muted-foreground">Driver &amp; Conductor Dashboard</p>
+        </div>
+      </div>
+
       {/* Welcome Card */}
-      <Card className="rounded-xl shadow-sm bg-gradient-to-r from-emerald-50 to-teal-50 border-emerald-100">
+      <Card className="rounded-xl shadow-sm bg-gradient-to-r from-amber-500 to-orange-600 border-amber-100">
         <CardContent className="p-6">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex items-center gap-4">
-              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-emerald-600 text-white text-lg font-bold shrink-0">
+              <div className="flex h-14 w-14 items-center justify-center rounded-full bg-white/90 text-amber-600 text-lg font-bold shrink-0">
                 {getInitials(crewProfile?.profile?.name || '')}
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-2xl font-bold text-white">
                   Welcome back, {crewProfile?.profile?.name || 'Crew Member'}
                 </h1>
                 <div className="mt-1 flex items-center gap-2">
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-white/80">
                     {formatDate(todayStr)}
                   </p>
                   {crewProfile && (
@@ -2807,7 +2816,7 @@ function DashboardPage({
               </div>
             </div>
             {/* Quick Status Toggle */}
-            <div className="flex items-center gap-3 rounded-lg bg-white/80 dark:bg-gray-800/80 border border-emerald-200 dark:border-emerald-700 px-4 py-2.5">
+            <div className="flex items-center gap-3 rounded-lg bg-white/90 px-4 py-2.5">
               <Power className={`h-4 w-4 ${isAvailable ? 'text-emerald-600' : 'text-gray-400'}`} />
               <div className="flex flex-col">
                 <span className="text-xs font-medium text-gray-500">Availability</span>
@@ -2823,28 +2832,28 @@ function DashboardPage({
             </div>
           </div>
           {/* Gradient Line Separator */}
-          <div className="h-px bg-gradient-to-r from-emerald-300 via-teal-400 to-emerald-300 mt-1 opacity-60" />
+          <div className="h-px bg-gradient-to-r from-orange-300 via-amber-400 to-orange-300 mt-1 opacity-60" />
           {/* Today's Summary Badges */}
           <div className="mt-4 flex flex-wrap gap-2 sm:gap-3">
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-emerald-200 dark:border-emerald-700 px-3 py-1.5 shadow-sm">
-              <Clock className="h-3.5 w-3.5 text-emerald-600" />
-              <span className="text-[11px] text-gray-500 hidden sm:inline">Shift:</span>
-              <span className="text-xs font-bold text-gray-800">06:00 AM</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+              <Clock className="h-3.5 w-3.5 text-amber-700" />
+              <span className="text-[11px] text-amber-900/70 hidden sm:inline">Shift:</span>
+              <span className="text-xs font-bold text-amber-900">06:00 AM</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-teal-200 dark:border-teal-700 px-3 py-1.5 shadow-sm">
-              <MapPin className="h-3.5 w-3.5 text-teal-600" />
-              <span className="text-[11px] text-gray-500 hidden sm:inline">Route:</span>
-              <span className="text-xs font-bold text-gray-800">{todayAssignments[0]?.schedule.route?.routeNumber || 'BLR-101'}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+              <MapPin className="h-3.5 w-3.5 text-orange-700" />
+              <span className="text-[11px] text-orange-900/70 hidden sm:inline">Route:</span>
+              <span className="text-xs font-bold text-orange-900">{todayAssignments[0]?.schedule.route?.routeNumber || 'BLR-101'}</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-sky-200 dark:border-sky-700 px-3 py-1.5 shadow-sm">
+            <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
               <Users className="h-3.5 w-3.5 text-sky-600" />
-              <span className="text-[11px] text-gray-500 hidden sm:inline">Pax:</span>
-              <span className="text-xs font-bold text-gray-800">156</span>
+              <span className="text-[11px] text-gray-700 hidden sm:inline">Pax:</span>
+              <span className="text-xs font-bold text-gray-900">156</span>
             </div>
-            <div className="flex items-center gap-1.5 rounded-full bg-white/70 border border-amber-200 dark:border-amber-700 px-3 py-1.5 shadow-sm">
-              <Star className="h-3.5 w-3.5 text-amber-500 fill-amber-400" />
-              <span className="text-[11px] text-gray-500 hidden sm:inline">Rating:</span>
-              <span className="text-xs font-bold text-gray-800">{crewProfile?.performanceRating?.toFixed(1) || '4.8'}</span>
+            <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
+              <Star className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+              <span className="text-[11px] text-gray-700 hidden sm:inline">Rating:</span>
+              <span className="text-xs font-bold text-gray-900">{crewProfile?.performanceRating?.toFixed(1) || '4.8'}</span>
             </div>
           </div>
         </CardContent>
@@ -2920,7 +2929,7 @@ function DashboardPage({
       {/* This Week Stats Row */}
       {crewProfile && (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-emerald-500 stat-accent-emerald p-4">
+          <div className="glass-card rounded-xl border-t-4 border-t-emerald-500 p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-50">
                 <Navigation className="h-4 w-4 text-emerald-600" />
@@ -2932,8 +2941,12 @@ function DashboardPage({
                 <p className="text-[11px] text-gray-500">Trips This Week</p>
               </div>
             </div>
+            <div className="mt-2 flex items-center gap-1 text-emerald-600">
+              <ArrowUp className="h-3 w-3" />
+              <span className="text-[10px] font-semibold">+12%</span>
+            </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-sky-500 stat-accent-blue p-4">
+          <div className="glass-card rounded-xl border-t-4 border-t-sky-500 p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-sky-50">
                 <Timer className="h-4 w-4 text-sky-600" />
@@ -2945,8 +2958,12 @@ function DashboardPage({
                 <p className="text-[11px] text-gray-500">Hours Worked</p>
               </div>
             </div>
+            <div className="mt-2 flex items-center gap-1 text-amber-600">
+              <ArrowUp className="h-3 w-3" />
+              <span className="text-[10px] font-semibold">+5%</span>
+            </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-amber-500 stat-accent-amber p-4">
+          <div className="glass-card rounded-xl border-t-4 border-t-amber-500 p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-amber-50">
                 <Gauge className="h-4 w-4 text-amber-600" />
@@ -2958,8 +2975,12 @@ function DashboardPage({
                 <p className="text-[11px] text-gray-500">Distance Covered</p>
               </div>
             </div>
+            <div className="mt-2 flex items-center gap-1 text-emerald-600">
+              <ArrowUp className="h-3 w-3" />
+              <span className="text-[10px] font-semibold">+8%</span>
+            </div>
           </div>
-          <div className="rounded-xl shadow-sm bg-white dark:bg-gray-800 border-t-4 border-t-rose-500 stat-accent-rose p-4">
+          <div className="glass-card rounded-xl border-t-4 border-t-rose-500 p-4 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-rose-50">
                 <Fuel className="h-4 w-4 text-rose-600" />
@@ -2971,9 +2992,54 @@ function DashboardPage({
                 <p className="text-[11px] text-gray-500">Fuel Used</p>
               </div>
             </div>
+            <div className="mt-2 flex items-center gap-1 text-red-500">
+              <ArrowDown className="h-3 w-3" />
+              <span className="text-[10px] font-semibold">-3%</span>
+            </div>
           </div>
         </div>
       )}
+
+      {/* Communication Board */}
+      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MessageSquare className="h-5 w-5 text-amber-500" />
+            Communication Board
+          </CardTitle>
+          <CardDescription>Latest updates from dispatch and management</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3">
+            {[
+              { message: 'Route R-215 delayed by 10 min due to traffic', sender: 'Dispatch', time: '15 min ago', priority: 'amber', icon: AlertTriangle },
+              { message: 'New schedule effective from tomorrow — check assignments', sender: 'Management', time: '1 hour ago', priority: 'blue', icon: Briefcase },
+              { message: 'Fuel station at Jayanagar closed for maintenance', sender: 'Dispatch', time: '2 hours ago', priority: 'red', icon: Fuel },
+              { message: 'Weekly meeting scheduled for Friday 4:00 PM', sender: 'HR', time: '5 hours ago', priority: 'emerald', icon: CalendarIcon },
+            ].map((item, i) => {
+              const ItemIcon = item.icon;
+              const dotColor = item.priority === 'amber' ? 'bg-amber-500' : item.priority === 'blue' ? 'bg-sky-500' : item.priority === 'red' ? 'bg-red-500' : 'bg-emerald-500';
+              const bgColor = item.priority === 'amber' ? 'bg-amber-50 dark:bg-amber-900/20' : item.priority === 'blue' ? 'bg-sky-50 dark:bg-sky-900/20' : item.priority === 'red' ? 'bg-red-50 dark:bg-red-900/20' : 'bg-emerald-50 dark:bg-emerald-900/20';
+              const iconColor = item.priority === 'amber' ? 'text-amber-600' : item.priority === 'blue' ? 'text-sky-600' : item.priority === 'red' ? 'text-red-600' : 'text-emerald-600';
+              return (
+                <div key={i} className={`flex items-start gap-3 rounded-lg ${bgColor} p-3 transition-all hover:shadow-sm`}>
+                  <div className="flex flex-col items-center gap-1 shrink-0 pt-0.5">
+                    <div className={`h-2 w-2 rounded-full ${dotColor}`} />
+                    <ItemIcon className={`h-3.5 w-3.5 ${iconColor}`} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-900 dark:text-gray-100 font-medium">{item.message}</p>
+                    <div className="mt-1 flex items-center gap-2 text-[10px] text-gray-400">
+                      <span className="font-semibold text-gray-500">{item.sender}</span>
+                      <span>{item.time}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Weekly Performance Score */}
       {crewProfile && (
@@ -3613,10 +3679,22 @@ function AssignmentsPage({
       : 'bg-gray-300';
 
     return (
-    <div className={`rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600 animate-fade-in-up ${statusBorderColor(assignment.status)}`}>
+    <div className={`rounded-xl border border-gray-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-all card-lift hover:border-gray-200 dark:hover:border-gray-600 animate-fade-in-up glass-card ${statusBorderColor(assignment.status)}`}>
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
+            {/* Status indicator dot */}
+            <span className={`relative flex h-2.5 w-2.5 ${assignment.status === 'accepted' || assignment.status === 'active' ? '' : assignment.status === 'pending' ? '' : assignment.status === 'completed' ? '' : ''}`}>
+              {assignment.status === 'accepted' || assignment.status === 'active' ? (
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+              ) : null}
+              <span className={`relative inline-flex rounded-full h-2.5 w-2.5 ${
+                assignment.status === 'accepted' || assignment.status === 'active' ? 'bg-emerald-500' :
+                assignment.status === 'pending' ? 'bg-amber-500' :
+                assignment.status === 'completed' ? 'bg-gray-400' :
+                'bg-gray-400'
+              }`} />
+            </span>
             <Badge className={`${statusBadgeClass(assignment.status)} text-[10px] border`}>
               {capitalize(assignment.status)}
             </Badge>
@@ -4171,7 +4249,7 @@ function CalendarPage({
                       ${isSelected
                         ? 'ring-2 ring-emerald-500 bg-emerald-50 text-emerald-700 font-bold'
                         : isTodayCell
-                          ? 'bg-emerald-100 text-emerald-800 font-bold ring-1 ring-emerald-300'
+                          ? 'bg-emerald-100 text-emerald-800 font-bold ring-2 ring-primary ring-offset-2'
                           : count > 0
                             ? 'bg-gray-50 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-medium hover:bg-gray-100 dark:hover:bg-gray-600'
                             : weekend
@@ -4182,13 +4260,14 @@ function CalendarPage({
                   >
                     <span className="leading-none">{day}</span>
                   {count > 0 && (
-                    <span className={`mt-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full text-[10px] font-bold leading-none px-1 ${
-                      isSelected || isTodayCell
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
-                    }`}>
-                      {count}
-                    </span>
+                    <div className="mt-0.5 flex items-center gap-0.5">
+                      {dayAssignments.filter((a) => parseInt(a.schedule.departureTime.split(':')[0], 10) < 13).length > 0 && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                      )}
+                      {dayAssignments.filter((a) => parseInt(a.schedule.departureTime.split(':')[0], 10) >= 13).length > 0 && (
+                        <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                      )}
+                    </div>
                   )}
                 </button>
                 </React.Fragment>
@@ -4628,31 +4707,40 @@ function LeaveRequestsPage({
 
       {/* Leave Balance Card */}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-emerald-50 to-white border-emerald-100">
+        <Card className="glass-card rounded-xl bg-gradient-to-br from-emerald-50 to-white border-emerald-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
           <CardContent className="p-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100 mx-auto mb-2">
               <CalendarIcon className="h-5 w-5 text-emerald-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-emerald-700">{availableDays}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Available Days</p>
+            <div className="mt-2 h-1.5 bg-emerald-100 rounded-full overflow-hidden">
+              <div className="h-full bg-emerald-500 rounded-full transition-all" style={{ width: `${(availableDays / totalAllowance) * 100}%` }} />
+            </div>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-amber-50 to-white border-amber-100">
+        <Card className="glass-card rounded-xl bg-gradient-to-br from-amber-50 to-white border-amber-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
           <CardContent className="p-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 mx-auto mb-2">
               <Clock className="h-5 w-5 text-amber-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-amber-700">{pendingDays}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Pending Days</p>
+            <div className="mt-2 h-1.5 bg-amber-100 rounded-full overflow-hidden">
+              <div className="h-full bg-amber-500 rounded-full transition-all" style={{ width: `${(pendingDays / totalAllowance) * 100}%` }} />
+            </div>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-rose-50 to-white border-rose-100">
+        <Card className="glass-card rounded-xl bg-gradient-to-br from-rose-50 to-white border-rose-100 hover:-translate-y-1 hover:shadow-lg transition-all duration-300">
           <CardContent className="p-4 text-center">
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-rose-100 mx-auto mb-2">
               <CheckCircle2 className="h-5 w-5 text-rose-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-rose-700">{usedDays}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Used Days</p>
+            <div className="mt-2 h-1.5 bg-rose-100 rounded-full overflow-hidden">
+              <div className="h-full bg-rose-500 rounded-full transition-all" style={{ width: `${(usedDays / totalAllowance) * 100}%` }} />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -4830,7 +4918,7 @@ function LeaveRequestsPage({
               {holidayRequests.map((req) => (
                 <div
                   key={req.id}
-                  className="rounded-lg border border-gray-100 dark:border-gray-700 p-4 transition-colors hover:bg-gray-50 dark:hover:bg-gray-700/50"
+                  className="glass-card rounded-lg p-4 transition-all hover:-translate-y-1 hover:shadow-lg duration-300"
                 >
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1 min-w-0">
@@ -5230,15 +5318,15 @@ function FuelLogPage({ crewName }: { crewName: string }) {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-3">
-            <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 p-3 text-center">
+            <div className="glass-card rounded-lg bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-100 dark:border-emerald-800 p-3 text-center hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300">
               <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{thisMonthEntries.reduce((s, e) => s + e.liters, 0).toFixed(1)} L</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400">Total Liters</p>
             </div>
-            <div className="rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 p-3 text-center">
+            <div className="glass-card rounded-lg bg-sky-50 dark:bg-sky-900/30 border border-sky-100 dark:border-sky-800 p-3 text-center hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300">
               <p className="text-lg font-bold text-sky-700 dark:text-sky-300">₹{totalCostThisMonth.toLocaleString('en-IN', { maximumFractionDigits: 0 })}</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400">Total Cost</p>
             </div>
-            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 p-3 text-center">
+            <div className="glass-card rounded-lg bg-amber-50 dark:bg-amber-900/30 border border-amber-100 dark:border-amber-800 p-3 text-center hover:-translate-y-0.5 hover:shadow-sm transition-all duration-300">
               <p className="text-lg font-bold text-amber-700 dark:text-amber-300">₹{(thisMonthEntries.length > 0 ? (totalCostThisMonth / thisMonthEntries.reduce((s, e) => s + e.liters, 0)) : 0).toFixed(2)}</p>
               <p className="text-[10px] text-gray-500 dark:text-gray-400">Avg Cost/Liter</p>
             </div>
@@ -5387,11 +5475,20 @@ function FuelLogPage({ crewName }: { crewName: string }) {
                   const typeColor = entry.fuelType === 'Diesel' ? 'bg-amber-100 text-amber-700'
                     : entry.fuelType === 'CNG' ? 'bg-sky-100 text-sky-700'
                     : 'bg-emerald-100 text-emerald-700';
+                  const fuelPct = Math.min(100, Math.max(0, (entry.liters / 60) * 100));
+                  const fuelLevelColor = fuelPct > 50 ? 'bg-emerald-500' : fuelPct >= 25 ? 'bg-amber-500' : 'bg-red-500';
                   return (
                     <TableRow key={entry.id} className="transition-colors hover:shadow-[inset_3px_0_0_#10b981]">
                       <TableCell className="text-xs py-2">{formatDateShort(entry.date)}</TableCell>
                       <TableCell className="text-xs py-2 font-mono">{entry.odometer.toLocaleString()}</TableCell>
-                      <TableCell className="text-xs py-2 font-mono">{entry.liters.toFixed(1)}</TableCell>
+                      <TableCell className="text-xs py-2 font-mono">
+                        <div className="flex items-center gap-1.5">
+                          <span>{entry.liters.toFixed(1)}</span>
+                          <div className="w-8 h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full ${fuelLevelColor}`} style={{ width: `${fuelPct}%` }} />
+                          </div>
+                        </div>
+                      </TableCell>
                       <TableCell className="text-xs py-2 font-mono">₹{entry.costPerLiter.toFixed(2)}</TableCell>
                       <TableCell className="text-xs py-2 max-w-[120px] truncate">{entry.station}</TableCell>
                       <TableCell className="text-xs py-2">
@@ -5566,7 +5663,7 @@ function ProfilePage({
     <div className="space-y-6">
       {/* Cover Gradient Banner + Avatar (Social Media Style) */}
       <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 overflow-hidden">
-        <div className="h-32 sm:h-40 bg-gradient-to-r from-emerald-600 via-teal-500 to-emerald-400 relative">
+        <div className="h-32 sm:h-40 bg-gradient-to-r from-amber-600 via-orange-500 to-amber-400 relative">
           {/* Decorative pattern */}
           <div className="absolute inset-0 opacity-10">
             <svg width="100%" height="100%" className="absolute inset-0">
@@ -5579,10 +5676,12 @@ function ProfilePage({
         </div>
         <CardContent className="p-4 sm:p-6 -mt-14 sm:-mt-16 relative">
           <div className="flex flex-col sm:flex-row sm:items-end gap-4">
-            {/* Avatar with gradient border */}
-            <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-teal-600 p-1 shadow-lg shrink-0">
-              <div className="flex h-full w-full items-center justify-center rounded-full bg-white dark:bg-gray-800 text-2xl sm:text-3xl font-bold text-emerald-600">
-                {getInitials(crewProfile.profile.name)}
+            {/* Avatar with animated gradient border */}
+            <div className="relative shrink-0">
+              <div className="flex h-24 w-24 sm:h-28 sm:w-28 items-center justify-center rounded-full bg-gradient-to-br from-amber-400 via-orange-500 to-rose-500 p-1 shadow-lg animate-spin-slow">
+                <div className="flex h-full w-full items-center justify-center rounded-full bg-white dark:bg-gray-800 text-2xl sm:text-3xl font-bold text-amber-600">
+                  {getInitials(crewProfile.profile.name)}
+                </div>
               </div>
             </div>
             <div className="flex-1 min-w-0">
@@ -5621,9 +5720,9 @@ function ProfilePage({
               <Badge
                 key={skill}
                 variant="outline"
-                className="bg-gradient-to-r from-gray-50 to-white border-gray-200 text-gray-600 text-xs px-2.5 py-1"
+                className="bg-gradient-to-r from-gray-50 to-white border-gray-200 text-gray-600 text-xs px-2.5 py-1 hover:-translate-y-0.5 hover:shadow-sm hover:border-amber-300 hover:text-amber-700 transition-all duration-200"
               >
-                <Award className="mr-1 h-3 w-3 text-emerald-500" />
+                <Award className="mr-1 h-3 w-3 text-amber-500" />
                 {skill}
               </Badge>
             ))}
@@ -5750,7 +5849,7 @@ function ProfilePage({
       </Card>
 
       {/* Professional Details */}
-      <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <Card className="glass-card rounded-xl shadow-sm bg-white dark:bg-gray-800">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <User className="h-5 w-5 text-gray-500" />

@@ -104,6 +104,7 @@ import {
   ArrowUpRight,
   Megaphone,
   HelpCircle,
+  Plus,
   Share2,
   Phone,
   Mail,
@@ -2368,6 +2369,15 @@ function Dashboard({
 
   return (
     <div className="space-y-6">
+      {/* Customer Portal Badge */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="h-8 w-1.5 rounded-full bg-emerald-500" />
+        <div>
+          <p className="text-xs font-bold uppercase tracking-wider text-emerald-600">Customer Portal</p>
+          <p className="text-xs text-muted-foreground">Passenger Dashboard</p>
+        </div>
+      </div>
+
       {/* Welcome Greeting Card with Gradient */}
       <Card className="overflow-hidden border-0 bg-gradient-to-br from-primary/90 via-primary to-primary/80 text-primary-foreground">
         <CardContent className="flex flex-col gap-3 py-6 sm:flex-row sm:items-center sm:justify-between">
@@ -2791,6 +2801,7 @@ function SearchRoutes({
   const [selectedForCompare, setSelectedForCompare] = useState<Set<string>>(new Set());
   const [showComparison, setShowComparison] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set());
+  const [heartPulseId, setHeartPulseId] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
   const [expandedRouteId, setExpandedRouteId] = useState<string | null>(null);
   const [seatSelectionRoute, setSeatSelectionRoute] = useState<RouteResult | null>(null);
@@ -2981,6 +2992,8 @@ function SearchRoutes({
   const handleToggleFavorite = useCallback((routeId: string) => {
     const nowFav = toggleFavorite(routeId);
     setFavs(new Set(getFavorites()));
+    setHeartPulseId(routeId);
+    setTimeout(() => setHeartPulseId(null), 500);
   }, []);
 
   const comparedRoutes = useMemo(() => {
@@ -3798,6 +3811,7 @@ function RouteMapView() {
   const [mapReady, setMapReady] = useState(false);
   const [favs, setFavs] = useState<Set<string>>(new Set());
   const [compareRouteIds, setCompareRouteIds] = useState<Set<string>>(new Set());
+  const [heartPulseId, setHeartPulseId] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchRoutes() {
@@ -3976,25 +3990,27 @@ function RouteMapView() {
             <Navigation className="size-5 text-primary" />
             <span className="text-sm font-medium">Select Route:</span>
           </div>
-          <Select
-            value={selectedRoute?.id ?? ''}
-            onValueChange={v => {
-              const r = routes.find(r => r.id === v);
-              setSelectedRoute(r ?? null);
-              setError('');
-            }}
-          >
-            <SelectTrigger className="w-full sm:w-80">
-              <SelectValue placeholder="Choose a route..." />
-            </SelectTrigger>
-            <SelectContent>
-              {routes.map(r => (
-                <SelectItem key={r.id} value={r.id}>
-                  {r.routeNumber} — {r.startLocation} → {r.endLocation}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="relative z-[2000]">
+            <Select
+              value={selectedRoute?.id ?? ''}
+              onValueChange={v => {
+                const r = routes.find(r => r.id === v);
+                setSelectedRoute(r ?? null);
+                setError('');
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-80">
+                <SelectValue placeholder="Choose a route..." />
+              </SelectTrigger>
+              <SelectContent>
+                {routes.map(r => (
+                  <SelectItem key={r.id} value={r.id}>
+                    {r.routeNumber} — {r.startLocation} → {r.endLocation}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
           {selectedRoute && (
             <Button
               variant="outline"
@@ -4002,10 +4018,12 @@ function RouteMapView() {
               onClick={() => {
                 toggleFavorite(selectedRoute.id);
                 setFavs(new Set(getFavorites()));
+                setHeartPulseId(selectedRoute.id);
+                setTimeout(() => setHeartPulseId(null), 500);
               }}
               className="ml-auto"
             >
-              <Heart className={`size-4 ${favs.has(selectedRoute.id) ? 'fill-rose-500 text-rose-500' : ''}`} />
+              <Heart className={`size-4 ${favs.has(selectedRoute.id) ? 'fill-rose-500 text-rose-500' : ''} ${heartPulseId === selectedRoute.id ? 'animate-heart-pulse' : ''}`} />
               <span className="ml-1 hidden sm:inline">{favs.has(selectedRoute.id) ? 'Unfavorite' : 'Favorite'}</span>
             </Button>
           )}
@@ -4390,7 +4408,7 @@ function BookingStatusTimeline({ status }: { status: string | undefined }) {
 
 // ─── My Bookings ─────────────────────────────────────────────────────────────
 
-function MyBookings({ userId }: { userId: string }) {
+function MyBookings({ userId, setPortal }: { userId: string; setPortal?: (p: string) => void }) {
   const [bookings, setBookings] = useState<Journey[]>([]);
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
@@ -4463,12 +4481,22 @@ function MyBookings({ userId }: { userId: string }) {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <CalendarClock className="size-5 text-sky-500" />
-            My Bookings
-            {!loading && <Badge variant="secondary" className="ml-2">{bookings.length}</Badge>}
-          </CardTitle>
-          <CardDescription>Manage your planned journeys</CardDescription>
+          <div className="flex items-center justify-between">
+            <div className="space-y-1">
+              <CardTitle className="flex items-center gap-2">
+                <CalendarClock className="size-5 text-sky-500" />
+                My Bookings
+                {!loading && <Badge variant="secondary" className="ml-2">{bookings.length}</Badge>}
+              </CardTitle>
+              <CardDescription>Manage your planned journeys</CardDescription>
+            </div>
+            {setPortal && (
+              <Button size="sm" onClick={() => setPortal('search')}>
+                <Plus className="size-4 mr-1" />
+                Book New Trip
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {error && (
@@ -4496,6 +4524,12 @@ function MyBookings({ userId }: { userId: string }) {
               <p className="mt-1 text-sm text-muted-foreground/70">
                 When you book a route, your planned trips will appear here
               </p>
+              {setPortal && (
+                <Button className="mt-4" variant="outline" onClick={() => setPortal('search')}>
+                  <Search className="size-4 mr-1" />
+                  Search Routes
+                </Button>
+              )}
             </div>
           ) : (
             <div className="max-h-[700px] space-y-4 overflow-y-auto">
@@ -5487,321 +5521,474 @@ const FAQ_ITEMS = [
 ];
 
 function SupportPage() {
-  const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [complaintForm, setComplaintForm] = useState({
+  // SupportTicket Interface
+  interface SupportTicket {
+    id: string;
+    subject: string;
+    category: string;
+    priority: string;
+    status: 'Open' | 'Pending' | 'Resolved';
+    description: string;
+    response?: string;
+    createdAt: string;
+  }
+
+  const [activeTab, setActiveTab] = useState<'tickets' | 'faq' | 'contact'>('tickets');
+  const [ticketFilter, setTicketFilter] = useState<'All' | 'Open' | 'Pending' | 'Resolved'>('All');
+  const [expandedTicket, setExpandedTicket] = useState<string | null>(null);
+  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newTicket, setNewTicket] = useState({
+    subject: '',
     category: '',
-    severity: '',
-    route: '',
+    priority: '',
     description: '',
   });
-  const [submittingComplaint, setSubmittingComplaint] = useState(false);
-  const [expandedFaq, setExpandedFaq] = useState<number | null>(null);
-  const [faqSearch, setFaqSearch] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
-  const filteredFaqs = useMemo(() => {
-    if (!faqSearch.trim()) return FAQ_ITEMS;
-    const q = faqSearch.toLowerCase();
-    return FAQ_ITEMS.filter(faq =>
-      faq.q.toLowerCase().includes(q) || faq.a.toLowerCase().includes(q)
-    );
-  }, [faqSearch]);
+  const TICKET_CATEGORIES = ['Booking Issue', 'Refund', 'Delay', 'Safety', 'Cleanliness'];
+  const TICKET_PRIORITIES = ['Low', 'Medium', 'High', 'Critical'];
 
-  const handleSubmitComplaint = useCallback(() => {
-    if (!complaintForm.category || !complaintForm.severity || !complaintForm.description.trim()) {
+  const [tickets, setTickets] = useState<SupportTicket[]>([
+    {
+      id: 'TKT-10234',
+      subject: 'Bus arrived 30 minutes late on Route BLR-101',
+      category: 'Delay',
+      priority: 'High',
+      status: 'Open',
+      description: 'The bus on route BLR-101 from Majestic to Koramangala was scheduled for 8:30 AM but arrived at 9:00 AM. This caused me to miss an important meeting. The driver did not provide any prior notification about the delay.',
+      createdAt: '2025-01-15T10:30:00Z',
+    },
+    {
+      id: 'TKT-10187',
+      subject: 'Refund not processed for cancelled ticket',
+      category: 'Refund',
+      priority: 'Medium',
+      status: 'Pending',
+      description: 'I cancelled my booking (ID: BK-4521) on January 10th due to a schedule change. The refund of ₹350 was supposed to be processed within 3-5 business days but has not been credited yet.',
+      response: 'Your refund has been approved and is being processed by our payment partner. It should reflect in your account within 2 business days. Refund reference: RF-88732.',
+      createdAt: '2025-01-10T14:20:00Z',
+    },
+    {
+      id: 'TKT-10098',
+      subject: 'AC not working on BLR-335 evening service',
+      category: 'Cleanliness',
+      priority: 'Medium',
+      status: 'Resolved',
+      description: 'The air conditioning was not functioning on the 6:00 PM service of route BLR-335 from HSR to Electronic City on January 8th. The bus was extremely hot and uncomfortable for the entire 45-minute journey.',
+      response: 'We apologize for the inconvenience. The AC unit on this bus has been repaired and serviced. We have also added this vehicle to our priority maintenance list. A ₹50 credit has been added to your wallet as compensation.',
+      createdAt: '2025-01-08T18:45:00Z',
+    },
+    {
+      id: 'TKT-10012',
+      subject: 'Unable to book seat for BLR-501 tomorrow',
+      category: 'Booking Issue',
+      priority: 'High',
+      status: 'Open',
+      description: 'When trying to book a ticket for route BLR-501 from Whitefield to ITPL for tomorrow morning, the app shows "No seats available" but the bus appears empty on the live tracker. The booking keeps failing at the payment step.',
+      createdAt: '2025-01-16T08:15:00Z',
+    },
+  ]);
+
+  const SUPPORT_FAQS = [
+    { q: 'How do I book a ticket online?', a: 'Go to the Search Routes tab, enter your origin and destination, select a route and schedule, then proceed to payment. You can pay via UPI, card, or wallet balance.' },
+    { q: 'Can I cancel my booking and get a refund?', a: 'Yes, you can cancel up to 30 minutes before departure. Refunds are processed within 3-5 business days. A cancellation fee of ₹10 may apply.' },
+    { q: 'What payment methods are accepted?', a: 'We accept UPI (GPay, PhonePe, Paytm), credit/debit cards, net banking, and BusTrack wallet balance. All transactions are secure and encrypted.' },
+    { q: 'How do I track my bus in real-time?', a: 'Visit the Route Map tab and select your route. You can see the live position of the bus, estimated arrival times, and current stop information.' },
+    { q: 'What if my bus is delayed or cancelled?', a: 'You will receive a notification via the app and SMS. For delays over 15 minutes, you can rebook on the next available service for free. For cancellations, a full refund is provided.' },
+    { q: 'How do I report lost items on a bus?', a: 'Submit a support ticket with the "Safety" category, including your route number, travel date, and a description of the lost item. Our team will coordinate with the bus operator to locate it.' },
+    { q: 'Are there monthly or season passes available?', a: 'Yes! You can purchase monthly passes from your Dashboard. Season passes offer up to 20% savings on regular fares and are valid for unlimited travel on selected routes.' },
+    { q: 'How do I provide feedback or rate my journey?', a: 'After completing a trip, go to Journey History and find your completed journey. You can rate the trip from 1-5 stars and provide detailed feedback across categories like punctuality, comfort, and safety.' },
+  ];
+
+  const filteredTickets = useMemo(() => {
+    if (ticketFilter === 'All') return tickets;
+    return tickets.filter(t => t.status === ticketFilter);
+  }, [tickets, ticketFilter]);
+
+  const ticketCounts = useMemo(() => ({
+    All: tickets.length,
+    Open: tickets.filter(t => t.status === 'Open').length,
+    Pending: tickets.filter(t => t.status === 'Pending').length,
+    Resolved: tickets.filter(t => t.status === 'Resolved').length,
+  }), [tickets]);
+
+  const statusColorMap: Record<string, string> = {
+    Open: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+    Pending: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
+    Resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:border-emerald-700 dark:text-emerald-300',
+  };
+
+  const priorityColorMap: Record<string, string> = {
+    Low: 'bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:border-sky-700 dark:text-sky-300',
+    Medium: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-900/50 dark:border-amber-700 dark:text-amber-300',
+    High: 'bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/50 dark:border-orange-700 dark:text-orange-300',
+    Critical: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:border-red-700 dark:text-red-300',
+  };
+
+  const handleSubmitTicket = useCallback(() => {
+    if (!newTicket.subject.trim() || !newTicket.category || !newTicket.priority || !newTicket.description.trim()) {
       toast({
         title: 'Missing Information',
-        description: 'Please fill in category, severity, and description.',
+        description: 'Please fill in all required fields.',
         variant: 'destructive',
       });
       return;
     }
-    setSubmittingComplaint(true);
-    // Simulate submission
+    setSubmitting(true);
     setTimeout(() => {
-      const newComplaint: Complaint = {
-        id: `CMP-${String(Date.now()).slice(-6)}`,
-        category: complaintForm.category,
-        severity: complaintForm.severity,
-        route: complaintForm.route || undefined,
-        description: complaintForm.description.trim(),
+      const ticketId = `TKT-${String(Date.now()).slice(-5)}`;
+      const created: SupportTicket = {
+        id: ticketId,
+        subject: newTicket.subject.trim(),
+        category: newTicket.category,
+        priority: newTicket.priority,
         status: 'Open',
-        submittedAt: new Date().toISOString(),
+        description: newTicket.description.trim(),
+        createdAt: new Date().toISOString(),
       };
-      setComplaints(prev => [newComplaint, ...prev]);
-      setComplaintForm({ category: '', severity: '', route: '', description: '' });
-      setSubmittingComplaint(false);
+      setTickets(prev => [created, ...prev]);
+      setNewTicket({ subject: '', category: '', priority: '', description: '' });
+      setSubmitting(false);
+      setDialogOpen(false);
       toast({
-        title: 'Complaint Submitted!',
-        description: `Your complaint ${newComplaint.id} has been registered. We'll respond within 24 hours.`,
+        title: 'Ticket Created!',
+        description: `Your support ticket ${ticketId} has been submitted. We'll respond within 24 hours.`,
       });
     }, 800);
-  }, [complaintForm]);
+  }, [newTicket]);
 
   return (
     <div className="space-y-6">
-      {/* FAQ Accordion - Above complaint form */}
-      <Card className="transit-card overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <HelpCircle className="size-5 text-emerald-500" />
-            Frequently Asked Questions
-          </CardTitle>
-          <CardDescription>Quick answers to common questions</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Search FAQ */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
-            <Input
-              placeholder="Search questions and answers..."
-              value={faqSearch}
-              onChange={e => setFaqSearch(e.target.value)}
-              className="pl-10 h-9"
-            />
+      {/* Quick Actions Row */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="group flex items-center gap-4 rounded-xl border-0 p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] bg-gradient-to-br from-red-500 to-rose-600 text-white"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <AlertTriangle className="size-5" />
           </div>
-
-          <div className="space-y-1">
-            {filteredFaqs.length === 0 ? (
-              <div className="py-8 text-center text-muted-foreground">
-                <HelpCircle className="mx-auto mb-2 size-8 opacity-30" />
-                <p className="text-sm">No matching questions found</p>
-              </div>
-            ) : (
-              filteredFaqs.map((faq, i) => (
-                <div key={i} className="rounded-lg border dark:border-muted-foreground/20 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10">
-                  <button
-                    type="button"
-                    className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors"
-                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
-                  >
-                    <span className="pr-4">{faq.q}</span>
-                    <ChevronDown
-                      className={`size-4 shrink-0 text-muted-foreground transition-transform duration-300 ${
-                        expandedFaq === i ? 'rotate-180' : ''
-                      }`}
-                    />
-                  </button>
-                  {expandedFaq === i && (
-                    <div className="border-t bg-muted/30 dark:bg-muted/10 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
-                      <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
-                    </div>
-                  )}
-                </div>
-              ))
-            )}
+          <div>
+            <p className="font-bold text-sm">Report Issue</p>
+            <p className="text-xs opacity-80 mt-0.5">Create a support ticket</p>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Submit Complaint */}
-      <Card className="neon-card overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Megaphone className="size-5 text-amber-500" />
-            Submit a Complaint
-          </CardTitle>
-          <CardDescription>Tell us about your experience — we&apos;re here to help</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {/* Category */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Category *</label>
-              <Select
-                value={complaintForm.category}
-                onValueChange={v => setComplaintForm(p => ({ ...p, category: v }))}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {COMPLAINT_CATEGORIES.map(cat => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Severity */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-medium">Severity *</label>
-              <div className="flex gap-2">
-                {SEVERITY_OPTIONS.map(sev => (
-                  <button
-                    key={sev}
-                    type="button"
-                    onClick={() => setComplaintForm(p => ({ ...p, severity: sev }))}
-                    className={`flex-1 rounded-lg border-2 px-3 py-2 text-xs font-semibold transition-all ${
-                      complaintForm.severity === sev
-                        ? SEVERITY_COLORS[sev]
-                        : 'border-muted bg-muted/30 text-muted-foreground hover:bg-muted/50'
-                    }`}
-                  >
-                    {sev}
-                  </button>
-                ))}
-              </div>
-            </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('faq')}
+          className="group flex items-center gap-4 rounded-xl border-0 p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] bg-gradient-to-br from-amber-500 to-orange-500 text-white"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <HelpCircle className="size-5" />
           </div>
-
-          {/* Route (optional) */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Route (optional)</label>
-            <Input
-              placeholder="e.g., Route 500, KA-01-4521"
-              value={complaintForm.route}
-              onChange={e => setComplaintForm(p => ({ ...p, route: e.target.value }))}
-            />
+          <div>
+            <p className="font-bold text-sm">FAQ</p>
+            <p className="text-xs opacity-80 mt-0.5">Browse common questions</p>
           </div>
-
-          {/* Description */}
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium">Description *</label>
-            <Textarea
-              placeholder="Describe your issue in detail..."
-              className="min-h-24"
-              value={complaintForm.description}
-              onChange={e => setComplaintForm(p => ({ ...p, description: e.target.value }))}
-            />
+        </button>
+        <button
+          onClick={() => setActiveTab('contact')}
+          className="group flex items-center gap-4 rounded-xl border-0 p-5 text-left transition-all hover:scale-[1.02] hover:shadow-lg active:scale-[0.98] bg-gradient-to-br from-sky-500 to-cyan-600 text-white"
+        >
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+            <Phone className="size-5" />
           </div>
-
-          {/* Attachment placeholder */}
-          <div className="flex items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/30 bg-muted/20 p-6 text-center cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
-            <div className="space-y-2">
-              <Upload className="size-8 text-muted-foreground/50 mx-auto" />
-              <p className="text-xs text-muted-foreground">Attach screenshots or documents</p>
-              <p className="text-[10px] text-muted-foreground/60">PNG, JPG, PDF up to 10MB</p>
-            </div>
+          <div>
+            <p className="font-bold text-sm">Contact Us</p>
+            <p className="text-xs opacity-80 mt-0.5">Get in touch directly</p>
           </div>
+        </button>
+      </div>
 
-          {/* Submit button */}
-          <Button
-            className="w-full"
-            onClick={handleSubmitComplaint}
-            disabled={submittingComplaint}
+      {/* Tab Navigation */}
+      <div className="flex items-center gap-1 rounded-lg bg-muted/50 p-1">
+        {(['tickets', 'faq', 'contact'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`flex-1 rounded-md px-4 py-2 text-sm font-medium transition-all ${
+              activeTab === tab
+                ? 'bg-background text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
           >
-            {submittingComplaint ? (
-              <Loader2 className="size-4 animate-spin mr-2" />
-            ) : (
-              <Send className="size-4 mr-2" />
-            )}
-            Submit Complaint
-          </Button>
-        </CardContent>
-      </Card>
+            {tab === 'tickets' && `Tickets (${ticketCounts.All})`}
+            {tab === 'faq' && 'FAQ'}
+            {tab === 'contact' && 'Contact'}
+          </button>
+        ))}
+      </div>
 
-      {/* My Complaints */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageCircle className="size-5 text-sky-500" />
-            My Complaints
-            {complaints.length > 0 && (
-              <Badge variant="secondary" className="ml-2">{complaints.length}</Badge>
-            )}
-          </CardTitle>
-          <CardDescription>Track your submitted complaints</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {complaints.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="mb-4 rounded-full bg-muted/50 p-4">
-                <CheckCircle2 className="size-12 text-muted-foreground/30" />
-              </div>
-              <p className="font-medium text-muted-foreground">No complaints submitted</p>
-              <p className="mt-1 text-sm text-muted-foreground/70">
-                All clear! Submit one above if you have any concerns.
-              </p>
-            </div>
+      {/* TICKETS TAB */}
+      {activeTab === 'tickets' && (
+        <div className="space-y-4">
+          {/* Status filter tabs */}
+          <div className="flex items-center gap-2 flex-wrap">
+            {(['All', 'Open', 'Pending', 'Resolved'] as const).map(filter => (
+              <button
+                key={filter}
+                onClick={() => setTicketFilter(filter)}
+                className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all ${
+                  ticketFilter === filter
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'border-muted bg-background text-muted-foreground hover:bg-muted/50'
+                }`}
+              >
+                {filter}
+                <span className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1 text-[10px] font-bold ${
+                  ticketFilter === filter ? 'bg-primary-foreground/20 text-primary-foreground' : 'bg-muted text-muted-foreground'
+                }`}>
+                  {ticketCounts[filter]}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Ticket List */}
+          {filteredTickets.length === 0 ? (
+            <Card>
+              <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                <div className="mb-4 rounded-full bg-muted/50 p-4">
+                  <CheckCircle2 className="size-12 text-muted-foreground/30" />
+                </div>
+                <p className="font-medium text-muted-foreground">No tickets found</p>
+                <p className="mt-1 text-sm text-muted-foreground/70">
+                  {ticketFilter === 'All'
+                    ? 'All clear! Submit one if you have any concerns.'
+                    : `No ${ticketFilter.toLowerCase()} tickets.`}
+                </p>
+              </CardContent>
+            </Card>
           ) : (
-            <div className="max-h-96 overflow-y-auto space-y-3">
-              {complaints.map(c => (
-                <div key={c.id} className="card-lift rounded-xl border bg-card p-4 shadow-sm">
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="space-y-2 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="font-mono text-xs">{c.id}</Badge>
-                        <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
-                          {c.category}
-                        </Badge>
-                        <Badge variant="outline" className={SEVERITY_COLORS[c.severity]}>
-                          <AlertTriangle className="size-3 mr-1" />
-                          {c.severity}
-                        </Badge>
-                        <Badge variant="outline" className={STATUS_COLORS[c.status]}>
-                          {c.status}
-                        </Badge>
+            <div className="max-h-[600px] overflow-y-auto space-y-3">
+              {filteredTickets.map(ticket => (
+                <Card key={ticket.id} className="overflow-hidden hover:shadow-md transition-shadow">
+                  <button
+                    type="button"
+                    className="w-full text-left"
+                    onClick={() => setExpandedTicket(expandedTicket === ticket.id ? null : ticket.id)}
+                  >
+                    <div className="flex items-start gap-3 p-4">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Badge variant="outline" className="font-mono text-xs">{ticket.id}</Badge>
+                          <Badge variant="outline" className={statusColorMap[ticket.status]}>
+                            {ticket.status}
+                          </Badge>
+                          <Badge variant="outline" className={priorityColorMap[ticket.priority]}>
+                            {ticket.priority}
+                          </Badge>
+                          <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/50 dark:border-violet-700 dark:text-violet-300">
+                            {ticket.category}
+                          </Badge>
+                        </div>
+                        <p className="text-sm font-semibold mt-2 truncate">{ticket.subject}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {new Date(ticket.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </p>
                       </div>
-                      <p className="text-sm text-muted-foreground line-clamp-2">{c.description}</p>
-                      {c.route && (
-                        <p className="text-xs text-muted-foreground">Route: {c.route}</p>
+                      <div className="shrink-0 mt-1">
+                        {expandedTicket === ticket.id ? (
+                          <ChevronUp className="size-5 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="size-5 text-muted-foreground" />
+                        )}
+                      </div>
+                    </div>
+                  </button>
+
+                  {expandedTicket === ticket.id && (
+                    <div className="border-t bg-muted/20 px-4 py-4 animate-in fade-in slide-in-from-top-1 duration-200 space-y-3">
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-1">Description</p>
+                        <p className="text-sm text-muted-foreground leading-relaxed">{ticket.description}</p>
+                      </div>
+                      {ticket.response && (
+                        <div>
+                          <p className="text-xs font-semibold text-emerald-600 uppercase tracking-wider mb-1">Response from Support</p>
+                          <div className="rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 p-3">
+                            <p className="text-sm text-emerald-700 dark:text-emerald-300 leading-relaxed">{ticket.response}</p>
+                          </div>
+                        </div>
                       )}
                     </div>
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
-                      {new Date(c.submittedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
+                  )}
+                </Card>
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
-      {/* Contact Us Card */}
-      <Card className="neon-card overflow-hidden">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Phone className="size-5 text-sky-500" />
-            Contact Us
-          </CardTitle>
-          <CardDescription>We&apos;re here to help 24/7</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/50">
-                <Mail className="size-5 text-sky-600 dark:text-sky-400" />
+      {/* FAQ TAB */}
+      {activeTab === 'faq' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <HelpCircle className="size-5 text-amber-500" />
+              Frequently Asked Questions
+            </CardTitle>
+            <CardDescription>Quick answers to common questions</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-1">
+            {SUPPORT_FAQS.map((faq, i) => (
+              <div key={i} className="rounded-lg border dark:border-muted-foreground/20 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10">
+                <button
+                  type="button"
+                  className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-medium transition-colors"
+                  onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                >
+                  <span className="pr-4">{faq.q}</span>
+                  {expandedFaq === i ? (
+                    <ChevronUp className="size-4 shrink-0 text-muted-foreground transition-transform duration-300" />
+                  ) : (
+                    <ChevronDown className="size-4 shrink-0 text-muted-foreground transition-transform duration-300" />
+                  )}
+                </button>
+                {expandedFaq === i && (
+                  <div className="border-t bg-muted/30 dark:bg-muted/10 px-4 py-3 animate-in fade-in slide-in-from-top-1 duration-200">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{faq.a}</p>
+                  </div>
+                )}
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Email</p>
-                <p className="text-sm font-medium">support@bustrack.in</p>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* CONTACT TAB */}
+      {activeTab === 'contact' && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Phone className="size-5 text-sky-500" />
+              Contact Us
+            </CardTitle>
+            <CardDescription>We&apos;re here to help 24/7</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-900/50">
+                  <Mail className="size-5 text-sky-600 dark:text-sky-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Email</p>
+                  <p className="text-sm font-medium">support@bustrack.in</p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
-                <Phone className="size-5 text-emerald-600 dark:text-emerald-400" />
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-900/50">
+                  <Phone className="size-5 text-emerald-600 dark:text-emerald-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">24/7 Helpline</p>
+                  <p className="text-sm font-medium">1800-BUS-HELP</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">24/7 Helpline</p>
-                <p className="text-sm font-medium">1800-BUS-HELP</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4 sm:col-span-2 lg:col-span-1">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50">
-                <MessageCircle className="size-5 text-violet-600 dark:text-violet-400" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Social Media</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Twitter">
-                    <Twitter className="size-4 text-muted-foreground" />
-                  </button>
-                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Instagram">
-                    <Instagram className="size-4 text-muted-foreground" />
-                  </button>
-                  <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Email">
-                    <Mail className="size-4 text-muted-foreground" />
-                  </button>
+              <div className="flex items-center gap-3 rounded-lg border bg-muted/30 dark:bg-muted/10 p-4 sm:col-span-2 lg:col-span-1">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50">
+                  <MessageCircle className="size-5 text-violet-600 dark:text-violet-400" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Social Media</p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Twitter">
+                      <Twitter className="size-4 text-muted-foreground" />
+                    </button>
+                    <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Instagram">
+                      <Instagram className="size-4 text-muted-foreground" />
+                    </button>
+                    <button className="rounded-full p-1.5 transition-colors hover:bg-muted dark:hover:bg-muted/50" title="Email">
+                      <Mail className="size-4 text-muted-foreground" />
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Contact Us Form */}
-      <ContactUsForm />
+      {/* New Ticket Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="size-5 text-red-500" />
+              Create Support Ticket
+            </DialogTitle>
+            <DialogDescription>Describe your issue and we&apos;ll get back to you within 24 hours.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            {/* Subject */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Subject *</label>
+              <Input
+                placeholder="Brief summary of your issue"
+                value={newTicket.subject}
+                onChange={e => setNewTicket(p => ({ ...p, subject: e.target.value }))}
+              />
+            </div>
+            {/* Category & Priority */}
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Category *</label>
+                <Select
+                  value={newTicket.category}
+                  onValueChange={v => setNewTicket(p => ({ ...p, category: v }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TICKET_CATEGORIES.map(cat => (
+                      <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Priority *</label>
+                <Select
+                  value={newTicket.priority}
+                  onValueChange={v => setNewTicket(p => ({ ...p, priority: v }))}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TICKET_PRIORITIES.map(pri => (
+                      <SelectItem key={pri} value={pri}>{pri}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            {/* Description */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium">Description *</label>
+              <Textarea
+                placeholder="Describe your issue in detail..."
+                className="min-h-24"
+                value={newTicket.description}
+                onChange={e => setNewTicket(p => ({ ...p, description: e.target.value }))}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={handleSubmitTicket} disabled={submitting}>
+              {submitting ? (
+                <Loader2 className="size-4 animate-spin mr-2" />
+              ) : (
+                <Send className="size-4 mr-2" />
+              )}
+              Submit Ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -6374,7 +6561,7 @@ export default function CustomerContent({ portal, userId, token, setPortal }: Pr
       {portal === 'dashboard' && <Dashboard userId={userId} setPortal={setPortal} />}
       {portal === 'search' && <SearchRoutes userId={userId} />}
       {portal === 'map' && <RouteMapView />}
-      {portal === 'bookings' && <MyBookings userId={userId} />}
+      {portal === 'bookings' && <MyBookings userId={userId} setPortal={setPortal} />}
       {portal === 'history' && <JourneyHistory userId={userId} />}
       {portal === 'support' && <SupportPage />}
     </div>

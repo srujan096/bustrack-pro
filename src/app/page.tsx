@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, Component } from 'react';
 import { UserProfile } from '@/types';
-import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History, Cloud, CloudRain, CloudSun, Download, MapPin, MessageSquare, LayoutDashboard, Settings2, BarChart3 } from 'lucide-react';
+import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History, Cloud, CloudRain, CloudSun, Download, MapPin, MessageSquare, LayoutDashboard, Settings2, BarChart3, Eye, EyeOff } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from '@/hooks/use-toast';
 import AnnouncementBanner from '@/components/announcement-banner';
@@ -255,6 +255,7 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   // Load saved email from localStorage
   useEffect(() => {
@@ -266,10 +267,10 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
   }, []);
 
   const quickLogins = [
-    { label: 'Admin', email: 'admin@bus.com', color: 'bg-red-500 hover:bg-red-600' },
-    { label: 'Driver', email: 'driver1@bus.com', color: 'bg-amber-500 hover:bg-amber-600' },
-    { label: 'Conductor', email: 'conductor1@bus.com', color: 'bg-teal-500 hover:bg-teal-600' },
-    { label: 'Customer', email: 'customer1@bus.com', color: 'bg-emerald-500 hover:bg-emerald-600' },
+    { label: 'Admin', email: 'admin@bus.com', color: 'bg-red-500 hover:bg-red-600', initial: 'A' },
+    { label: 'Driver', email: 'driver1@bus.com', color: 'bg-amber-500 hover:bg-amber-600', initial: 'D' },
+    { label: 'Conductor', email: 'conductor1@bus.com', color: 'bg-teal-500 hover:bg-teal-600', initial: 'C' },
+    { label: 'Customer', email: 'customer1@bus.com', color: 'bg-emerald-500 hover:bg-emerald-600', initial: 'C' },
   ];
 
   const featureHighlights = [
@@ -492,6 +493,33 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
           100% { opacity: 0; }
         }
         .animate-theme-flash { animation: themeFlash 0.5s ease-out forwards; }
+        /* Conic gradient border for login card */
+        @property --border-angle {
+          syntax: '<angle>';
+          initial-value: 0deg;
+          inherits: false;
+        }
+        @keyframes conicRotate {
+          to { --border-angle: 360deg; }
+        }
+        .conic-border-login {
+          background: conic-gradient(
+            from var(--border-angle),
+            #3b82f6,
+            #10b981,
+            #06b6d4,
+            #8b5cf6,
+            #3b82f6
+          );
+          animation: conicRotate 4s linear infinite;
+        }
+        /* Input focus glow effect */
+        .input-focus-glow {
+          transition: all 0.3s ease;
+        }
+        .input-focus-glow:focus {
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15), 0 0 20px rgba(59, 130, 246, 0.1);
+        }
       `}</style>
 
       <div className="relative w-full max-w-md">
@@ -509,7 +537,9 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
           <p className="text-slate-400 mt-2">Route &amp; Crew Management System</p>
         </div>
 
-        {/* Login Card — glass-morphism */}
+        {/* Login Card — glass-morphism with rotating conic gradient border */}
+        <div className="relative p-[2px] rounded-[1.125rem] conic-border-login">
+          <div className="absolute inset-0 rounded-[1.125rem] bg-white/[0.08] backdrop-blur-2xl"></div>
         <div className="bg-white/[0.08] backdrop-blur-2xl border border-white/[0.12] rounded-2xl p-8 shadow-2xl shadow-black/20 relative overflow-hidden">
           {/* Glass highlight on top edge */}
           <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/20 to-transparent" />
@@ -525,21 +555,31 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                className="input-focus-glow w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
                 placeholder="Enter your email"
                 required
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-slate-300 mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
-                placeholder="Enter your password"
-                required
-              />
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="input-focus-glow w-full px-4 py-3 pr-12 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-transparent transition-all"
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-200 transition-colors p-1 rounded-lg hover:bg-white/5"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
+                </button>
+              </div>
               {/* Forgot Password link */}
               <div className="text-right mt-1.5">
                 <button type="button" onClick={handleForgotPassword} className="text-xs text-slate-400 hover:text-emerald-400 transition-colors">
@@ -607,8 +647,11 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
                   key={login.label}
                   onClick={() => handleQuickLogin(login.email)}
                   disabled={loading}
-                  className={`px-4 py-2.5 ${login.color} text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 shadow-sm`}
+                  className={`flex items-center gap-2 px-4 py-2.5 ${login.color} text-white text-sm font-medium rounded-lg transition-all disabled:opacity-50 shadow-sm`}
                 >
+                  <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    {login.initial}
+                  </span>
                   {login.label}
                 </button>
               ))}
@@ -630,11 +673,30 @@ function LoginPage({ onLogin, onSwitchToCreate }: { onLogin: (user: UserProfile,
             </div>
           </div>
         </div>
+        </div>
 
         <p className="text-center text-slate-500 text-sm mt-6">
           Don&apos;t have an account?{' '}
           <button onClick={onSwitchToCreate} className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
             Create Account
+          </button>
+        </p>
+        <p className="text-center text-slate-500 text-xs mt-3">
+          By continuing, you agree to our{' '}
+          <button
+            type="button"
+            onClick={() => toast({ title: 'Terms of Service', description: 'The Terms of Service document will open in a new tab.' })}
+            className="text-slate-400 hover:text-emerald-400 underline underline-offset-2 transition-colors"
+          >
+            Terms of Service
+          </button>
+          {' '}and{' '}
+          <button
+            type="button"
+            onClick={() => toast({ title: 'Privacy Policy', description: 'The Privacy Policy document will open in a new tab.' })}
+            className="text-slate-400 hover:text-emerald-400 underline underline-offset-2 transition-colors"
+          >
+            Privacy Policy
           </button>
         </p>
         <p className="text-center text-slate-500 text-sm mt-2">
@@ -1817,6 +1879,8 @@ export default function Home() {
 function LoadingScreen() {
   const [activeStep, setActiveStep] = useState(0);
   const [displayText, setDisplayText] = useState('');
+  const [typingText, setTypingText] = useState('');
+  const typingMessage = 'Loading your dashboard...';
   const steps = [
     { label: 'Connecting...', icon: '🔌' },
     { label: 'Loading routes...', icon: '🗺️' },
@@ -1841,6 +1905,25 @@ function LoadingScreen() {
     return () => clearInterval(typeInterval);
   }, [activeStep]);
 
+  // Typing animation for "Loading your dashboard..."
+  useEffect(() => {
+    let charIndex = 0;
+    setTypingText('');
+    const typeInterval = setInterval(() => {
+      charIndex++;
+      setTypingText(typingMessage.substring(0, charIndex));
+      if (charIndex >= typingMessage.length) {
+        clearInterval(typeInterval);
+        // Restart after a pause
+        setTimeout(() => {
+          charIndex = 0;
+          setTypingText('');
+        }, 2000);
+      }
+    }, 80);
+    return () => clearInterval(typeInterval);
+  }, []);
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background mesh-gradient relative overflow-hidden">
       {/* Bus animation driving across */}
@@ -1850,7 +1933,7 @@ function LoadingScreen() {
       <div className="flex flex-col items-center gap-6 relative z-10">
         <div className="relative">
           <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
-            <BusIcon className="w-10 h-10 text-white" animate={true} />
+            <BusIcon className="w-10 h-10 text-white animate-spin-slow" />
           </div>
           <div className="absolute -inset-2 rounded-2xl bg-gradient-to-br from-blue-500/20 to-emerald-500/20 animate-pulse-glow" />
         </div>
@@ -1860,6 +1943,13 @@ function LoadingScreen() {
           <p className="text-xs text-muted-foreground typing-cursor h-4 flex items-center justify-center gap-1.5">
             <span>{steps[activeStep].icon}</span>
             <span>{displayText}</span>
+          </p>
+        </div>
+
+        {/* Typing animation text with blinking cursor */}
+        <div className="text-center">
+          <p className="text-sm font-medium gradient-text h-5">
+            {typingText}
           </p>
         </div>
 
@@ -1893,6 +1983,24 @@ function LoadingScreen() {
             ))}
           </div>
         </div>
+
+        {/* Skeleton / Shimmer loading shapes mimicking dashboard layout */}
+        <div className="w-72 mt-4 space-y-3 opacity-60">
+          {/* Stats row skeleton */}
+          <div className="flex gap-2">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="flex-1 h-14 rounded-xl skeleton-shimmer" />
+            ))}
+          </div>
+          {/* Chart area skeleton */}
+          <div className="h-24 rounded-xl skeleton-shimmer" />
+          {/* Table rows skeleton */}
+          <div className="space-y-1.5">
+            <div className="h-4 rounded skeleton-shimmer w-full" />
+            <div className="h-4 rounded skeleton-shimmer w-11/12" />
+            <div className="h-4 rounded skeleton-shimmer w-10/12" />
+          </div>
+        </div>
       </div>
       <style>{`
         @keyframes busDrive {
@@ -1901,7 +2009,12 @@ function LoadingScreen() {
           90% { opacity: 1; }
           100% { transform: translateX(calc(100vw + 60px)); opacity: 0; }
         }
+        @keyframes spinSlow {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
         .animate-bus-drive { animation: busDrive 8s linear infinite; }
+        .animate-spin-slow { animation: spinSlow 3s linear infinite; }
       `}</style>
     </div>
   );

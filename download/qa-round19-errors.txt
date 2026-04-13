@@ -1,0 +1,15 @@
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=HdHGrhaWWSRXPxl_ZJOPC' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=-SWp_gLkamOus4KesH27x' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=6-vvNA4euJNh_G2RSBdkl' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=6-vvNA4euJNh_G2RSBdkl' failed: Error during WebSocket handshake: Unexpected response code: 502
+[console.error] WebSocket connection to 'ws://127.0.0.1:81/_next/webpack-hmr?id=6-vvNA4euJNh_G2RSBdkl' failed: Error during WebSocket handshake: Unexpected response code: 502
