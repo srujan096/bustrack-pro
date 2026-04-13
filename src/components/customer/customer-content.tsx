@@ -123,6 +123,11 @@ import {
   Bell,
   RefreshCw,
   Lightbulb,
+  TreePine,
+  PiggyBank,
+  CreditCard,
+  QrCode,
+  BadgeCheck,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -2527,6 +2532,341 @@ function LoyaltyRewardsPanel() {
   );
 }
 
+// ─── Plan Your Trip Widget ───────────────────────────────────────────────────
+
+function PlanYourTripWidget({ onFindRoutes }: { onFindRoutes: (from: string, to: string) => void }) {
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
+  const popularRoutes = [
+    { from: 'Majestic', to: 'Koramangala' },
+    { from: 'MG Road', to: 'Indiranagar' },
+    { from: 'Whitefield', to: 'Electronic City' },
+    { from: 'HSR Layout', to: 'Silk Board' },
+  ];
+
+  return (
+    <Card className="overflow-hidden border-0">
+      <div className="bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 px-6 py-5">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-white text-base">
+              <Navigation className="size-5" />
+              Plan Your Trip
+            </CardTitle>
+            <CardDescription className="text-emerald-100 mt-1">
+              Quick route planning — enter and go!
+            </CardDescription>
+          </div>
+          {/* Mini route illustration: 3 dots connected by a line */}
+          <svg width="80" height="32" viewBox="0 0 80 32" className="text-white/60 hidden sm:block">
+            <line x1="12" y1="16" x2="68" y2="16" stroke="currentColor" strokeWidth="2" strokeDasharray="4 3" />
+            <circle cx="12" cy="16" r="5" fill="currentColor" opacity="0.9" />
+            <circle cx="40" cy="16" r="4" fill="currentColor" opacity="0.5" />
+            <circle cx="68" cy="16" r="5" fill="currentColor" opacity="0.9" />
+          </svg>
+        </div>
+      </div>
+      <CardContent className="p-5 space-y-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <MapPin className="size-3.5 text-emerald-500" /> From
+            </label>
+            <Input
+              placeholder="Enter start location"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              className="h-10"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium flex items-center gap-1.5">
+              <MapPin className="size-3.5 text-rose-500" /> To
+            </label>
+            <Input
+              placeholder="Enter destination"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              className="h-10"
+            />
+          </div>
+        </div>
+        <Button
+          className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white"
+          disabled={!from.trim() || !to.trim() || from === to}
+          onClick={() => onFindRoutes(from, to)}
+        >
+          <Navigation className="size-4 mr-2" />
+          Find Routes
+          <ArrowRight className="size-4 ml-1" />
+        </Button>
+        {/* Popular routes */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1.5">
+            <Sparkles className="size-3" /> Popular Routes
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {popularRoutes.map(r => (
+              <button
+                key={`${r.from}-${r.to}`}
+                type="button"
+                onClick={() => {
+                  setFrom(r.from);
+                  setTo(r.to);
+                  onFindRoutes(r.from, r.to);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-muted bg-muted/30 px-3 py-1.5 text-xs font-medium transition-all hover:border-emerald-500/50 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/30 dark:hover:text-emerald-300 hover:scale-105 active:scale-95"
+              >
+                <MapPin className="size-3" />
+                {r.from}
+                <ArrowRight className="size-3 text-muted-foreground" />
+                {r.to}
+              </button>
+            ))}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Transit Savings Tracker ─────────────────────────────────────────────────
+
+function TransitSavingsTracker({ totalTrips, totalSpent }: { totalTrips: number; totalSpent: number }) {
+  // Deterministic data based on journey count
+  const avgDistancePerTrip = 15; // km
+  const totalDistance = totalTrips * avgDistancePerTrip;
+  const carCostPerKm = 15;
+  const carCostTotal = totalDistance * carCostPerKm;
+  const saved = Math.max(0, carCostTotal - totalSpent);
+  const co2SavedKg = Math.round(totalDistance * 0.12); // ~0.12 kg CO2 per km
+  const treesEquivalent = Math.round(co2SavedKg / 21); // 1 tree absorbs ~21 kg CO2/year
+  const monthlyGoal = 2000;
+  const monthlySavings = Math.min(saved, monthlyGoal);
+  const savingsPct = Math.min(100, Math.round((monthlySavings / monthlyGoal) * 100));
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <PiggyBank className="size-5 text-emerald-500" />
+          Transit Savings
+        </CardTitle>
+        <CardDescription>Your impact by choosing bus transit</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Main savings callout */}
+        <div className="rounded-xl bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 p-4">
+          <p className="text-sm font-medium text-emerald-800 dark:text-emerald-200">
+            You&apos;ve saved <span className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(saved)}</span> by choosing bus transit!
+          </p>
+          <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-1">
+            Estimated car cost: {formatCurrency(carCostTotal)} vs bus fare: {formatCurrency(totalSpent)}
+          </p>
+        </div>
+
+        {/* Savings goal progress bar */}
+        <div>
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Monthly Savings Goal</span>
+            <span className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">{formatCurrency(monthlySavings)} / {formatCurrency(monthlyGoal)}</span>
+          </div>
+          <div className="h-3 w-full rounded-full bg-muted dark:bg-muted/50 overflow-hidden">
+            <div
+              className="h-3 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-1000"
+              style={{ width: `${savingsPct}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">{savingsPct}% of monthly goal</p>
+        </div>
+
+        {/* Impact stats */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/50 dark:bg-emerald-950/20 p-3 text-center">
+            <Leaf className="size-5 text-emerald-500 mx-auto mb-1" />
+            <p className="text-lg font-bold text-emerald-700 dark:text-emerald-300">{co2SavedKg} kg</p>
+            <p className="text-[10px] text-muted-foreground">CO₂ emissions reduced</p>
+          </div>
+          <div className="rounded-lg border border-teal-200 dark:border-teal-800 bg-teal-50/50 dark:bg-teal-950/20 p-3 text-center">
+            <TreePine className="size-5 text-teal-500 mx-auto mb-1" />
+            <p className="text-lg font-bold text-teal-700 dark:text-teal-300">{treesEquivalent}</p>
+            <p className="text-[10px] text-muted-foreground">Equivalent trees planted</p>
+          </div>
+        </div>
+
+        {/* Comparison insight */}
+        <div className="flex items-center gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 px-3 py-2">
+          <IndianRupee className="size-4 text-amber-500 shrink-0" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">
+            Car travel costs <span className="font-bold">₹{carCostPerKm}/km</span> vs bus at <span className="font-bold">{totalTrips > 0 ? formatCurrency(Math.round(totalSpent / totalTrips)) : '₹0'}/trip</span>
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── My Bus Pass Card ────────────────────────────────────────────────────────
+
+function MyBusPassCard({ userId }: { userId: string }) {
+  const expiryDate = useMemo(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 30);
+    return format(d, 'dd MMM yyyy');
+  }, []);
+
+  const cardNumber = useMemo(() => {
+    const prefix = 'BT-';
+    const id = userId ?? 'usr';
+    return prefix + id.slice(0, 4).toUpperCase();
+  }, [userId]);
+
+  const [tiltStyle, setTiltStyle] = useState({ transform: 'perspective(800px) rotateX(0deg) rotateY(0deg)', transition: 'transform 0.3s ease-out' });
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const rotateX = ((y - centerY) / centerY) * -6;
+    const rotateY = ((x - centerX) / centerX) * 6;
+    setTiltStyle({
+      transform: `perspective(800px) rotateX(${rotateX}deg) rotateY(${rotateY}deg)`,
+      transition: 'transform 0.1s ease-out',
+    });
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setTiltStyle({
+      transform: 'perspective(800px) rotateX(0deg) rotateY(0deg)',
+      transition: 'transform 0.5s ease-out',
+    });
+  }, []);
+
+  return (
+    <div onMouseMove={handleMouseMove} onMouseLeave={handleMouseLeave}>
+      <div
+        className="rounded-2xl p-[2px] bg-gradient-to-br from-emerald-400 via-teal-400 to-cyan-500 shadow-lg"
+        style={tiltStyle}
+      >
+        <div className="rounded-[14px] bg-gradient-to-br from-emerald-600 via-teal-600 to-cyan-700 p-5 text-white relative overflow-hidden">
+          {/* Decorative circles */}
+          <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/5" />
+          <div className="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-white/5" />
+
+          {/* Header row */}
+          <div className="flex items-start justify-between relative z-10">
+            <div>
+              <p className="text-[10px] uppercase tracking-widest text-emerald-200 font-semibold">Bus Transit Pass</p>
+              <p className="text-xl font-bold mt-0.5">Monthly Pass</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Badge className="bg-emerald-400/20 text-emerald-100 border border-emerald-400/30 text-[10px]">
+                <BadgeCheck className="size-3 mr-1" />
+                VALID
+              </Badge>
+            </div>
+          </div>
+
+          {/* Card number and QR */}
+          <div className="flex items-center justify-between mt-6 relative z-10">
+            <div>
+              <p className="text-[10px] text-emerald-200 uppercase tracking-wider">Card Number</p>
+              <p className="text-lg font-mono font-bold mt-0.5">{cardNumber}</p>
+              <p className="text-[10px] text-emerald-200 mt-0.5">ID: {userId.slice(0, 8)}...</p>
+            </div>
+            <div className="text-white/70">
+              <QRPattern seed={userId} size={56} />
+            </div>
+          </div>
+
+          {/* Footer row */}
+          <div className="flex items-end justify-between mt-6 relative z-10">
+            <div>
+              <p className="text-[10px] text-emerald-200 uppercase tracking-wider">Fare</p>
+              <p className="text-base font-bold">₹1,500<span className="text-[10px] text-emerald-200 ml-1">/month</span></p>
+            </div>
+            <div className="text-right">
+              <p className="text-[10px] text-emerald-200 uppercase tracking-wider">Valid Until</p>
+              <p className="text-sm font-semibold">{expiryDate}</p>
+            </div>
+          </div>
+
+          {/* Bus icon watermark */}
+          <div className="absolute bottom-3 right-3 text-white/5">
+            <Bus className="size-20" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── Next Bus ETA Component ──────────────────────────────────────────────────
+
+function NextBusETA({ routeId }: { routeId: string }) {
+  const departures = useMemo(() => {
+    // Generate deterministic departure times based on route ID
+    const now = new Date();
+    const baseHour = 7;
+    let hash = 0;
+    for (let i = 0; i < routeId.length; i++) {
+      hash = ((hash << 5) - hash + routeId.charCodeAt(i)) | 0;
+    }
+    const seed = Math.abs(hash);
+    const times: { time: string; minutesFromNow: number }[] = [];
+    for (let i = 0; i < 3; i++) {
+      const hour = baseHour + (seed + i * 73) % 14; // 7am to 9pm
+      const min = (seed + i * 47) % 60;
+      const departure = new Date(now);
+      departure.setHours(hour, min, 0, 0);
+      let diff = Math.round((departure.getTime() - now.getTime()) / 60000);
+      // If time already passed today, treat as tomorrow or adjust
+      if (diff < 0) diff += 24 * 60;
+      const h = String(hour).padStart(2, '0');
+      const m = String(min).padStart(2, '0');
+      times.push({ time: `${h}:${m}`, minutesFromNow: diff });
+    }
+    // Sort by how soon
+    times.sort((a, b) => a.minutesFromNow - b.minutesFromNow);
+    return times;
+  }, [routeId]);
+
+  const nextBus = departures[0];
+  if (!nextBus) return null;
+
+  const colorClass = nextBus.minutesFromNow < 10
+    ? 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800'
+    : nextBus.minutesFromNow < 30
+      ? 'text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800'
+      : 'text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-950/30 border-gray-200 dark:border-gray-800';
+
+  const dotColor = nextBus.minutesFromNow < 10
+    ? 'bg-emerald-500'
+    : nextBus.minutesFromNow < 30
+      ? 'bg-amber-500'
+      : 'bg-gray-400';
+
+  return (
+    <div className={`flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] font-medium ${colorClass}`}>
+      <Clock className="size-3 shrink-0" />
+      <span className="shrink-0">
+        {nextBus.minutesFromNow < 1
+          ? 'Departing now!'
+          : `Next in ~${nextBus.minutesFromNow} min`}
+      </span>
+      <div className="h-3 w-px bg-border mx-0.5" />
+      {departures.map((d, i) => (
+        <span key={i} className="flex items-center gap-0.5">
+          <div className={`h-1.5 w-1.5 rounded-full ${i === 0 ? dotColor : 'bg-muted-foreground/30'}`} />
+          <span className="font-mono">{d.time}</span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
 function Dashboard({
@@ -2690,13 +3030,22 @@ function Dashboard({
         ))}
       </div>
 
+      {/* Plan Your Trip Widget */}
+      <PlanYourTripWidget onFindRoutes={(from, to) => {
+        toast({
+          title: 'Searching Routes...',
+          description: `Finding routes from ${from} to ${to}`,
+        });
+        onNavigateToSearch(from, to);
+      }} />
+
       {/* Quick Book Widget */}
       <QuickBookWidget onBook={(from, to) => {
         toast({
           title: 'Searching Routes...',
           description: `Finding routes from ${from} to ${to}`,
         });
-        handleNavigateToSearch(from, to);
+        onNavigateToSearch(from, to);
       }} />
 
       {/* Recent Searches */}
@@ -2705,7 +3054,7 @@ function Dashboard({
           title: 'Searching Routes...',
           description: `Finding routes from ${from} to ${to}`,
         });
-        handleNavigateToSearch(from, to);
+        onNavigateToSearch(from, to);
       }} />
 
       {/* Commute Statistics + Travel Tips */}
@@ -2763,6 +3112,20 @@ function Dashboard({
 
       {/* Commute Summary Widget */}
       <CommuteSummary />
+
+      {/* Transit Savings Tracker + My Bus Pass */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <TransitSavingsTracker
+          totalTrips={stats?.totalTrips ?? 0}
+          totalSpent={stats?.totalSpent ?? 0}
+        />
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+            <CreditCard className="size-4" /> My Bus Pass
+          </p>
+          <MyBusPassCard userId={userId} />
+        </div>
+      </div>
 
       {/* Loyalty & Rewards Tracker */}
       <Card className="stat-card-premium overflow-hidden">
@@ -3802,6 +4165,10 @@ function SearchRoutes({
                                 <Users className="size-3" />
                                 {seatAvailabilityIndicator(route.trafficLevel).label}
                               </span>
+                            </div>
+                            {/* Next Bus ETA */}
+                            <div className="mt-1">
+                              <NextBusETA routeId={route.id} />
                             </div>
                           </div>
 

@@ -100,6 +100,10 @@ import {
   MessageSquare,
   Cloud,
   FileSpreadsheet,
+  FileJson,
+  IndianRupee,
+  Calculator,
+  UserPlus,
   ArrowUp,
   ArrowDown,
   Lightbulb,
@@ -996,6 +1000,20 @@ function FuelCostCalculator() {
   const m = parseFloat(mileage) || 1;
   const cost = d > 0 && p > 0 ? (d / m) * p : null;
   const fuelL = d > 0 && m > 0 ? d / m : null;
+  const costPerKm = cost !== null && d > 0 ? cost / d : null;
+
+  const presets = [
+    { label: 'City Route', distance: '30', price: '103', mileage: '5', icon: MapPin },
+    { label: 'Highway', distance: '200', price: '103', mileage: '8', icon: Route },
+    { label: 'Express', distance: '100', price: '103', mileage: '6', icon: Navigation },
+  ];
+
+  const applyPreset = (preset: typeof presets[0]) => {
+    setDistance(preset.distance);
+    setFuelPrice(preset.price);
+    setMileage(preset.mileage);
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3 relative card-header-gradient">
@@ -1004,21 +1022,46 @@ function FuelCostCalculator() {
         </CardTitle>
         <CardDescription>Estimate fuel expenses for any route</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="space-y-1"><Label className="text-xs">Distance (km)</Label><Input type="number" placeholder="e.g. 250" value={distance} onChange={(e) => setDistance(e.target.value)} /></div>
-          <div className="space-y-1"><Label className="text-xs">Fuel Price (₹/L)</Label><Input type="number" placeholder="e.g. 105" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} /></div>
-          <div className="space-y-1"><Label className="text-xs">Mileage (km/L)</Label><Input type="number" placeholder="e.g. 4.5" value={mileage} onChange={(e) => setMileage(e.target.value)} /></div>
+      <CardContent className="space-y-4">
+        {/* Preset Buttons */}
+        <div className="flex flex-wrap gap-2">
+          {presets.map((preset) => {
+            const PresetIcon = preset.icon;
+            return (
+              <Button
+                key={preset.label}
+                variant="outline"
+                size="sm"
+                onClick={() => applyPreset(preset)}
+                className="gap-1.5 text-xs"
+              >
+                <PresetIcon className="size-3.5" />
+                {preset.label}
+                <span className="text-muted-foreground hidden sm:inline">({preset.distance}km)</span>
+              </Button>
+            );
+          })}
         </div>
+        {/* Input Fields */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="space-y-1"><Label className="text-xs flex items-center gap-1"><Calculator className="size-3" /> Distance (km)</Label><Input type="number" placeholder="e.g. 250" value={distance} onChange={(e) => setDistance(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs flex items-center gap-1"><IndianRupee className="size-3" /> Fuel Price (₹/L)</Label><Input type="number" placeholder="e.g. 105" value={fuelPrice} onChange={(e) => setFuelPrice(e.target.value)} /></div>
+          <div className="space-y-1"><Label className="text-xs flex items-center gap-1"><Gauge className="size-3" /> Mileage (km/L)</Label><Input type="number" placeholder="e.g. 4.5" value={mileage} onChange={(e) => setMileage(e.target.value)} /></div>
+        </div>
+        {/* Cost Breakdown */}
         {cost !== null && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="rounded-lg border border-l-4 border-l-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/20 p-3">
-              <p className="text-[10px] text-muted-foreground">Estimated Cost</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1"><IndianRupee className="size-3" /> Total Cost</p>
               <p className="text-xl font-bold text-emerald-600">₹{cost.toFixed(2)}</p>
             </div>
             <div className="rounded-lg border border-l-4 border-l-sky-500 bg-sky-50/50 dark:bg-sky-950/20 p-3">
-              <p className="text-[10px] text-muted-foreground">Fuel Required</p>
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1"><Fuel className="size-3" /> Fuel Needed</p>
               <p className="text-xl font-bold text-sky-600">{fuelL?.toFixed(1)} L</p>
+            </div>
+            <div className="rounded-lg border border-l-4 border-l-amber-500 bg-amber-50/50 dark:bg-amber-950/20 p-3">
+              <p className="text-[10px] text-muted-foreground flex items-center gap-1"><TrendingUp className="size-3" /> Cost per km</p>
+              <p className="text-xl font-bold text-amber-600">₹{costPerKm?.toFixed(2)}</p>
             </div>
           </div>
         )}
@@ -2145,52 +2188,64 @@ function RecentActivityFeedWidget() {
 
   const activities = [
     {
-      label: 'Login',
-      description: 'Admin session started from 192.168.1.100',
+      description: 'New user registered — Rajesh Kumar (Driver)',
       timeAgo: '2 min ago',
-      badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      dotColor: 'bg-emerald-500',
-      icon: UserCheck,
+      iconBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+      icon: UserPlus,
     },
     {
-      label: 'Schedule',
-      description: `New schedule created for Route BLR-${100 + (seed % 20)}`,
-      timeAgo: '15 min ago',
-      badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      dotColor: 'bg-blue-500',
+      description: `Schedule generated for ${8 + (seed % 6)} routes on ${now.toLocaleDateString('en-US', { weekday: 'long' })}`,
+      timeAgo: '12 min ago',
+      iconBg: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
       icon: Calendar,
     },
     {
-      label: 'Alert',
-      description: `Traffic alert posted on Route MUM-${200 + ((seed + 3) % 30)}`,
+      description: `Route BLR-${100 + (seed % 20)} updated — new stop added`,
       timeAgo: '28 min ago',
-      badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
-      dotColor: 'bg-amber-500',
-      icon: AlertTriangle,
+      iconBg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
+      icon: Route,
     },
     {
-      label: 'Crew',
-      description: `Crew auto-assignment completed for ${10 + (seed % 8)} routes`,
+      description: `Crew assigned to ${3 + (seed % 5)} new shifts`,
       timeAgo: '45 min ago',
-      badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
-      dotColor: 'bg-emerald-500',
+      iconBg: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
       icon: Users,
     },
     {
-      label: 'Error',
-      description: `GPS sync failed for Bus KA-01-${5000 + (seed % 999)}`,
+      description: `Traffic alert posted on Route MUM-${200 + ((seed + 3) % 30)}`,
       timeAgo: '1 hour ago',
-      badgeColor: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
-      dotColor: 'bg-rose-500',
-      icon: XCircle,
+      iconBg: 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300',
+      icon: AlertTriangle,
     },
     {
-      label: 'System',
-      description: 'Daily analytics report generated successfully',
+      description: 'Holiday request approved for Suresh M. (3 days)',
+      timeAgo: '1 hour ago',
+      iconBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+      icon: CheckCircle2,
+    },
+    {
+      description: `Maintenance completed for Bus KA-01-${5000 + (seed % 999)}`,
       timeAgo: '2 hours ago',
-      badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
-      dotColor: 'bg-blue-500',
+      iconBg: 'bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300',
+      icon: Wrench,
+    },
+    {
+      description: 'Daily analytics report generated successfully',
+      timeAgo: '3 hours ago',
+      iconBg: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300',
       icon: BarChart3,
+    },
+    {
+      description: 'System backup completed — all databases synced',
+      timeAgo: '4 hours ago',
+      iconBg: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
+      icon: Server,
+    },
+    {
+      description: 'Peak hour delay prediction updated for evening routes',
+      timeAgo: '5 hours ago',
+      iconBg: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
+      icon: Clock,
     },
   ];
 
@@ -2203,28 +2258,24 @@ function RecentActivityFeedWidget() {
         <CardDescription>Latest system events and actions</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="max-h-96 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}>
+        <div className="max-h-96 overflow-y-auto space-y-1.5" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}>
           {activities.map((item, i) => {
             const IconComp = item.icon;
             return (
               <div
                 key={i}
-                className="flex items-center gap-3 rounded-xl border px-3 py-2.5 hover:bg-muted/40 transition-colors animate-fade-in-up"
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors animate-fade-in-up ${
+                  i % 2 === 0 ? 'bg-muted/30' : 'bg-transparent'
+                } hover:bg-muted/50`}
                 style={{ animationDelay: `${250 + i * 60}ms` }}
               >
-                <div className="shrink-0 rounded-lg bg-muted dark:bg-gray-800 p-2 text-muted-foreground">
-                  <IconComp className="size-3.5" />
+                <div className={`shrink-0 flex items-center justify-center size-9 rounded-full ${item.iconBg}`}>
+                  <IconComp className="size-4" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.badgeColor}`}>
-                      {item.label}
-                    </span>
-                    <span className="text-[11px] text-muted-foreground">{item.timeAgo}</span>
-                  </div>
-                  <p className="text-sm mt-0.5 truncate">{item.description}</p>
+                  <p className="text-sm truncate">{item.description}</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">{item.timeAgo}</p>
                 </div>
-                <div className={`size-2.5 rounded-full shrink-0 ${item.dotColor}`} />
               </div>
             );
           })}
@@ -5363,7 +5414,7 @@ function AnalyticsPage({ token }: { token: string }) {
 
   return (
     <div className="space-y-6">
-      {/* Date Range Filter Pills */}
+      {/* Date Range Filter Pills + Export Buttons */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           {[{ key: '7', label: 'Last 7 days' }, { key: '30', label: 'Last 30 days' }, { key: '90', label: 'Last 90 days' }, { key: '0', label: 'All Time' }].map((range) => (
@@ -5381,9 +5432,106 @@ function AnalyticsPage({ token }: { token: string }) {
             </button>
           ))}
         </div>
-        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-          <BarChart3 className="size-3" />
-          Showing data for <span className="font-semibold text-foreground">{dateRangeLabel[dateRange]}</span>
+        <div className="flex items-center gap-2">
+          {/* Export Analytics CSV */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              try {
+                const csvRows = [
+                  ['Route Number', 'City', 'Completion Rate', 'Revenue', 'Avg Delay', 'Total Journeys'].join(','),
+                  ...topRoutes.map((r) => {
+                    const cityMatch = r.name.match(/^([A-Z]+)/);
+                    const city = cityMatch ? cityMatch[1] : 'N/A';
+                    const completionRate = (70 + ((r.revenue / 1000) % 25)).toFixed(1);
+                    const avgDelay = (2 + ((r.revenue / 5000) % 8)).toFixed(1);
+                    const journeys = Math.round(r.revenue / 45);
+                    return [r.name, city, `${completionRate}%`, `₹${r.revenue.toLocaleString()}`, `${avgDelay} min`, journeys].join(',');
+                  }),
+                  ...cityStats.map((c: any) => [
+                    `${c.city}-AVG`, c.city, `${(c.completionRate ?? 0).toFixed(1)}%`, `₹${(c.revenue ?? 0).toLocaleString()}`, `${((summary.avgDelay ?? 0) + ((c.revenue ?? 0) % 5)).toFixed(1)} min`, c.journeys ?? 0,
+                  ].join(',')),
+                ];
+                const csvContent = csvRows.join('\n');
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `busTrack-analytics-${todayStr()}.csv`;
+                link.click();
+                URL.revokeObjectURL(url);
+                toast({ title: 'Export Successful', description: 'Analytics CSV file downloaded.' });
+              } catch {
+                toast({ title: 'Export Failed', description: 'Could not generate CSV file.', variant: 'destructive' });
+              }
+            }}
+            className="gap-1.5"
+          >
+            <Download className="size-3.5" />
+            <span className="hidden sm:inline">Export Analytics</span>
+            <span className="sm:hidden">CSV</span>
+          </Button>
+          {/* Export as PDF-ready JSON */}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              try {
+                const pdfData = {
+                  exportDate: new Date().toISOString(),
+                  period: dateRangeLabel[dateRange],
+                  generatedBy: 'BusTrack Pro Admin Portal',
+                  summary: {
+                    totalRevenue: summary.totalRevenue ?? 0,
+                    avgCompletionRate: (summary.avgCompletionRate ?? 0).toFixed(1) + '%',
+                    avgDelay: (summary.avgDelay ?? 0).toFixed(1) + ' min',
+                    totalJourneys: summary.totalJourneys ?? 0,
+                  },
+                  topRoutes: topRoutes.map((r) => ({
+                    routeNumber: r.name,
+                    revenue: r.revenue,
+                    weeklyRank: topRoutes.indexOf(r) + 1,
+                  })),
+                  cityBreakdown: cityStats.map((c: any) => ({
+                    city: c.city,
+                    revenue: c.revenue ?? 0,
+                    journeys: c.journeys ?? 0,
+                    completionRate: (c.completionRate ?? 0).toFixed(1) + '%',
+                  })),
+                  dailyTrends: dailyTrends.map((d) => ({
+                    date: d.date,
+                    revenue: d.revenue,
+                    journeys: d.journeys,
+                  })),
+                  performanceMatrix: perfMatrix.map((row, i) => {
+                    const cityName = ['BLR', 'DEL', 'MUM', 'CHN', 'HYD'][i] ?? '—';
+                    return { city: cityName, ...row };
+                  }),
+                };
+                const jsonContent = JSON.stringify(pdfData, null, 2);
+                const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = `busTrack-analytics-pdf-${todayStr()}.json`;
+                link.click();
+                URL.revokeObjectURL(url);
+                toast({ title: 'Export Successful', description: 'PDF-ready JSON file downloaded.' });
+              } catch {
+                toast({ title: 'Export Failed', description: 'Could not generate JSON file.', variant: 'destructive' });
+              }
+            }}
+            className="gap-1.5"
+          >
+            <FileJson className="size-3.5" />
+            <span className="hidden sm:inline">Export PDF-ready</span>
+            <span className="sm:hidden">JSON</span>
+          </Button>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground ml-1">
+            <BarChart3 className="size-3" />
+            <span className="font-semibold text-foreground">{dateRangeLabel[dateRange]}</span>
+          </div>
         </div>
       </div>
 

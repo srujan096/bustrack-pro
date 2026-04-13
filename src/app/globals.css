@@ -1939,3 +1939,579 @@ body,
 .dark .shadow-inset-sm {
   box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.15);
 }
+
+/* ============================================================
+   Task qa-4: Enhanced CSS Styling & Dark Mode Polish
+   ============================================================ */
+
+/* ============================================================
+   A. New Animation Classes (with prefers-reduced-motion)
+   ============================================================ */
+
+/* Fade in from bottom — 20px translateY */
+@keyframes fadeInUp20 {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-up-smooth {
+  animation: fadeInUp20 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Fade in from top — translateY -20px→0 */
+@keyframes fadeInDown20 {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in-down {
+  animation: fadeInDown20 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Fade in from left — translateX -30px→0 */
+@keyframes fadeInLeft30 {
+  from { opacity: 0; transform: translateX(-30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-fade-in-left {
+  animation: fadeInLeft30 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Fade in from right — translateX 30px→0 */
+@keyframes fadeInRight30 {
+  from { opacity: 0; transform: translateX(30px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+.animate-fade-in-right-smooth {
+  animation: fadeInRight30 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Scale in — scale 0.8→1 with opacity */
+@keyframes scaleIn80 {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+.animate-scale-in-smooth {
+  animation: scaleIn80 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Slide up from below — translateY 100%→0 */
+@keyframes slideUpFull {
+  from { opacity: 0; transform: translateY(100%); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-slide-up {
+  animation: slideUpFull 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Soft pulse — subtle scale 1→1.02→1 with opacity */
+@keyframes pulseSoft {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.02); opacity: 0.92; }
+}
+.animate-pulse-soft {
+  animation: pulseSoft 3s ease-in-out infinite;
+}
+
+/* Shimmer — moving gradient highlight sweep */
+@keyframes shimmerSweepHighlight {
+  0% { background-position: -100% 0; }
+  100% { background-position: 200% 0; }
+}
+.animate-shimmer-highlight {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    oklch(0.55 0.2 260 / 8%) 25%,
+    oklch(0.65 0.17 163 / 12%) 50%,
+    oklch(0.55 0.2 260 / 8%) 75%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerSweepHighlight 2.5s ease-in-out infinite;
+}
+
+/* Breathe — slow scale 1→1.03→1 */
+@keyframes breathe {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.03); }
+}
+.animate-breathe {
+  animation: breathe 4s ease-in-out infinite;
+}
+
+/* Number count reveal */
+@keyframes numberCountReveal {
+  from { opacity: 0; transform: translateY(16px) scale(0.9); filter: blur(4px); }
+  50% { filter: blur(0); }
+  to { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+.animate-number-count {
+  animation: numberCountReveal 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Respect reduced motion for ALL custom animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up-smooth,
+  .animate-fade-in-down,
+  .animate-fade-in-left,
+  .animate-fade-in-right-smooth,
+  .animate-scale-in-smooth,
+  .animate-slide-up,
+  .animate-pulse-soft,
+  .animate-shimmer-highlight,
+  .animate-breathe,
+  .animate-number-count,
+  .animate-fade-in-up,
+  .animate-fade-in,
+  .animate-scale-in,
+  .animate-slide-down,
+  .animate-slide-in-right,
+  .animate-slide-in-left,
+  .animate-float,
+  .animate-gradient-shift,
+  .animate-pulse-glow,
+  .animate-status-pulse,
+  .animate-rotate-in,
+  .animate-number-tick,
+  .animate-pulse-dot,
+  .animate-gradient-text-animated,
+  .animate-error-shake,
+  .animate-success-flash,
+  .animate-glow-pulse-emerald,
+  .animate-shimmer,
+  .animate-badge-pulse,
+  .animate-check-bounce,
+  .animate-marquee,
+  .animate-spin-slow,
+  .animate-heart-pulse,
+  .animate-bell-nudge,
+  .animate-count-fade-in,
+  .animate-shimmer-sweep,
+  .animate-badge-count-pulse,
+  .animate-breadcrumb-fade,
+  .animate-page-transition,
+  .pulse-dot,
+  .marquee-track,
+  .stat-card-premium,
+  .transit-card,
+  .card-lift,
+  .btn-press,
+  .hover-lift,
+  .hover-glow,
+  .hover-glow-emerald,
+  .card-shine-sweep,
+  .blob-shape,
+  .conic-ring,
+  .blob-bg-1,
+  .blob-bg-2,
+  .gradient-border-animated {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ============================================================
+   B. Card Enhancement Classes (@layer components)
+   ============================================================ */
+
+/* Glass-morphism card — backdrop-blur + semi-transparent bg */
+.card-glass {
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dark .card-glass {
+  background: rgba(15, 23, 42, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.card-glass:hover {
+  background: rgba(255, 255, 255, 0.7);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+.dark .card-glass:hover {
+  background: rgba(15, 23, 42, 0.7);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Elevated card — higher shadow on hover */
+.card-elevated {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-elevated:hover {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.12),
+              0 4px 12px -4px rgba(0, 0, 0, 0.06),
+              0 1px 3px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+.dark .card-elevated {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+.dark .card-elevated:hover {
+  box-shadow: 0 10px 40px -10px rgba(0, 0, 0, 0.4),
+              0 4px 12px -4px rgba(0, 0, 0, 0.25);
+}
+
+/* Gradient border card using pseudo-element */
+.card-gradient-border {
+  position: relative;
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.card-gradient-border::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(
+    135deg,
+    oklch(0.55 0.2 260),
+    oklch(0.65 0.17 163),
+    oklch(0.75 0.15 85),
+    oklch(0.55 0.2 293)
+  );
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+.card-gradient-border:hover::before {
+  opacity: 1;
+}
+
+/* Card hover lift — translateY -2px + enhanced shadow */
+.card-hover-lift {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.card-hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.08),
+              0 2px 8px -2px rgba(0, 0, 0, 0.04);
+}
+.dark .card-hover-lift:hover {
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.35),
+              0 2px 8px -2px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================
+   C. Text Enhancement Classes (@layer components)
+   ============================================================ */
+
+/* Primary gradient text */
+.text-gradient-primary {
+  background: linear-gradient(135deg, oklch(0.55 0.2 260), oklch(0.65 0.17 163));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Warm gradient text — amber to rose */
+.text-gradient-warm {
+  background: linear-gradient(135deg, oklch(0.78 0.14 75), oklch(0.65 0.2 15));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Cool gradient text — teal to cyan */
+.text-gradient-cool {
+  background: linear-gradient(135deg, oklch(0.65 0.17 163), oklch(0.72 0.15 200));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Text glow — subtle glow effect */
+.text-glow {
+  text-shadow: 0 0 12px oklch(0.55 0.2 260 / 25%),
+               0 0 24px oklch(0.55 0.2 260 / 10%);
+}
+.dark .text-glow {
+  text-shadow: 0 0 12px oklch(0.7 0.18 260 / 35%),
+               0 0 24px oklch(0.7 0.18 260 / 15%);
+}
+
+/* ============================================================
+   D. Scrollbar and Overflow Enhancements (@layer utilities)
+   ============================================================ */
+
+/* Thin custom scrollbar */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.55 0.02 260 / 25%) transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: oklch(0.55 0.02 260 / 25%);
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.55 0.02 260 / 40%);
+}
+.dark .scrollbar-thin {
+  scrollbar-color: oklch(0.5 0.02 260 / 30%) transparent;
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: oklch(0.5 0.02 260 / 30%);
+}
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.5 0.02 260 / 50%);
+}
+
+/* Hidden scrollbar — scrollable but no visible scrollbar */
+.scrollbar-hidden {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hidden::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   E. Dark Mode Fixes (@layer base)
+   ============================================================ */
+@layer base {
+  /* Fix input backgrounds in dark mode */
+  .dark input,
+  .dark textarea,
+  .dark select {
+    background-color: oklch(0.18 0.02 260);
+    border-color: oklch(1 0 0 / 15%);
+    color: oklch(0.93 0.01 260);
+  }
+  .dark input::placeholder,
+  .dark textarea::placeholder {
+    color: oklch(0.55 0.02 260);
+    opacity: 0.7;
+  }
+
+  /* Fix borders visibility in dark mode */
+  .dark fieldset,
+  .dark [role="group"] {
+    border-color: oklch(1 0 0 / 12%);
+  }
+
+  /* Fix text readability — ensure no invisible text on dark backgrounds */
+  .dark .text-foreground,
+  .dark [class*="text-foreground"] {
+    color: oklch(0.93 0.01 260);
+  }
+
+  /* Fix muted text readability in dark mode */
+  .dark .text-muted-foreground {
+    color: oklch(0.62 0.02 260);
+  }
+
+  /* Fix card text readability */
+  .dark .card,
+  .dark [class*="bg-card"] {
+    color: oklch(0.93 0.01 260);
+  }
+
+  /* Fix popover and dropdown readability */
+  .dark .popover,
+  .dark [data-radix-popper-content-wrapper] {
+    --card: oklch(0.18 0.02 260);
+    --card-foreground: oklch(0.93 0.01 260);
+    --border: oklch(1 0 0 / 12%);
+    --muted: oklch(0.24 0.02 260);
+    --muted-foreground: oklch(0.62 0.02 260);
+    --input: oklch(1 0 0 / 15%);
+  }
+
+  /* Fix table readability in dark mode */
+  .dark table,
+  .dark .table-container {
+    color: oklch(0.93 0.01 260);
+  }
+  .dark th {
+    color: oklch(0.8 0.01 260);
+    border-bottom-color: oklch(1 0 0 / 10%);
+  }
+  .dark td {
+    border-bottom-color: oklch(1 0 0 / 6%);
+  }
+  .dark tr:hover td {
+    background-color: oklch(1 0 0 / 3%);
+  }
+
+  /* Fix dialog/overlay readability */
+  .dark [role="dialog"],
+  .dark .dialog-content {
+    --card: oklch(0.18 0.02 260);
+    --card-foreground: oklch(0.93 0.01 260);
+    color: oklch(0.93 0.01 260);
+  }
+
+  /* Fix disabled inputs in dark mode */
+  .dark input:disabled,
+  .dark textarea:disabled,
+  .dark select:disabled {
+    background-color: oklch(0.2 0.02 260 / 60%);
+    color: oklch(0.5 0.02 260);
+    border-color: oklch(1 0 0 / 8%);
+    opacity: 1;
+  }
+
+  /* Fix badge and pill readability in dark mode */
+  .dark .badge,
+  .dark [data-badge] {
+    color: oklch(0.93 0.01 260);
+  }
+}
+
+/* Dark mode input utility class */
+.dark-input {
+  background-color: oklch(0.18 0.02 260);
+  border: 1px solid oklch(1 0 0 / 15%);
+  color: oklch(0.93 0.01 260);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+.dark-input:focus {
+  border-color: oklch(0.7 0.18 260 / 50%);
+  box-shadow: 0 0 0 3px oklch(0.7 0.18 260 / 15%);
+  outline: none;
+  background-color: oklch(0.2 0.02 260);
+}
+.dark-input::placeholder {
+  color: oklch(0.55 0.02 260);
+  opacity: 0.6;
+}
+.dark .dark-input {
+  background-color: oklch(0.18 0.02 260);
+  border-color: oklch(1 0 0 / 15%);
+  color: oklch(0.93 0.01 260);
+}
+
+/* ============================================================
+   F. Transition Utilities (@layer utilities)
+   ============================================================ */
+
+/* Smooth transition — all 200ms ease */
+.transition-smooth {
+  transition: all 200ms ease;
+}
+
+/* Bounce-like transition — spring feel on hover */
+.transition-bounce {
+  transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.transition-bounce:hover {
+  transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* ============================================================
+   G. Status Badge Enhancements (@layer components)
+   ============================================================ */
+
+/* Success badge — emerald green */
+.badge-success {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: oklch(0.65 0.17 163 / 15%);
+  color: oklch(0.35 0.08 163);
+  border: 1px solid oklch(0.65 0.17 163 / 25%);
+}
+.dark .badge-success {
+  background: oklch(0.65 0.17 163 / 15%);
+  color: oklch(0.8 0.1 163);
+  border-color: oklch(0.65 0.17 163 / 30%);
+}
+
+/* Warning badge — amber */
+.badge-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: oklch(0.78 0.14 75 / 15%);
+  color: oklch(0.35 0.1 75);
+  border: 1px solid oklch(0.78 0.14 75 / 25%);
+}
+.dark .badge-warning {
+  background: oklch(0.78 0.14 75 / 15%);
+  color: oklch(0.85 0.12 75);
+  border-color: oklch(0.78 0.14 75 / 30%);
+}
+
+/* Error badge — rose */
+.badge-error {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: oklch(0.63 0.2 15 / 15%);
+  color: oklch(0.35 0.08 15);
+  border: 1px solid oklch(0.63 0.2 15 / 25%);
+}
+.dark .badge-error {
+  background: oklch(0.63 0.2 15 / 15%);
+  color: oklch(0.85 0.12 15);
+  border-color: oklch(0.63 0.2 15 / 30%);
+}
+
+/* Info badge — sky/cyan */
+.badge-info {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  background: oklch(0.72 0.15 200 / 15%);
+  color: oklch(0.35 0.1 200);
+  border: 1px solid oklch(0.72 0.15 200 / 25%);
+}
+.dark .badge-info {
+  background: oklch(0.72 0.15 200 / 15%);
+  color: oklch(0.85 0.12 200);
+  border-color: oklch(0.72 0.15 200 / 30%);
+}
+
+/* Pulsing badge for important/live indicators */
+.badge-pulse-live {
+  position: relative;
+  overflow: visible;
+}
+.badge-pulse-live::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  border: 1.5px solid currentColor;
+  opacity: 0;
+  animation: badgeLivePulse 2s ease-in-out infinite;
+}
+@keyframes badgeLivePulse {
+  0%, 100% { opacity: 0; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.08); }
+}
