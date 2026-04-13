@@ -53,6 +53,7 @@ import {
   Power,
   Shield,
   Briefcase,
+  Calculator,
   FileText,
   Timer,
   Play,
@@ -1030,7 +1031,7 @@ function ShiftTimer() {
   const offset = circumference - (progressPct / 100) * circumference;
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+    <Card className="glass-card rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-2">
         <CardTitle className="text-lg flex items-center gap-2">
           <Timer className="h-5 w-5 text-gray-500" />
@@ -1183,7 +1184,7 @@ function BreakTimer() {
     : breakType === 'tea' ? '#fef3c7' : '#e0f2fe';
 
   return (
-    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+    <Card className="glass-card rounded-xl shadow-sm bg-white dark:bg-gray-800">
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg flex items-center gap-2">
@@ -1620,6 +1621,149 @@ function EarningsTracker({ crewName }: { crewName: string }) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ──────────────────────────── Overtime Calculator Widget ────────────────────────────
+
+function OvertimeCalculator() {
+  const [shiftStart, setShiftStart] = useState('09:00');
+  const [shiftEnd, setShiftEnd] = useState('17:00');
+  const [standardHours, setStandardHours] = useState(8);
+  const [hourlyRate, setHourlyRate] = useState(250);
+  const [results, setResults] = useState<{
+    totalHours: number;
+    overtimeHours: number;
+    regularPay: number;
+    overtimePay: number;
+    totalPay: number;
+  } | null>(null);
+
+  const handleCalculate = () => {
+    const parseTime = (t: string) => {
+      const [h, m] = t.split(':').map(Number);
+      return h + m / 60;
+    };
+    const start = parseTime(shiftStart);
+    const end = parseTime(shiftEnd);
+    const totalHours = end > start ? end - start : (24 - start) + end;
+    const overtimeHours = Math.max(0, totalHours - standardHours);
+    const regularPay = Math.min(totalHours, standardHours) * hourlyRate;
+    const overtimePay = overtimeHours * hourlyRate * 1.5;
+    const totalPay = regularPay + overtimePay;
+
+    setResults({ totalHours, overtimeHours, regularPay, overtimePay, totalPay });
+    toast({
+      title: 'Overtime calculated!',
+      description: `Total: ₹${Math.round(totalPay).toLocaleString('en-IN')}`,
+    });
+  };
+
+  const formatRupee = (n: number) => `₹${Math.round(n).toLocaleString('en-IN')}`;
+
+  const getOTColor = (ot: number) => {
+    if (ot === 0) return 'text-emerald-600 dark:text-emerald-400';
+    if (ot < 2) return 'text-amber-600 dark:text-amber-400';
+    return 'text-red-600 dark:text-red-400';
+  };
+
+  const getOTBg = (ot: number) => {
+    if (ot === 0) return 'bg-emerald-50 dark:bg-emerald-900/30 border-emerald-100 dark:border-emerald-800';
+    if (ot < 2) return 'bg-amber-50 dark:bg-amber-900/30 border-amber-100 dark:border-amber-800';
+    return 'bg-red-50 dark:bg-red-900/30 border-red-100 dark:border-red-800';
+  };
+
+  return (
+    <Card className="neon-card rounded-xl shadow-sm bg-white dark:bg-gray-800 page-content-transition">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-lg flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40">
+            <Calculator className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          Overtime Calculator
+        </CardTitle>
+        <CardDescription>Calculate your overtime pay for a shift</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="shift-start" className="text-xs text-gray-500">Shift Start Time</Label>
+            <Input
+              id="shift-start"
+              type="time"
+              value={shiftStart}
+              onChange={(e) => setShiftStart(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="shift-end" className="text-xs text-gray-500">Shift End Time</Label>
+            <Input
+              id="shift-end"
+              type="time"
+              value={shiftEnd}
+              onChange={(e) => setShiftEnd(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="standard-hours" className="text-xs text-gray-500">Standard Hours</Label>
+            <Input
+              id="standard-hours"
+              type="number"
+              value={standardHours}
+              onChange={(e) => setStandardHours(Number(e.target.value))}
+              className="h-9 text-sm"
+              min={0}
+              step={0.5}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="hourly-rate" className="text-xs text-gray-500">Hourly Rate in ₹</Label>
+            <Input
+              id="hourly-rate"
+              type="number"
+              value={hourlyRate}
+              onChange={(e) => setHourlyRate(Number(e.target.value))}
+              className="h-9 text-sm"
+              min={0}
+            />
+          </div>
+        </div>
+
+        <Button onClick={handleCalculate} className="w-full gap-2 h-9 bg-amber-600 text-white hover:bg-amber-700">
+          <Calculator className="h-4 w-4" />
+          Calculate
+        </Button>
+
+        {results && (
+          <div className="grid grid-cols-2 gap-3 pt-2">
+            <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3 text-center bg-gray-50 dark:bg-gray-800/50">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{results.totalHours.toFixed(1)} hrs</p>
+              <p className="text-[10px] text-gray-500">Total Hours Worked</p>
+            </div>
+            <div className={`rounded-lg border p-3 text-center ${getOTBg(results.overtimeHours)}`}>
+              <p className={`text-lg font-bold ${getOTColor(results.overtimeHours)}`}>
+                {results.overtimeHours > 0 ? `${results.overtimeHours.toFixed(1)} hrs` : 'None'}
+              </p>
+              <p className="text-[10px] text-gray-500">Overtime Hours</p>
+            </div>
+            <div className="rounded-lg border border-gray-100 dark:border-gray-700 p-3 text-center bg-gray-50 dark:bg-gray-800/50">
+              <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{formatRupee(results.regularPay)}</p>
+              <p className="text-[10px] text-gray-500">Regular Pay</p>
+            </div>
+            <div className={`rounded-lg border p-3 text-center ${getOTBg(results.overtimeHours)}`}>
+              <p className={`text-lg font-bold ${getOTColor(results.overtimeHours)}`}>{formatRupee(results.overtimePay)}</p>
+              <p className="text-[10px] text-gray-500">Overtime Pay (1.5x)</p>
+            </div>
+            <div className="col-span-2 rounded-lg border border-emerald-100 dark:border-emerald-800 p-3 text-center bg-emerald-50 dark:bg-emerald-900/30">
+              <p className="text-xl font-bold text-emerald-700 dark:text-emerald-300">{formatRupee(results.totalPay)}</p>
+              <p className="text-[10px] text-gray-500">Total Pay</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -5853,6 +5997,9 @@ function ProfilePage({
 
       {/* Earnings Tracker */}
       <EarningsTracker crewName={crewProfile.profile?.name || ''} />
+
+      {/* Overtime Calculator */}
+      <OvertimeCalculator />
 
       {/* Overtime & Pay Calculator */}
       <OvertimePayCalculator crewName={crewProfile.profile?.name || ''} />

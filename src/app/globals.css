@@ -1675,3 +1675,164 @@ body,
     transparent 60%
   );
 }
+
+/* ============================================================
+   Count-Up Animation for Stats
+   ============================================================ */
+@keyframes countFadeIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.95); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.animate-count-fade-in {
+  animation: countFadeIn 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* ============================================================
+   Animated Gradient Border
+   ============================================================ */
+@property --gradient-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+@keyframes gradientBorderSpin {
+  to { --gradient-angle: 360deg; }
+}
+.gradient-border-animated {
+  position: relative;
+  border-radius: var(--radius-lg);
+  padding: 1px;
+  background: conic-gradient(from var(--gradient-angle), oklch(0.55 0.2 260), oklch(0.65 0.17 163), oklch(0.75 0.15 85), oklch(0.55 0.2 260));
+  animation: gradientBorderSpin 4s linear infinite;
+}
+.gradient-border-animated > * {
+  border-radius: calc(var(--radius-lg) - 1px);
+}
+
+/* ============================================================
+   Glassmorphism Card Premium
+   ============================================================ */
+.glass-card {
+  background: rgba(255, 255, 255, 0.6);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.dark .glass-card {
+  background: rgba(15, 23, 42, 0.6);
+  border-color: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+.dark .glass-card:hover {
+  background: rgba(15, 23, 42, 0.75);
+}
+
+/* ============================================================
+   Status Indicator Dot
+   ============================================================ */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.status-dot-success { background: oklch(0.65 0.17 163); box-shadow: 0 0 6px oklch(0.65 0.17 163 / 40%); }
+.status-dot-warning { background: oklch(0.75 0.15 85); box-shadow: 0 0 6px oklch(0.75 0.15 85 / 40%); }
+.status-dot-error { background: oklch(0.6 0.2 10); box-shadow: 0 0 6px oklch(0.6 0.2 10 / 40%); }
+.status-dot-info { background: oklch(0.7 0.15 200); box-shadow: 0 0 6px oklch(0.7 0.15 200 / 40%); }
+
+/* ============================================================
+   Scrollable Table Container with Sticky Header
+   ============================================================ */
+.sticky-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  position: relative;
+}
+.sticky-table-container thead th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--card);
+  box-shadow: 0 1px 0 var(--border);
+}
+.dark .sticky-table-container thead th {
+  background: oklch(0.18 0.02 260);
+}
+
+/* ============================================================
+   Hover Scale Micro-interaction
+   ============================================================ */
+.hover-scale {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.hover-scale:hover {
+  transform: scale(1.02);
+}
+.hover-scale-sm:hover {
+  transform: scale(1.01);
+}
+.hover-scale-lg:hover {
+  transform: scale(1.05);
+}
+
+/* ============================================================
+   Text Truncation Utilities
+   ============================================================ */
+.truncate-1 { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.truncate-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.truncate-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+
+/* ============================================================
+   Divider with Centered Text
+   ============================================================ */
+.divider-text {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: oklch(0.52 0.02 260);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+.divider-text::before,
+.divider-text::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, oklch(0.55 0.2 260 / 20%), transparent);
+}
+
+/* ============================================================
+   Enhanced Skeleton Loading
+   ============================================================ */
+.skeleton {
+  background: linear-gradient(90deg, oklch(0.93 0.01 260 / 40%) 25%, oklch(0.96 0.01 260 / 70%) 50%, oklch(0.93 0.01 260 / 40%) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+.dark .skeleton {
+  background: linear-gradient(90deg, oklch(0.24 0.02 260 / 40%) 25%, oklch(0.28 0.02 260 / 70%) 50%, oklch(0.24 0.02 260 / 40%) 75%);
+}
+.skeleton-circle { border-radius: 50%; }
+.skeleton-text { height: 1em; margin-bottom: 0.5em; }
+.skeleton-text:last-child { width: 70%; }
+
+/* ============================================================
+   Page Content Transition
+   ============================================================ */
+@keyframes pageContentIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.page-content-transition {
+  animation: pageContentIn 0.3s ease-out;
+}

@@ -2724,3 +2724,98 @@ The dev server was intermittently crashing between tool sessions due to sandbox 
 3. Add automated tests
 4. Improve OSRM fallback for route rendering
 5. Add real stop names to seed data
+
+---
+Task ID: 13
+Agent: Main - Cron Round: QA + CSS Enhancements + New Features
+Task: QA testing, CSS utility additions, and 3 new feature implementations across all portals
+
+## Current Project Status Assessment
+BusTrack Pro is fully stable and functional. ESLint passes with 0 errors. Server returns HTTP 200. Admin dashboard renders correctly with all panels (greeting, stat cards, fleet tracker, bar chart, passenger analytics, heatmap, quick actions, activity timeline, traffic alerts table). Login page renders with all elements (title, email/password, quick demo buttons, footer).
+
+## Completed Modifications
+
+### 1. CSS Utility Enhancements (globals.css)
+Added 10 new CSS sections (+161 lines) to globals.css:
+
+1. **Count-Up Animation** — `.animate-count-fade-in` for stat number entries with spring-curve easing
+2. **Animated Gradient Border** — `.gradient-border-animated` with `@property --gradient-angle` and spinning conic gradient
+3. **Glassmorphism Card Premium** — `.glass-card` with blur, saturation, border, shadow + dark mode + hover states
+4. **Status Indicator Dots** — `.status-dot` variants (success/warning/error/info) with colored glows
+5. **Scrollable Table Container** — `.sticky-table-container` with sticky thead + dark mode background
+6. **Hover Scale Micro-interaction** — `.hover-scale`, `.hover-scale-sm`, `.hover-scale-lg` for subtle scale on hover
+7. **Text Truncation Utilities** — `.truncate-1`, `.truncate-2`, `.truncate-3` using -webkit-line-clamp
+8. **Divider with Centered Text** — `.divider-text` with gradient fade pseudo-elements
+9. **Enhanced Skeleton Loading** — `.skeleton`, `.skeleton-circle`, `.skeleton-text` with dark mode variants
+10. **Page Content Transition** — `.page-content-transition` with fadeInUp 0.3s ease-out
+
+### 2. New Feature: Route Comparison Panel (Admin Dashboard)
+- Added `RouteComparisonPanel` component with multi-select popover (checkboxes, max 3 routes)
+- Comparison table: Route #, Avg Completion %, Revenue, On-Time Rate
+- Color-coded metrics (green/amber/red thresholds)
+- "Best" badge on highest metric per column (shown when 2+ routes selected)
+- Removable badge chips for selected routes
+- "Compare" button with toast notification
+- Uses `neon-card card-enter page-content-transition` CSS
+- Placed after AdminQuickActions on Dashboard
+
+### 3. New Feature: Recent Searches Widget (Customer Dashboard)
+- `RecentSearches` component reading/writing localStorage key `customer-recent-searches`
+- Stores up to 8 recent route searches with `{from, to, date, timestamp}`
+- Clickable pills to pre-fill trip planner
+- "Clear" button with toast confirmation
+- Empty state with History icon
+- `relativeTimeAgo` helper for time display
+- Uses `stagger-entry` CSS
+
+### 4. New Feature: Commute Summary Widget (Customer Dashboard)
+- 4 stat cards in responsive grid:
+  - This Month (12 trips), Total Distance (486 km), Avg Trip Time (42 min), CO₂ Saved (23.4 kg)
+- Icons: Bus, Navigation, Timer, Leaf
+- Uses `stat-card-premium` + `animate-count-fade-in` with stagger delays
+
+### 5. New Feature: Overtime Calculator (Crew Dashboard)
+- `OvertimeCalculator` component with 4 input fields:
+  - Shift Start/End Time (time inputs), Standard Hours (default 8), Hourly Rate (default ₹250)
+- Calculates: Total Hours, Overtime Hours, Regular Pay, OT Pay (1.5x), Total Pay
+- Handles overnight shifts (end < start)
+- Color-coded OT: green if 0, amber if <2, red if ≥2
+- "Calculate" button with toast: `toast({ title: 'Overtime calculated!', description: 'Total: ₹X,XXX' })`
+- Placed after EarningsTracker on Dashboard
+
+### 6. CSS Class Applications (Styling Polish)
+- **Admin**: Added `glass-card` to Dashboard stat cards
+- **Customer**: Added `hover-scale` to Quick Book widget buttons
+- **Crew**: Added `glass-card` to ShiftTimer and BreakTimer Card wrappers
+- **App**: Added `glass-card` to NotificationBell dropdown container
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server: HTTP 200, all API routes functional
+- agent-browser: Login page renders correctly, Admin dashboard renders with all panels
+- Auth API: Admin/Customer/Driver login all working
+- No JS errors in browser console
+
+## Codebase Stats
+| File | Before | After | Delta |
+|------|--------|-------|-------|
+| globals.css | 1,677 | 1,838 | +161 |
+| page.tsx | 2,679 | 2,679 | 0 |
+| admin-content.tsx | 6,500 | 6,683 | +183 |
+| crew-content.tsx | 6,269 | 6,416 | +147 |
+| customer-content.tsx | 6,717 | 6,878 | +161 |
+| **Total** | **23,842** | **24,494** | **+652** |
+
+## Unresolved Issues
+1. Dev server process persistence between tool sessions (sandbox environment, not code issue)
+2. No automated test suite
+3. Tickets/notes not persisted to DB (component state / localStorage only)
+4. OSRM dependency for route map rendering
+
+## Priority Recommendations for Next Phase
+1. Persist tickets to database (add Ticket model to Prisma schema)
+2. Persist crew notes to database
+3. Add WebSocket real-time updates for live tracking
+4. Implement data export (CSV/PDF) for admin analytics
+5. Add automated E2E tests
+6. Mobile responsiveness fine-tuning

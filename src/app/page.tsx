@@ -1100,7 +1100,7 @@ function NotificationBell({ userId, token }: { userId: string; token: string }) 
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
+        <div className="glass-card absolute right-0 top-full mt-2 w-96 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl z-50 overflow-hidden">
           <div className="p-3 border-b border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-sm">Notifications</h3>
           </div>

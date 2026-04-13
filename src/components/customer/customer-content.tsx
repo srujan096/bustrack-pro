@@ -107,6 +107,8 @@ import {
   ArrowUpRight,
   Megaphone,
   HelpCircle,
+  History,
+  Leaf,
   Plus,
   Share2,
   Phone,
@@ -838,7 +840,7 @@ function QuickBookWidget({ onBook }: { onBook: (from: string, to: string) => voi
             <button
               key={r.routeNumber}
               onClick={() => onBook(r.from, r.to)}
-              className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all hover:scale-105 hover:shadow-md active:scale-95 bg-gradient-to-r ${gradients[i]} ${borderColors[i]}`}
+              className={`hover-scale group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all hover:scale-105 hover:shadow-md active:scale-95 bg-gradient-to-r ${gradients[i]} ${borderColors[i]}`}
             >
               <div className={`h-2 w-2 rounded-full ${dotColors[i]}`} />
               <span className="text-foreground">{r.from} → {r.to}</span>
@@ -971,6 +973,153 @@ function StopsTimeline({ route }: { route: RouteResult }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// ─── Relative Time Helper ────────────────────────────────────────────────────
+
+function relativeTimeAgo(timestamp: number): string {
+  const diff = Date.now() - timestamp;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days}d ago`;
+  const months = Math.floor(days / 30);
+  return `${months}mo ago`;
+}
+
+// ─── Recent Searches Widget ──────────────────────────────────────────────────
+
+const RECENT_SEARCHES_KEY = 'customer-recent-searches';
+
+interface RecentSearchEntry {
+  from: string;
+  to: string;
+  date: string;
+  timestamp: number;
+}
+
+function RecentSearches({ onSelect }: { onSelect: (from: string, to: string) => void }) {
+  const [searches, setSearches] = useState<RecentSearchEntry[]>([]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const saved = localStorage.getItem(RECENT_SEARCHES_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved) as RecentSearchEntry[];
+        // Use timeout to avoid calling setState synchronously in effect
+        const id = requestAnimationFrame(() => setSearches(parsed));
+        return () => cancelAnimationFrame(id);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }, []);
+
+  const clearHistory = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.removeItem(RECENT_SEARCHES_KEY);
+    setSearches([]);
+    toast({
+      title: 'Search history cleared',
+      description: 'Your recent route searches have been removed.',
+    });
+  }, []);
+
+  const handleClick = useCallback((entry: RecentSearchEntry) => {
+    onSelect(entry.from, entry.to);
+  }, [onSelect]);
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <History className="size-5 text-violet-500" />
+            Recent Searches
+          </CardTitle>
+          {searches.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 text-xs text-muted-foreground hover:text-foreground"
+              onClick={clearHistory}
+            >
+              <X className="size-3" />
+              Clear
+            </Button>
+          )}
+        </div>
+        <CardDescription>Your recently searched routes</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {searches.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-8 text-center">
+            <History className="mb-2 size-8 text-muted-foreground/30" />
+            <p className="text-sm text-muted-foreground">No recent searches</p>
+          </div>
+        ) : (
+          <div className="stagger-entry flex flex-wrap gap-2">
+            {searches.slice(0, 8).map((entry, idx) => (
+              <button
+                key={`${entry.from}-${entry.to}-${idx}`}
+                onClick={() => handleClick(entry)}
+                className="group inline-flex items-center gap-1.5 rounded-full border bg-muted/30 px-3 py-1.5 text-xs font-medium transition-all hover:bg-primary/10 hover:border-primary/30 hover:scale-105 active:scale-95"
+              >
+                <ArrowRight className="size-3 text-muted-foreground group-hover:text-primary transition-colors" />
+                <span className="truncate max-w-[100px]">{entry.from}</span>
+                <span className="text-muted-foreground">→</span>
+                <span className="truncate max-w-[100px] font-semibold">{entry.to}</span>
+                <span className="ml-1 text-[10px] text-muted-foreground/70">{relativeTimeAgo(entry.timestamp)}</span>
+              </button>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Commute Summary Widget ──────────────────────────────────────────────────
+
+function CommuteSummary() {
+  const statCards = [
+    { label: 'This Month', value: '12', unit: 'trips', icon: Bus, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-800' },
+    { label: 'Total Distance', value: '486', unit: 'km', icon: Navigation, color: 'text-sky-600', bg: 'bg-sky-50 dark:bg-sky-900/30', border: 'border-sky-200 dark:border-sky-800' },
+    { label: 'Avg Trip Time', value: '42', unit: 'min', icon: Timer, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-800' },
+    { label: 'CO₂ Saved', value: '23.4', unit: 'kg', icon: Leaf, color: 'text-teal-600', bg: 'bg-teal-50 dark:bg-teal-900/30', border: 'border-teal-200 dark:border-teal-800' },
+  ];
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Leaf className="size-5 text-teal-500" />
+          Commute Summary
+        </CardTitle>
+        <CardDescription>Your environmental impact this month</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {statCards.map((s, idx) => (
+            <div
+              key={s.label}
+              className={`stat-card-premium animate-count-fade-in rounded-xl border ${s.border} ${s.bg} p-4 text-center transition-all hover:shadow-sm`}
+              style={{ animationDelay: `${idx * 150}ms`, opacity: 0 }}
+            >
+              <s.icon className={`mx-auto mb-2 size-6 ${s.color}`} />
+              <p className={`text-2xl font-bold tabular-nums ${s.color}`}>{s.value}</p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">{s.unit}</p>
+              <p className="text-xs font-medium text-foreground mt-1">{s.label}</p>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -2548,6 +2697,15 @@ function Dashboard({
         setPortal('search');
       }} />
 
+      {/* Recent Searches */}
+      <RecentSearches onSelect={(from, to) => {
+        toast({
+          title: 'Searching Routes...',
+          description: `Finding routes from ${from} to ${to}`,
+        });
+        setPortal('search');
+      }} />
+
       {/* Commute Statistics + Travel Tips */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
@@ -2600,6 +2758,9 @@ function Dashboard({
           </div>
         </CardContent>
       </Card>
+
+      {/* Commute Summary Widget */}
+      <CommuteSummary />
 
       {/* Loyalty & Rewards Tracker */}
       <Card className="stat-card-premium overflow-hidden">

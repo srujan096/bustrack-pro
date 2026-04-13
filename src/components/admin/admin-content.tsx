@@ -112,6 +112,12 @@ import {
 } from 'lucide-react';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
+} from '@/components/ui/popover';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -2378,6 +2384,178 @@ function ActiveRoutesPreview({ onNavigate }: { onNavigate?: () => void }) {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Route Comparison Panel                                             */
+/* ------------------------------------------------------------------ */
+function RouteComparisonPanel() {
+  const comparisonRoutes = [
+    { route: 'BLR-101', completion: 92, revenue: '₹4.2L', onTime: 96 },
+    { route: 'BLR-115', completion: 87, revenue: '₹3.8L', onTime: 91 },
+    { route: 'MUM-201', completion: 95, revenue: '₹5.1L', onTime: 98 },
+    { route: 'DEL-301', completion: 78, revenue: '₹2.9L', onTime: 82 },
+    { route: 'CHN-401', completion: 89, revenue: '₹3.5L', onTime: 93 },
+    { route: 'HYD-501', completion: 83, revenue: '₹3.1L', onTime: 87 },
+  ];
+
+  const [selectedRoutes, setSelectedRoutes] = useState<string[]>(['BLR-101', 'MUM-201', 'CHN-401']);
+
+  const selectedData = selectedRoutes
+    .map((routeId) => comparisonRoutes.find((cr) => cr.route === routeId))
+    .filter(Boolean) as typeof comparisonRoutes;
+
+  const maxCompletion = selectedData.length > 0 ? Math.max(...selectedData.map((r) => r.completion)) : 0;
+  const maxOnTime = selectedData.length > 0 ? Math.max(...selectedData.map((r) => r.onTime)) : 0;
+  const getRevenueNum = (rev: string) => parseFloat(rev.replace('₹', '').replace('L', ''));
+  const maxRevenue = selectedData.length > 0 ? Math.max(...selectedData.map((r) => getRevenueNum(r.revenue))) : 0;
+
+  const toggleRoute = (route: string) => {
+    setSelectedRoutes((prev) => {
+      if (prev.includes(route)) return prev.filter((r) => r !== route);
+      if (prev.length >= 3) return prev;
+      return [...prev, route];
+    });
+  };
+
+  const handleCompare = () => {
+    toast({ title: 'Route comparison updated!' });
+  };
+
+  const completionColor = (val: number) =>
+    val >= 85 ? 'text-emerald-600' : val >= 75 ? 'text-amber-600' : 'text-rose-600';
+
+  const onTimeColor = (val: number) =>
+    val >= 90 ? 'text-emerald-600' : val >= 80 ? 'text-amber-600' : 'text-rose-600';
+
+  const BestBadge = () => (
+    <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-950/60 dark:text-emerald-300 dark:border-emerald-800 text-[10px] px-1.5 py-0">
+      Best
+    </Badge>
+  );
+
+  return (
+    <Card className="neon-card card-enter page-content-transition">
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <BarChart3 className="size-5" /> Route Comparison
+        </CardTitle>
+        <CardDescription>Compare performance metrics across up to 3 routes</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {/* Route selector with popover */}
+        <div className="flex items-center gap-3 mb-4">
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" size="sm" className="gap-2">
+                <Route className="size-4" />
+                Select Routes ({selectedRoutes.length}/3)
+                <ChevronDown className="size-3.5" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-56 p-2" align="start">
+              <div className="space-y-1">
+                {comparisonRoutes.map((cr) => {
+                  const isSelected = selectedRoutes.includes(cr.route);
+                  const isDisabled = !isSelected && selectedRoutes.length >= 3;
+                  return (
+                    <label
+                      key={cr.route}
+                      className={`flex items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors ${
+                        isDisabled
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'hover:bg-muted cursor-pointer'
+                      }`}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        disabled={isDisabled}
+                        onCheckedChange={() => toggleRoute(cr.route)}
+                      />
+                      <span className="font-medium">{cr.route}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <Button size="sm" onClick={handleCompare} disabled={selectedRoutes.length === 0}>
+            <BarChart3 className="size-4 mr-1.5" />
+            Compare
+          </Button>
+        </div>
+
+        {/* Selected route badges */}
+        <div className="flex flex-wrap gap-2 mb-4">
+          {selectedRoutes.map((r) => (
+            <Badge key={r} variant="secondary" className="gap-1.5">
+              {r}
+              <button
+                onClick={() => toggleRoute(r)}
+                className="ml-0.5 hover:text-foreground/70 transition-colors"
+                aria-label={`Remove ${r}`}
+              >
+                <X className="size-3" />
+              </button>
+            </Badge>
+          ))}
+          {selectedRoutes.length === 0 && (
+            <p className="text-sm text-muted-foreground">Select routes above to compare</p>
+          )}
+        </div>
+
+        {/* Comparison table */}
+        {selectedData.length > 0 && (
+          <div className="rounded-lg border overflow-hidden">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Route #</TableHead>
+                  <TableHead>Avg Completion %</TableHead>
+                  <TableHead>Revenue</TableHead>
+                  <TableHead>On-Time Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {selectedData.map((data) => {
+                  const revNum = getRevenueNum(data.revenue);
+                  const showBest = selectedData.length > 1;
+                  return (
+                    <TableRow key={data.route}>
+                      <TableCell className="font-semibold">{data.route}</TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-semibold ${completionColor(data.completion)}`}>
+                            {data.completion}%
+                          </span>
+                          {showBest && data.completion === maxCompletion && <BestBadge />}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-semibold">{data.revenue}</span>
+                          {showBest && revNum === maxRevenue && <BestBadge />}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-semibold ${onTimeColor(data.onTime)}`}>
+                            {data.onTime}%
+                          </span>
+                          {showBest && data.onTime === maxOnTime && <BestBadge />}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
@@ -2556,7 +2734,7 @@ function DashboardPage({
           </>
         ) : (
           stats.map((s) => (
-            <Card key={s.label} className="stat-card-premium hover-glow transition-shadow hover:shadow-md group">
+            <Card key={s.label} className="glass-card stat-card-premium hover-glow transition-shadow hover:shadow-md group">
               <CardContent className="p-6">
                 <div className="flex items-center justify-between">
                   <div>
@@ -2652,6 +2830,11 @@ function DashboardPage({
       {/* Admin Quick Actions */}
       <div className="page-section">
       <AdminQuickActions />
+      </div>
+
+      {/* Route Comparison */}
+      <div className="page-section">
+      <RouteComparisonPanel />
       </div>
 
       {/* Broadcast Messaging */}
