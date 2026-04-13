@@ -2685,6 +2685,328 @@ function DataExportPanel() {
   );
 }
 
+/* ------------------------------------------------------------------ */
+/*  Monthly Revenue Trend — SVG Line Chart                             */
+/* ------------------------------------------------------------------ */
+function RevenueTrendChart({ routeCount }: { routeCount: number }) {
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const seed = (routeCount || 115) * 7;
+  const revenueData = months.map((_, i) => {
+    const base = 18 + ((seed + i * 31) % 28);
+    const seasonal = (i >= 2 && i <= 5) ? 8 : (i >= 9 && i <= 11) ? 5 : 0;
+    return Math.round(base + seasonal);
+  });
+
+  const W = 600, H = 250;
+  const pL = 50, pR = 16, pT = 16, pB = 32;
+  const iW = W - pL - pR, iH = H - pT - pB;
+  const maxVal = 50;
+  const sX = iW / (months.length - 1);
+
+  const pts = revenueData.map((v, i) => ({
+    x: pL + i * sX,
+    y: pT + iH - (v / maxVal) * iH,
+  }));
+
+  // Build smooth cubic bezier path
+  const smoothPath = pts.reduce((acc, p, i) => {
+    if (i === 0) return `M${p.x},${p.y}`;
+    const prev = pts[i - 1];
+    const cpx1 = prev.x + sX * 0.4;
+    const cpx2 = p.x - sX * 0.4;
+    return `${acc} C${cpx1},${prev.y} ${cpx2},${p.y} ${p.x},${p.y}`;
+  }, '');
+
+  // Area fill path
+  const areaPath = `${smoothPath} L${pts[pts.length - 1].x},${pT + iH} L${pts[0].x},${pT + iH} Z`;
+
+  // Y-axis gridlines
+  const yTicks = [0, 10, 20, 30, 40, 50];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <TrendingUp className="size-5" /> Monthly Revenue Trend
+        </CardTitle>
+        <CardDescription>Revenue performance across 12 months (₹ in thousands)</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-3 gap-3 mb-4">
+          {[
+            { l: 'Peak Month', v: `${months[revenueData.indexOf(Math.max(...revenueData))]}`, c: 'text-emerald-600' },
+            { l: 'Avg Monthly', v: `₹${Math.round(revenueData.reduce((a, b) => a + b, 0) / 12)}K`, c: 'text-sky-600' },
+            { l: 'Total Annual', v: `₹${(revenueData.reduce((a, b) => a + b, 0)).toLocaleString()}K`, c: 'text-amber-600' },
+          ].map((s) => (
+            <div key={s.l} className="rounded-lg border p-2.5 text-center">
+              <p className="text-[10px] text-muted-foreground">{s.l}</p>
+              <p className={`text-lg font-bold ${s.c}`}>{s.v}</p>
+            </div>
+          ))}
+        </div>
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full h-auto">
+          <defs>
+            <linearGradient id="revenueLineGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stopColor="#10b981" stopOpacity="0.25" />
+              <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
+            </linearGradient>
+          </defs>
+          {/* Dotted grid lines */}
+          {yTicks.map((v) => {
+            const y = pT + iH - (v / maxVal) * iH;
+            return (
+              <g key={v}>
+                <line x1={pL} y1={y} x2={W - pR} y2={y} stroke="currentColor" className="text-muted-foreground/20" strokeWidth="0.5" strokeDasharray="3 3" />
+                <text x={pL - 6} y={y + 3} textAnchor="end" className="fill-muted-foreground/60 text-[9px]">₹{v}k</text>
+              </g>
+            );
+          })}
+          {/* Area fill */}
+          <path d={areaPath} fill="url(#revenueLineGrad)" />
+          {/* Line */}
+          <path d={smoothPath} fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          {/* Data points */}
+          {pts.map((p, i) => (
+            <g key={i}>
+              <circle cx={p.x} cy={p.y} r="6" fill="#10b981" opacity="0.1">
+                <animate attributeName="r" values="5;8;5" dur="3s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
+                <animate attributeName="opacity" values="0.1;0;0.1" dur="3s" repeatCount="indefinite" begin={`${i * 0.2}s`} />
+              </circle>
+              <circle cx={p.x} cy={p.y} r="3.5" fill="#0f172a" stroke="#10b981" strokeWidth="2" />
+            </g>
+          ))}
+          {/* Value labels above points */}
+          {pts.map((p, i) => (
+            <text key={`v${i}`} x={p.x} y={p.y - 10} textAnchor="middle" className="fill-muted-foreground/50 text-[8px] font-medium">
+              {revenueData[i]}k
+            </text>
+          ))}
+          {/* X-axis labels */}
+          {months.map((m, i) => (
+            <text key={m} x={pL + i * sX} y={H - 8} textAnchor="middle" className="fill-muted-foreground/60 text-[10px]">
+              {m}
+            </text>
+          ))}
+        </svg>
+        <div className="flex items-center gap-4 mt-3 justify-center text-xs text-muted-foreground">
+          <div className="flex items-center gap-1.5">
+            <div className="size-2.5 rounded-full bg-emerald-500" />
+            <span>Monthly Revenue</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <DollarSign className="size-3" />
+            <span>Values in ₹ thousands</span>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  System Alerts Panel                                                */
+/* ------------------------------------------------------------------ */
+function SystemAlertsPanel() {
+  const [currentTime] = useState(() => new Date());
+
+  const alerts = [
+    { id: 1, severity: 'success' as const, message: 'All systems operational', timestamp: `${currentTime.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, critical: false },
+    { id: 2, severity: 'warning' as const, message: 'Database backup in progress', timestamp: `${new Date(currentTime.getTime() - 5 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, critical: false },
+    { id: 3, severity: 'info' as const, message: '3 pending user approvals', timestamp: `${new Date(currentTime.getTime() - 18 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, critical: false },
+    { id: 4, severity: 'violet' as const, message: 'High traffic on Route BLR-015', timestamp: `${new Date(currentTime.getTime() - 32 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, critical: false },
+    { id: 5, severity: 'danger' as const, message: 'Server memory at 78%', timestamp: `${new Date(currentTime.getTime() - 7 * 60000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`, critical: true },
+  ];
+
+  const severityConfig: Record<string, { dot: string; icon: React.ElementType; bg: string; text: string }> = {
+    success: { dot: 'bg-emerald-500', icon: CheckCircle2, bg: 'bg-emerald-50 dark:bg-emerald-950/30', text: 'text-emerald-700 dark:text-emerald-300' },
+    warning: { dot: 'bg-amber-500', icon: AlertTriangle, bg: 'bg-amber-50 dark:bg-amber-950/30', text: 'text-amber-700 dark:text-amber-300' },
+    info: { dot: 'bg-sky-500', icon: Info, bg: 'bg-sky-50 dark:bg-sky-950/30', text: 'text-sky-700 dark:text-sky-300' },
+    violet: { dot: 'bg-violet-500', icon: Activity, bg: 'bg-violet-50 dark:bg-violet-950/30', text: 'text-violet-700 dark:text-violet-300' },
+    danger: { dot: 'bg-rose-500', icon: BellRing, bg: 'bg-rose-50 dark:bg-rose-950/30', text: 'text-rose-700 dark:text-rose-300' },
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Bell className="size-5" /> System Alerts
+            </CardTitle>
+            <CardDescription>Real-time monitoring &amp; notifications</CardDescription>
+          </div>
+          <Badge variant="outline" className="bg-rose-100 text-rose-700 border-rose-200 dark:bg-rose-950/60 dark:text-rose-300">
+            {alerts.filter(a => a.critical).length} Critical
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          {alerts.map((alert) => {
+            const config = severityConfig[alert.severity];
+            const IconComp = config.icon;
+            return (
+              <div
+                key={alert.id}
+                className={`flex items-center gap-3 rounded-lg border p-3 transition-all hover:shadow-sm ${config.bg}`}
+              >
+                <div className="relative shrink-0">
+                  <div className={`size-2.5 rounded-full ${config.dot}`}>
+                    {alert.critical && (
+                      <span className="absolute inset-0 rounded-full bg-rose-500 animate-ping opacity-75" />
+                    )}
+                  </div>
+                </div>
+                <IconComp className={`size-4 shrink-0 ${config.text}`} />
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${config.text}`}>{alert.message}</p>
+                </div>
+                <span className="text-[10px] text-muted-foreground whitespace-nowrap shrink-0">{alert.timestamp}</span>
+              </div>
+            );
+          })}
+        </div>
+        <div className="mt-4 flex justify-center">
+          <Button variant="ghost" size="sm" className="text-xs text-muted-foreground gap-1">
+            View All Alerts <ChevronRight className="size-3" />
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Quick Create Actions                                               */
+/* ------------------------------------------------------------------ */
+function QuickCreateActions({ setPortal }: { setPortal: (p: string) => void }) {
+  const actions = [
+    { label: 'New Route', desc: 'Add a bus route', icon: Route, color: 'bg-emerald-500 hover:bg-emerald-600', ring: 'ring-emerald-200 dark:ring-emerald-800', target: 'routes' },
+    { label: 'Add Crew', desc: 'Register crew member', icon: UserPlus, color: 'bg-sky-500 hover:bg-sky-600', ring: 'ring-sky-200 dark:ring-sky-800', target: 'crew' },
+    { label: 'Generate Schedule', desc: 'Create daily schedule', icon: Calendar, color: 'bg-amber-500 hover:bg-amber-600', ring: 'ring-amber-200 dark:ring-amber-800', target: 'schedules' },
+    { label: 'Create Alert', desc: 'Post traffic alert', icon: AlertTriangle, color: 'bg-rose-500 hover:bg-rose-600', ring: 'ring-rose-200 dark:ring-rose-800', target: 'traffic' },
+    { label: 'View Reports', desc: 'Analytics dashboard', icon: BarChart3, color: 'bg-violet-500 hover:bg-violet-600', ring: 'ring-violet-200 dark:ring-violet-800', target: 'analytics' },
+    { label: 'System Settings', desc: 'Platform config', icon: Settings2, color: 'bg-gray-500 hover:bg-gray-600', ring: 'ring-gray-200 dark:ring-gray-800', target: 'settings' },
+  ];
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Zap className="size-5" /> Quick Create
+        </CardTitle>
+        <CardDescription>Jump to frequently used actions and pages</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          {actions.map((action, i) => {
+            const IconComp = action.icon;
+            return (
+              <button
+                key={action.label}
+                onClick={() => setPortal(action.target)}
+                className={`group flex flex-col items-center gap-2 rounded-xl border p-4 transition-all hover:scale-[1.04] hover:shadow-lg hover:ring-2 ${action.ring} animate-fade-in-up`}
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                <div className={`flex size-11 items-center justify-center rounded-full text-white shadow-md transition-transform group-hover:scale-110 ${action.color}`}>
+                  <IconComp className="size-5" />
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-semibold">{action.label}</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">{action.desc}</p>
+                </div>
+              </button>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Workload Distribution (Crew Assignments)                           */
+/* ------------------------------------------------------------------ */
+function WorkloadDistribution({ crew }: { crew: any[] }) {
+  const workloadData = useMemo(() => {
+    return crew.slice(0, 8).map((c: any, i: number) => {
+      const name = c.profile?.name ?? c.name ?? `Crew-${i + 1}`;
+      const seed = name.length * 7 + (name.charCodeAt(0) % 13);
+      const count = 2 + ((seed + i * 11) % 10);
+      return { name: name.split(' ')[0], fullName: name, count };
+    }).sort((a, b) => b.count - a.count);
+  }, [crew]);
+
+  const maxCount = Math.max(...workloadData.map(d => d.count), 1);
+  const avgAssignments = workloadData.length > 0
+    ? (workloadData.reduce((a, b) => a + b.count, 0) / workloadData.length).toFixed(1)
+    : '0';
+
+  const barColor = (count: number) => {
+    if (count <= 5) return 'bg-emerald-500';
+    if (count <= 8) return 'bg-amber-500';
+    return 'bg-rose-500';
+  };
+
+  const barLabel = (count: number) => {
+    if (count <= 5) return 'text-emerald-700 dark:text-emerald-300';
+    if (count <= 8) return 'text-amber-700 dark:text-amber-300';
+    return 'text-rose-700 dark:text-rose-300';
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3 relative card-header-gradient">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <BarChart3 className="size-5" /> Workload Distribution
+            </CardTitle>
+            <CardDescription>Top 8 crew members by assignment count</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-xs">
+            Avg: {avgAssignments} assignments
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <div className="min-w-[320px] space-y-3">
+            {workloadData.map((d, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <span className="w-20 shrink-0 text-xs font-medium truncate text-right" title={d.fullName}>
+                  {d.name}
+                </span>
+                <div className="flex-1 h-7 rounded-md bg-muted overflow-hidden relative">
+                  <div
+                    className={`h-full rounded-md ${barColor(d.count)} transition-all duration-500`}
+                    style={{ width: `${Math.max((d.count / maxCount) * 100, 8)}%` }}
+                  />
+                </div>
+                <span className={`w-12 shrink-0 text-xs font-bold text-right ${barLabel(d.count)}`}>
+                  {d.count}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-4 mt-4 justify-center text-xs">
+          {[
+            { l: '≤5 assignments', c: 'bg-emerald-500' },
+            { l: '6-8 assignments', c: 'bg-amber-500' },
+            { l: '>8 assignments', c: 'bg-rose-500' },
+          ].map((item) => (
+            <div key={item.l} className="flex items-center gap-1.5">
+              <div className={`size-2.5 rounded-sm ${item.c}`} />
+              <span className="text-muted-foreground">{item.l}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
@@ -2906,6 +3228,14 @@ function DashboardPage({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SystemHealthPanel lastSync={lastSync} />
         <ISTClockWidget />
+      </div>
+      </div>
+
+      {/* System Alerts + Quick Create Actions */}
+      <div className="page-section">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <SystemAlertsPanel />
+        <QuickCreateActions setPortal={setPortal} />
       </div>
       </div>
 
@@ -4705,6 +5035,9 @@ function CrewPage({ token }: { token: string }) {
         </CardContent>
       </Card>
 
+      {/* Workload Distribution */}
+      <WorkloadDistribution crew={crew} />
+
       {/* Crew Fatigue Monitor */}
       <CrewFatigueMonitor />
 
@@ -5658,6 +5991,9 @@ function AnalyticsPage({ token }: { token: string }) {
           )}
         </CardContent>
       </Card>
+
+      {/* Monthly Revenue Trend — SVG Line Chart */}
+      <RevenueTrendChart routeCount={data?.dashboard?.totalRoutes ?? 115} />
 
       {/* Top Performing Routes */}
       <Card>

@@ -128,6 +128,7 @@ import {
   CreditCard,
   QrCode,
   BadgeCheck,
+  Gem,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -278,7 +279,7 @@ function statusBadge(status: string | undefined) {
 
 // Seat availability indicator
 function seatAvailabilityIndicator(trafficLevel: string | undefined) {
-  if (!trafficLevel) return { color: 'bg-gray-300', label: 'Unknown', pct: 50 };
+  if (!trafficLevel) return { color: 'bg-gray-300 dark:bg-gray-600', label: 'Unknown', pct: 50 };
   const map: Record<string, { color: string; label: string; pct: number }> = {
     low: { color: 'bg-emerald-500', label: 'Many seats', pct: 20 },
     moderate: { color: 'bg-amber-500', label: 'Filling up', pct: 55 },
@@ -459,7 +460,7 @@ function WeatherBadge({ city }: { city: string | undefined }) {
         <span>{weather.emoji}</span> {weather.label}
       </Badge>
       {weather.advisory && (
-        <span className="text-[10px] text-amber-600 mt-0.5">{weather.advisory}</span>
+        <span className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">{weather.advisory}</span>
       )}
     </div>
   );
@@ -1121,6 +1122,253 @@ function CommuteSummary() {
               <p className="mt-0.5 text-[10px] text-muted-foreground">{s.unit}</p>
               <p className="text-xs font-medium text-foreground mt-1">{s.label}</p>
             </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Digital Wallet Card ──────────────────────────────────────────────────────
+
+function DigitalWalletCard({ userId, totalTrips, totalSpent }: { userId: string; totalTrips: number; totalSpent: number }) {
+  // Deterministic balance from userId (range ₹500-₹2000)
+  const seedBalance = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < userId.length; i++) {
+      hash = ((hash << 5) - hash + userId.charCodeAt(i)) | 0;
+    }
+    return 500 + (Math.abs(hash) % 1501); // 500-2000
+  }, [userId]);
+
+  const totalSaved = Math.round(totalSpent * 0.12);
+  const cashback = Math.round(totalSpent * 0.03);
+
+  const statPills = [
+    { label: 'Total Spent', value: formatCurrency(totalSpent), icon: IndianRupee },
+    { label: 'Total Saved', value: formatCurrency(totalSaved), icon: PiggyBank },
+    { label: 'Cashback', value: formatCurrency(cashback), icon: CreditCard },
+    { label: 'Trips', value: String(totalTrips), icon: Bus },
+  ];
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-cyan-500 p-5 text-white">
+        {/* Decorative circles */}
+        <div className="absolute -top-10 -right-10 h-32 w-32 rounded-full bg-white/5" />
+        <div className="absolute -bottom-8 -left-8 h-24 w-24 rounded-full bg-white/5" />
+
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm">
+              <Wallet className="size-6" />
+            </div>
+            <div>
+              <p className="text-sm font-medium opacity-90">My Wallet</p>
+              <p className="text-3xl font-extrabold tabular-nums">₹{seedBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+            </div>
+          </div>
+          <QRPattern seed={userId} size={48} />
+        </div>
+
+        {/* Mini stat pills */}
+        <div className="relative mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {statPills.map(s => (
+            <div key={s.label} className="flex items-center gap-1.5 rounded-lg bg-white/15 px-3 py-2 backdrop-blur-sm">
+              <s.icon className="size-3.5 shrink-0 opacity-80" />
+              <div className="min-w-0">
+                <p className="text-[10px] opacity-70">{s.label}</p>
+                <p className="text-xs font-bold truncate">{s.value}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <CardContent className="flex gap-3 pt-4">
+        <Button
+          className="flex-1 gap-1.5"
+          onClick={() => toast({ title: 'Top-up coming soon!', description: 'Digital wallet top-up feature will be available shortly.' })}
+        >
+          <Plus className="size-4" />
+          Add Money
+        </Button>
+        <Button
+          variant="outline"
+          className="flex-1 gap-1.5"
+          onClick={() => toast({ title: 'Transaction history coming soon!', description: 'Your full transaction history will be available shortly.' })}
+        >
+          <ArrowRight className="size-4" />
+          View History
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Loyalty Rewards Widget (Journey-Based) ────────────────────────────────────
+
+const JOURNEY_TIERS = [
+  { name: 'Bronze', threshold: 0, color: 'bg-amber-500', textColor: 'text-amber-600', darkTextColor: 'dark:text-amber-400', ringColor: 'ring-amber-500', badgeBg: 'bg-amber-50', darkBadgeBg: 'dark:bg-amber-900/40', border: 'border-amber-200', darkBorder: 'dark:border-amber-700', icon: Award },
+  { name: 'Silver', threshold: 10, color: 'bg-gray-400', textColor: 'text-gray-600', darkTextColor: 'dark:text-gray-300', ringColor: 'ring-gray-400', badgeBg: 'bg-gray-50', darkBadgeBg: 'dark:bg-gray-800', border: 'border-gray-200', darkBorder: 'dark:border-gray-600', icon: Star },
+  { name: 'Gold', threshold: 25, color: 'bg-yellow-500', textColor: 'text-yellow-600', darkTextColor: 'dark:text-yellow-400', ringColor: 'ring-yellow-500', badgeBg: 'bg-yellow-50', darkBadgeBg: 'dark:bg-yellow-900/40', border: 'border-yellow-200', darkBorder: 'dark:border-yellow-700', icon: Crown },
+  { name: 'Platinum', threshold: 50, color: 'bg-violet-500', textColor: 'text-violet-600', darkTextColor: 'dark:text-violet-400', ringColor: 'ring-violet-500', badgeBg: 'bg-violet-50', darkBadgeBg: 'dark:bg-violet-900/40', border: 'border-violet-200', darkBorder: 'dark:border-violet-700', icon: Gem },
+];
+
+function LoyaltyRewardsWidget({ totalTrips }: { totalTrips: number }) {
+  // Determine current tier based on journey count
+  const currentTierIndex = useMemo(() => {
+    let idx = 0;
+    for (let i = JOURNEY_TIERS.length - 1; i >= 0; i--) {
+      if (totalTrips >= JOURNEY_TIERS[i].threshold) {
+        idx = i;
+        break;
+      }
+    }
+    return idx;
+  }, [totalTrips]);
+
+  const currentTier = JOURNEY_TIERS[currentTierIndex];
+  const nextTier = JOURNEY_TIERS[currentTierIndex + 1];
+
+  const progressToNext = nextTier
+    ? ((totalTrips - currentTier.threshold) / (nextTier.threshold - currentTier.threshold)) * 100
+    : 100;
+  const tripsToNext = nextTier ? nextTier.threshold - totalTrips : 0;
+
+  const TierIcon = currentTier.icon;
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Award className="size-5 text-amber-500" />
+          Loyalty Rewards
+        </CardTitle>
+        <CardDescription>Your journey-based rewards progress</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        {/* Current tier display */}
+        <div className="flex items-center gap-4">
+          <div className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full ${currentTier.badgeBg} ${currentTier.darkBadgeBg} ring-2 ${currentTier.ringColor} ring-offset-2 ring-offset-background`}>
+            <TierIcon className={`size-7 ${currentTier.textColor} ${currentTier.darkTextColor}`} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-muted-foreground">Current Tier</p>
+            <p className="text-2xl font-bold">{currentTier.name}</p>
+          </div>
+          <div className="text-right shrink-0">
+            <p className="text-2xl font-bold tabular-nums">{totalTrips}</p>
+            <p className="text-xs text-muted-foreground">trips</p>
+          </div>
+        </div>
+
+        {/* Progress bar to next tier */}
+        {nextTier && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between text-xs">
+              <span className="font-medium text-muted-foreground">{currentTier.name}</span>
+              <span className="font-medium text-muted-foreground">{nextTier.name}</span>
+            </div>
+            <div className="relative h-3 w-full overflow-hidden rounded-full bg-muted">
+              <div
+                className="absolute inset-y-0 left-0 rounded-full bg-gradient-to-r from-emerald-400 to-teal-400 transition-all duration-700"
+                style={{ width: `${Math.min(progressToNext, 100)}%` }}
+              />
+            </div>
+            <p className="text-xs text-muted-foreground text-right">
+              <span className="font-semibold text-foreground">{tripsToNext}</span> trips to {nextTier.name}
+            </p>
+          </div>
+        )}
+
+        {/* 4 tier badges */}
+        <div className="flex gap-2 flex-wrap">
+          {JOURNEY_TIERS.map((tier, i) => {
+            const TierBadgeIcon = tier.icon;
+            return (
+              <div
+                key={tier.name}
+                className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-all ${
+                  i === currentTierIndex
+                    ? `${tier.badgeBg} ${tier.darkBadgeBg} ${tier.textColor} ${tier.darkTextColor} ring-2 ${tier.ringColor} ring-offset-1`
+                    : i < currentTierIndex
+                      ? `${tier.badgeBg} ${tier.darkBadgeBg} ${tier.textColor} ${tier.darkTextColor} opacity-60`
+                      : 'bg-muted text-muted-foreground opacity-50'
+                }`}
+              >
+                <TierBadgeIcon className="size-3.5" />
+                {tier.name}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Note */}
+        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+          <Sparkles className="size-3 text-amber-500" />
+          Earn 1 point per trip — keep riding to unlock higher tiers!
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Popular Destinations Carousel ─────────────────────────────────────────────
+
+const POPULAR_DESTINATIONS = [
+  { city: 'Bangalore', gradient: 'from-emerald-600 to-teal-500', routes: 50 },
+  { city: 'Mumbai', gradient: 'from-amber-600 to-orange-500', routes: 20 },
+  { city: 'Delhi', gradient: 'from-rose-600 to-pink-500', routes: 15 },
+  { city: 'Chennai', gradient: 'from-sky-600 to-cyan-500', routes: 15 },
+  { city: 'Kochi', gradient: 'from-violet-600 to-purple-500', routes: 15 },
+  { city: 'Pune', gradient: 'from-teal-600 to-emerald-500', routes: 15 },
+];
+
+function PopularDestinationsCarousel({ onSelect }: { onSelect: (city: string) => void }) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <MapPin className="size-5 text-rose-500" />
+            Popular Destinations
+          </CardTitle>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 text-xs text-muted-foreground"
+            onClick={() => {
+              scrollRef.current?.scrollBy({ left: 200, behavior: 'smooth' });
+            }}
+          >
+            <ChevronRight className="size-4" />
+            More
+          </Button>
+        </div>
+        <CardDescription>Explore routes to popular cities</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div
+          ref={scrollRef}
+          className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-2"
+          style={{ scrollbarWidth: 'thin' }}
+        >
+          {POPULAR_DESTINATIONS.map(dest => (
+            <button
+              key={dest.city}
+              className="group shrink-0 snap-start w-36 sm:w-44"
+              onClick={() => onSelect(dest.city)}
+            >
+              <div className={`relative flex h-28 flex-col items-center justify-center rounded-xl bg-gradient-to-br ${dest.gradient} text-white transition-all hover:scale-105 hover:shadow-lg active:scale-95`}>
+                <div className="absolute inset-0 rounded-xl bg-black/0 transition-colors group-hover:bg-black/10" />
+                <Bus className="size-8 mb-2 opacity-90" />
+                <p className="text-base font-bold">{dest.city}</p>
+                <p className="text-xs opacity-80 mt-0.5">{dest.routes} routes available</p>
+              </div>
+            </button>
           ))}
         </div>
       </CardContent>
@@ -1793,8 +2041,8 @@ function SeatSelection({
   const totalPrice = seatPrice * selectedSeats.size;
 
   const getSeatStyle = (seat: string) => {
-    if (bookedSeats.has(seat)) return 'bg-gray-300 text-gray-500 cursor-not-allowed opacity-50';
-    if (selectedSeats.has(seat)) return 'bg-emerald-500 text-white border-emerald-600 shadow-md ring-2 ring-emerald-300';
+    if (bookedSeats.has(seat)) return 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed opacity-50';
+    if (selectedSeats.has(seat)) return 'bg-emerald-500 text-white border-emerald-600 dark:border-emerald-400 shadow-md ring-2 ring-emerald-300 dark:ring-emerald-600';
     return 'border-emerald-400 text-emerald-700 hover:bg-emerald-50 hover:border-emerald-500 cursor-pointer dark:text-emerald-300 dark:hover:bg-emerald-950/50 dark:border-emerald-500';
   };
 
@@ -1827,7 +2075,7 @@ function SeatSelection({
               <span className="text-muted-foreground">Available</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <div className="h-5 w-5 rounded bg-gray-300" />
+              <div className="h-5 w-5 rounded bg-gray-300 dark:bg-gray-600" />
               <span className="text-muted-foreground">Booked</span>
             </div>
             <div className="flex items-center gap-1.5">
@@ -1920,10 +2168,10 @@ function TravelStats({ journeys, visible }: { journeys: Journey[]; visible: bool
   const animatedRatingX10 = useAnimatedCounter(visible ? Math.round(avgRating * 10) : 0, 1400);
 
   const statCards = [
-    { label: 'Total Trips', value: String(animatedTrips), icon: Bus, color: 'text-emerald-600', bg: 'bg-emerald-50', border: 'border-emerald-200' },
-    { label: 'Total Distance', value: `${animatedDist.toLocaleString()} km`, icon: Navigation, color: 'text-sky-600', bg: 'bg-sky-50', border: 'border-sky-200' },
-    { label: 'Total Spent', value: `₹${animatedSpent.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-amber-600', bg: 'bg-amber-50', border: 'border-amber-200' },
-    { label: 'Average Rating', value: `${(animatedRatingX10 / 10).toFixed(1)} / 5`, icon: Star, color: 'text-violet-600', bg: 'bg-violet-50', border: 'border-violet-200' },
+    { label: 'Total Trips', value: String(animatedTrips), icon: Bus, color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/30', border: 'border-emerald-200 dark:border-emerald-800' },
+    { label: 'Total Distance', value: `${animatedDist.toLocaleString()} km`, icon: Navigation, color: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-50 dark:bg-sky-900/30', border: 'border-sky-200 dark:border-sky-800' },
+    { label: 'Total Spent', value: `₹${animatedSpent.toLocaleString('en-IN')}`, icon: IndianRupee, color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/30', border: 'border-amber-200 dark:border-amber-800' },
+    { label: 'Average Rating', value: `${(animatedRatingX10 / 10).toFixed(1)} / 5`, icon: Star, color: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-50 dark:bg-violet-900/30', border: 'border-violet-200 dark:border-violet-800' },
   ];
 
   return (
@@ -3112,6 +3360,25 @@ function Dashboard({
 
       {/* Commute Summary Widget */}
       <CommuteSummary />
+
+      {/* Digital Wallet Card */}
+      <DigitalWalletCard
+        userId={userId}
+        totalTrips={stats?.totalTrips ?? 0}
+        totalSpent={stats?.totalSpent ?? 0}
+      />
+
+      {/* Loyalty Rewards Widget + Popular Destinations */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <LoyaltyRewardsWidget totalTrips={stats?.totalTrips ?? 0} />
+        <PopularDestinationsCarousel onSelect={(city) => {
+          toast({
+            title: `Searching routes to ${city}`,
+            description: 'Redirecting to route search...',
+          });
+          onNavigateToSearch('', city);
+        }} />
+      </div>
 
       {/* Transit Savings Tracker + My Bus Pass */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

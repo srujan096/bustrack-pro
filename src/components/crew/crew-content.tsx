@@ -2059,13 +2059,13 @@ function ShiftSummaryCard({ dateStr, assignments, crewName }: { dateStr: string;
       )}
       {eveningTime && (
         <div className="flex items-center gap-2 mb-1.5">
-          <div className="flex h-5 w-5 items-center justify-center rounded bg-violet-100">
+          <div className="flex h-5 w-5 items-center justify-center rounded bg-violet-100 dark:bg-violet-900/50">
             <Moon className="h-3 w-3 text-violet-600" />
           </div>
           <span className="text-xs text-gray-700">Evening: <span className="font-semibold">{eveningTime}</span> — R{eveningRoute?.replace('R', '') || '—'}</span>
         </div>
       )}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100">
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-gray-100 dark:border-gray-700">
         <span className="text-xs font-medium text-gray-600">Total: <span className="font-bold text-gray-900 dark:text-gray-100">{totalHours.toFixed(1)}h</span></span>
         {hasOvertime && (
           <Badge className="bg-amber-100 text-amber-700 border-amber-200 text-[10px]">
@@ -3215,12 +3215,12 @@ function DashboardPage({
             <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
               <Users className="h-3.5 w-3.5 text-sky-600" />
               <span className="text-[11px] text-gray-700 hidden sm:inline">Pax:</span>
-              <span className="text-xs font-bold text-gray-900">156</span>
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">156</span>
             </div>
             <div className="flex items-center gap-1.5 rounded-full bg-white/80 px-3 py-1.5 shadow-sm">
               <Star className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
               <span className="text-[11px] text-gray-700 hidden sm:inline">Rating:</span>
-              <span className="text-xs font-bold text-gray-900">{crewProfile?.performanceRating?.toFixed(1) || '4.8'}</span>
+              <span className="text-xs font-bold text-gray-900 dark:text-gray-100">{crewProfile?.performanceRating?.toFixed(1) || '4.8'}</span>
             </div>
           </div>
         </CardContent>
@@ -3408,6 +3408,12 @@ function DashboardPage({
         </CardContent>
       </Card>
 
+      {/* Team Messages + Performance Score grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <TeamMessages crewName={crewProfile?.profile?.name || ''} />
+        <DashboardPerformanceScore crewName={crewProfile?.profile?.name || ''} />
+      </div>
+
       {/* Weekly Performance Score */}
       {crewProfile && (
         <WeeklyPerformanceScore crewName={crewProfile.profile?.name || ''} />
@@ -3519,7 +3525,7 @@ function DashboardPage({
           <CardContent>
             <div className="grid gap-6 sm:grid-cols-3">
               {/* Rating with circular progress */}
-              <div className="flex flex-col items-center rounded-xl bg-gradient-to-b from-gray-50 to-white p-5 border border-gray-100">
+              <div className="flex flex-col items-center rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-5 border border-gray-100 dark:border-gray-700">
                 <CircularProgress
                   value={(crewProfile.performanceRating / 5) * 100}
                   size={88}
@@ -3535,8 +3541,8 @@ function DashboardPage({
               </div>
 
               {/* Experience */}
-              <div className="flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-gray-50 to-white p-5 border border-gray-100">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100">
+              <div className="flex flex-col items-center justify-center rounded-xl bg-gradient-to-b from-gray-50 to-white dark:from-gray-800 dark:to-gray-900 p-5 border border-gray-100 dark:border-gray-700">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50">
                   <Briefcase className="h-6 w-6 text-violet-600" />
                 </div>
                 <p className="mt-3 text-2xl font-bold text-gray-900 dark:text-gray-100">
@@ -5910,6 +5916,298 @@ function FuelLogPage({ crewName }: { crewName: string }) {
   );
 }
 
+// ──────────────────────────── Shift History Chart (Profile Page) ────────────────────────────
+
+function ShiftHistoryChart({ crewName }: { crewName: string }) {
+  const weeks = useMemo(() => {
+    const weekLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+    return weekLabels.map((label, wi) => {
+      const workHrs = 28 + getSeededValue(crewName + `wk${wi}w`, 0, 18);
+      const leaveHrs = getSeededValue(crewName + `wk${wi}l`, 0, 16);
+      const otHrs = getSeededValue(crewName + `wk${wi}o`, 0, 10);
+      const total = workHrs + leaveHrs + otHrs;
+      return { label, workHrs, leaveHrs, otHrs, total };
+    });
+  }, [crewName]);
+
+  const totalMonthHrs = weeks.reduce((s, w) => s + w.workHrs + w.otHrs, 0);
+  const maxTotal = Math.max(...weeks.map((w) => w.total));
+
+  const chartW = 460;
+  const chartH = 180;
+  const barH = 28;
+  const barGap = 12;
+  const padL = 60;
+  const padR = 20;
+  const padT = 10;
+  const barAreaW = chartW - padL - padR;
+  const labelY = (i: number) => padT + i * (barH + barGap) + barH / 2;
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-100 to-sky-100 dark:from-emerald-900/40 dark:to-sky-900/40">
+              <History className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Shift History</CardTitle>
+              <CardDescription className="text-xs">Last 4 weeks work pattern</CardDescription>
+            </div>
+          </div>
+          <div className="text-right">
+            <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{totalMonthHrs}h</p>
+            <p className="text-[10px] text-gray-500 dark:text-gray-400">Total Hours This Month</p>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full">
+          {/* Week labels + stacked bars */}
+          {weeks.map((week, i) => {
+            const y = padT + i * (barH + barGap);
+            const workW = (week.workHrs / maxTotal) * barAreaW;
+            const leaveW = (week.leaveHrs / maxTotal) * barAreaW;
+            const otW = (week.otHrs / maxTotal) * barAreaW;
+
+            return (
+              <g key={week.label}>
+                <text x={padL - 8} y={labelY(i)} textAnchor="end" className="fill-gray-500 dark:fill-gray-400 text-[11px] dominant-baseline-middle">
+                  {week.label}
+                </text>
+                {/* Background track */}
+                <rect x={padL} y={y} width={barAreaW} height={barH} rx="6" className="fill-gray-100 dark:fill-gray-700" />
+                {/* Working hours */}
+                {workW > 0 && (
+                  <rect x={padL} y={y} width={workW} height={barH} rx="6" fill="#10b981">
+                    {leaveW === 0 && otW === 0 && <animate attributeName="width" from="0" to={workW} dur="0.8s" fill="freeze" />}
+                  </rect>
+                )}
+                {/* On Leave */}
+                {leaveW > 0 && (
+                  <rect x={padL + workW} y={y} width={leaveW} height={barH} fill="#f59e0b">
+                    {otW === 0 && <animate attributeName="width" from="0" to={leaveW} dur="0.8s" fill="freeze" />}
+                  </rect>
+                )}
+                {/* Overtime */}
+                {otW > 0 && (
+                  <rect
+                    x={padL + workW + leaveW}
+                    y={y}
+                    width={otW}
+                    height={barH}
+                    rx={workW + leaveW === 0 ? 6 : 0}
+                    fill="#f43f5e"
+                  >
+                    <animate attributeName="width" from="0" to={otW} dur="0.8s" fill="freeze" />
+                  </rect>
+                )}
+                {/* Hours label */}
+                <text x={padL + barAreaW + 6} y={labelY(i)} className="fill-gray-400 text-[10px] dominant-baseline-middle">
+                  {week.total}h
+                </text>
+              </g>
+            );
+          })}
+        </svg>
+        {/* Legend */}
+        <div className="flex items-center justify-center gap-5 mt-2">
+          {[
+            { label: 'Working Hours', color: '#10b981', className: 'bg-emerald-500' },
+            { label: 'On Leave', color: '#f59e0b', className: 'bg-amber-500' },
+            { label: 'Overtime', color: '#f43f5e', className: 'bg-rose-500' },
+          ].map((item) => (
+            <div key={item.label} className="flex items-center gap-1.5">
+              <div className={`h-2.5 w-2.5 rounded-sm ${item.className}`} />
+              <span className="text-[11px] text-gray-500 dark:text-gray-400">{item.label}</span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── Team Messages (Dashboard) ────────────────────────────
+
+function TeamMessages({ crewName }: { crewName: string }) {
+  const [replyText, setReplyText] = useState('');
+
+  const messages = useMemo(() => [
+    { id: 1, name: 'Rajesh K', initials: 'RK', time: '9:15 AM', text: 'Route BLR-201 has heavy traffic near Silk Board. Taking alternate route via HSR.', isSent: false, color: 'bg-sky-500' },
+    { id: 2, name: 'Priya M', initials: 'PM', time: '9:22 AM', text: 'Bus KA-01-F4567 AC not working. Logged maintenance request.', isSent: false, color: 'bg-violet-500' },
+    { id: 3, name: 'You', initials: getInitials(crewName), time: '9:30 AM', text: 'Acknowledged. I\'m 5 mins away from Koramangala stop.', isSent: true, color: 'bg-amber-500' },
+    { id: 4, name: 'Arun S', initials: 'AS', time: '9:45 AM', text: 'Fuel station at Jayanagar is operational now. Refueled successfully.', isSent: false, color: 'bg-emerald-500' },
+    { id: 5, name: 'Sunita D', initials: 'SD', time: '10:02 AM', text: 'New schedule uploaded for next week. Check your assignments!', isSent: false, color: 'bg-rose-500' },
+    { id: 6, name: 'You', initials: getInitials(crewName), time: '10:10 AM', text: 'Thanks Sunita! Will review after my current shift.', isSent: true, color: 'bg-amber-500' },
+  ], [crewName]);
+
+  const handleSend = () => {
+    if (!replyText.trim()) return;
+    toast({ title: 'Message Sent', description: replyText.slice(0, 50) });
+    setReplyText('');
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800 flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-sky-100 to-violet-100 dark:from-sky-900/40 dark:to-violet-900/40">
+              <MessageSquare className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+            </div>
+            <div>
+              <CardTitle className="text-base">Team Messages</CardTitle>
+              <CardDescription className="text-xs">{messages.length} messages</CardDescription>
+            </div>
+          </div>
+          <div className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400">
+            <Users className="h-3.5 w-3.5" />
+            <span>6 online</span>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="flex-1 flex flex-col">
+        <div className="flex-1 space-y-3 max-h-[340px] overflow-y-auto pr-1 custom-scrollbar">
+          {messages.map((msg) => (
+            <div key={msg.id} className={`flex gap-2.5 ${msg.isSent ? 'flex-row-reverse' : 'flex-row'}`}>
+              {/* Avatar */}
+              <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full ${msg.color} text-white text-[10px] font-bold`}>
+                {msg.initials}
+              </div>
+              {/* Bubble */}
+              <div className={`max-w-[75%] ${msg.isSent ? 'text-right' : ''}`}>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  {!msg.isSent && (
+                    <span className="text-[11px] font-semibold text-gray-700 dark:text-gray-300">{msg.name}</span>
+                  )}
+                  <span className="text-[9px] text-gray-400">{msg.time}</span>
+                </div>
+                <div className={`rounded-xl px-3 py-2 text-sm ${
+                  msg.isSent
+                    ? 'bg-amber-500 text-white rounded-tr-sm'
+                    : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-tl-sm'
+                }`}>
+                  <p className="text-[12px] leading-relaxed">{msg.text}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+        {/* Quick Reply Input */}
+        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+          <div className="flex items-center gap-2">
+            <Input
+              value={replyText}
+              onChange={(e) => setReplyText(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              placeholder="Type a quick reply..."
+              className="flex-1 h-9 text-sm bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700"
+            />
+            <Button
+              size="sm"
+              onClick={handleSend}
+              disabled={!replyText.trim()}
+              className="h-9 w-9 p-0 bg-sky-600 hover:bg-sky-700 text-white shrink-0"
+            >
+              <Send className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── Dashboard Performance Score ────────────────────────────
+
+function DashboardPerformanceScore({ crewName }: { crewName: string }) {
+  const data = useMemo(() => {
+    const punctuality = 55 + getSeededValue(crewName + 'dpunct', 0, 42);
+    const customerRatings = 50 + getSeededValue(crewName + 'dcust', 0, 48);
+    const safety = 60 + getSeededValue(crewName + 'dsafety', 0, 38);
+    const overall = Math.round(punctuality * 0.4 + customerRatings * 0.3 + safety * 0.3);
+    return { punctuality, customerRatings, safety, overall };
+  }, [crewName]);
+
+  const scoreColor = data.overall >= 80 ? '#10b981' : data.overall >= 60 ? '#f59e0b' : '#ef4444';
+  const scoreBg = data.overall >= 80 ? '#d1fae5' : data.overall >= 60 ? '#fef3c7' : '#fee2e2';
+  const scoreLabel = data.overall >= 80 ? 'Good' : data.overall >= 60 ? 'Average' : 'Needs Improvement';
+  const scoreLabelColor = data.overall >= 80 ? 'text-emerald-600 dark:text-emerald-400' : data.overall >= 60 ? 'text-amber-600 dark:text-amber-400' : 'text-red-600 dark:text-red-400';
+  const scoreGlow = data.overall >= 80 ? 'shadow-emerald-200 dark:shadow-emerald-900/30' : data.overall >= 60 ? 'shadow-amber-200 dark:shadow-amber-900/30' : 'shadow-red-200 dark:shadow-red-900/30';
+
+  const radius = 58;
+  const circumference = radius * 2 * Math.PI;
+  const offset = circumference - (data.overall / 100) * circumference;
+
+  const subScores = [
+    { label: 'Punctuality', value: data.punctuality, icon: Clock, weight: '40%', color: data.punctuality >= 80 ? 'text-emerald-600' : data.punctuality >= 60 ? 'text-amber-600' : 'text-red-600' },
+    { label: 'Ratings', value: data.customerRatings, icon: Star, weight: '30%', color: data.customerRatings >= 80 ? 'text-emerald-600' : data.customerRatings >= 60 ? 'text-amber-600' : 'text-red-600' },
+    { label: 'Safety', value: data.safety, icon: Shield, weight: '30%', color: data.safety >= 80 ? 'text-emerald-600' : data.safety >= 60 ? 'text-amber-600' : 'text-red-600' },
+  ];
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <div className="flex items-center gap-2">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-100 to-rose-100 dark:from-amber-900/40 dark:to-rose-900/40">
+            <Award className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+          </div>
+          <div>
+            <CardTitle className="text-base">Performance Score</CardTitle>
+            <CardDescription className="text-xs">Monthly composite score</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {/* Circular Gauge */}
+        <div className="flex flex-col items-center mb-5">
+          <div className={`relative rounded-full ${scoreGlow} shadow-lg`}>
+            <svg width="140" height="140" className="-rotate-90">
+              <circle cx="70" cy="70" r={radius} fill="none" strokeWidth="10" stroke={scoreBg} />
+              <circle
+                cx="70" cy="70" r={radius} fill="none" strokeWidth="10"
+                strokeLinecap="round" stroke={scoreColor}
+                strokeDasharray={circumference} strokeDashoffset={offset}
+                style={{ transition: 'stroke-dashoffset 1s ease' }}
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-3xl font-bold text-gray-900 dark:text-gray-100">{data.overall}</span>
+              <span className={`text-[11px] font-semibold ${scoreLabelColor}`}>{scoreLabel}</span>
+            </div>
+          </div>
+        </div>
+        {/* Sub-Score Pills */}
+        <div className="space-y-2.5">
+          {subScores.map((sub) => {
+            const Icon = sub.icon;
+            return (
+              <div key={sub.label} className="flex items-center justify-between rounded-lg bg-gray-50 dark:bg-gray-900/50 px-3 py-2">
+                <div className="flex items-center gap-2">
+                  <Icon className="h-4 w-4 text-gray-400" />
+                  <span className="text-xs text-gray-600 dark:text-gray-300">{sub.label}</span>
+                  <span className="text-[9px] text-gray-400">({sub.weight})</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className={`text-sm font-bold ${sub.color}`}>{sub.value}</span>
+                  <div className="h-1.5 w-14 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${sub.value >= 80 ? 'bg-emerald-500' : sub.value >= 60 ? 'bg-amber-500' : 'bg-red-500'}`}
+                      style={{ width: `${sub.value}%`, transition: 'width 0.8s ease' }}
+                    />
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ──────────────────────────── Profile Page ────────────────────────────
 
 function ProfilePage({
@@ -6113,18 +6411,18 @@ function ProfilePage({
             <p className="text-[11px] sm:text-xs text-gray-500">Total Trips</p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-amber-50 to-white border-amber-100">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-amber-50 to-white dark:from-amber-950/40 dark:to-gray-800 border-amber-100 dark:border-amber-800">
           <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 mx-auto mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/50 mx-auto mb-2">
               <Star className="h-5 w-5 text-amber-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{crewProfile.performanceRating.toFixed(1)}</p>
             <p className="text-[11px] sm:text-xs text-gray-500">Rating</p>
           </CardContent>
         </Card>
-        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-violet-50 to-white border-violet-100">
+        <Card className="rounded-xl shadow-sm bg-gradient-to-br from-violet-50 to-white dark:from-violet-950/40 dark:to-gray-800 border-violet-100 dark:border-violet-800">
           <CardContent className="p-4 text-center">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 mx-auto mb-2">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-violet-100 dark:bg-violet-900/50 mx-auto mb-2">
               <Briefcase className="h-5 w-5 text-violet-600" />
             </div>
             <p className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">{crewProfile.experienceYears}yr</p>
@@ -6141,6 +6439,9 @@ function ProfilePage({
 
       {/* Earnings Tracker */}
       <EarningsTracker crewName={crewProfile.profile?.name || ''} />
+
+      {/* Shift History Chart */}
+      <ShiftHistoryChart crewName={crewProfile.profile?.name || ''} />
 
       {/* Overtime Calculator */}
       <OvertimeCalculator />
