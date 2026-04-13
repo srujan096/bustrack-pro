@@ -92,6 +92,7 @@ import {
   GraduationCap,
   Heart,
   Snowflake,
+  LogOut,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -2924,6 +2925,12 @@ function DashboardPage({
         </div>
       </div>
 
+      {/* Quick Status Action Buttons + Weather Impact grid */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <QuickStatusActions />
+        <WeatherImpact />
+      </div>
+
       {/* Digital Trip Manifest + Shift Timer grid */}
       <div className="grid gap-4 lg:grid-cols-2">
         <DigitalTripManifest crewName={crewProfile?.profile?.name || ''} assignments={assignments} />
@@ -3022,6 +3029,236 @@ function DashboardPage({
         </Card>
       )}
     </div>
+  );
+}
+
+// ──────────────────────────── New Feature: Quick Status Action Buttons ────────────────────────────
+
+function QuickStatusActions() {
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+
+  const handleClockIn = () => {
+    toast({
+      title: 'Clocked In',
+      description: `Clocked in at ${timeStr}`,
+    });
+  };
+
+  const handleTakeBreak = () => {
+    toast({
+      title: 'Break Started',
+      description: 'Break started',
+    });
+  };
+
+  const handleClockOut = () => {
+    toast({
+      title: 'Clocked Out',
+      description: `Clocked out at ${timeStr}`,
+    });
+  };
+
+  return (
+    <Card className="rounded-xl shadow-sm bg-white dark:bg-gray-800">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Zap className="h-5 w-5 text-amber-500" />
+          Quick Status
+        </CardTitle>
+        <CardDescription>Manage your shift status quickly</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <Button
+          className="w-full justify-start gap-3 bg-emerald-600 text-white hover:bg-emerald-700 h-11"
+          onClick={handleClockIn}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
+            <Clock className="h-4 w-4" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold">Clock In</p>
+            <p className="text-[10px] opacity-80">Start your shift</p>
+          </div>
+        </Button>
+        <Button
+          className="w-full justify-start gap-3 bg-amber-500 text-white hover:bg-amber-600 h-11"
+          onClick={handleTakeBreak}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-400/20">
+            <Coffee className="h-4 w-4" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold">Take Break</p>
+            <p className="text-[10px] opacity-80">Start a short break</p>
+          </div>
+        </Button>
+        <Button
+          className="w-full justify-start gap-3 bg-red-600 text-white hover:bg-red-700 h-11"
+          onClick={handleClockOut}
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-red-500/20">
+            <LogOut className="h-4 w-4" />
+          </div>
+          <div className="text-left">
+            <p className="text-sm font-semibold">Clock Out</p>
+            <p className="text-[10px] opacity-80">End your shift</p>
+          </div>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ──────────────────────────── New Feature: Weather Impact Card ────────────────────────────
+
+function WeatherImpact() {
+  const weatherData = useMemo(() => {
+    // Deterministic weather based on date
+    const today = new Date();
+    const dayOfYear = Math.floor((today.getTime() - new Date(today.getFullYear(), 0, 0).getTime()) / 86400000);
+    const conditions: {
+      type: 'Sunny' | 'Cloudy' | 'Rainy' | 'Stormy';
+      icon: typeof SunIcon;
+      temp: number;
+      impact: 'No Impact' | 'Minor Delays' | 'Moderate Delays' | 'Severe Delays';
+      impactColor: string;
+      impactBg: string;
+      impactBorder: string;
+      advisory: string;
+      windSpeed: number;
+      humidity: number;
+    }[] = [
+      {
+        type: 'Sunny',
+        icon: SunIcon,
+        temp: 34,
+        impact: 'No Impact',
+        impactColor: 'text-emerald-700 dark:text-emerald-300',
+        impactBg: 'bg-emerald-50 dark:bg-emerald-900/30',
+        impactBorder: 'border-emerald-200 dark:border-emerald-800',
+        advisory: 'Clear skies. Normal operations expected throughout the day.',
+        windSpeed: 12,
+        humidity: 35,
+      },
+      {
+        type: 'Cloudy',
+        icon: Cloud,
+        temp: 28,
+        impact: 'Minor Delays',
+        impactColor: 'text-amber-700 dark:text-amber-300',
+        impactBg: 'bg-amber-50 dark:bg-amber-900/30',
+        impactBorder: 'border-amber-200 dark:border-amber-800',
+        advisory: 'Overcast conditions. Expect minor delays on some routes.',
+        windSpeed: 20,
+        humidity: 55,
+      },
+      {
+        type: 'Rainy',
+        icon: CloudRain,
+        temp: 24,
+        impact: 'Moderate Delays',
+        impactColor: 'text-orange-700 dark:text-orange-300',
+        impactBg: 'bg-orange-50 dark:bg-orange-900/30',
+        impactBorder: 'border-orange-200 dark:border-orange-800',
+        advisory: 'Heavy rainfall. Reduce speed and maintain safe distance. Moderate delays expected.',
+        windSpeed: 28,
+        humidity: 82,
+      },
+      {
+        type: 'Stormy',
+        icon: CloudLightning,
+        temp: 22,
+        impact: 'Severe Delays',
+        impactColor: 'text-red-700 dark:text-red-300',
+        impactBg: 'bg-red-50 dark:bg-red-900/30',
+        impactBorder: 'border-red-200 dark:border-red-800',
+        advisory: 'Severe weather alert! Exercise extreme caution. Significant delays expected.',
+        windSpeed: 45,
+        humidity: 92,
+      },
+    ];
+
+    // Use day of year to deterministically pick weather
+    const idx = dayOfYear % conditions.length;
+    const condition = conditions[idx];
+
+    // Add some variation to temperature based on month
+    const month = today.getMonth();
+    const tempVariation = month >= 3 && month <= 8 ? 4 : -2; // Summer is hotter
+    const finalTemp = condition.temp + tempVariation;
+
+    return { ...condition, temp: finalTemp };
+  }, []);
+
+  const WeatherIcon = weatherData.icon;
+
+  return (
+    <Card className={`rounded-xl shadow-sm bg-white dark:bg-gray-800 border ${weatherData.impactBorder}`}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Cloud className="h-5 w-5 text-sky-500" />
+            Weather Impact
+          </CardTitle>
+          <Badge className={`${weatherData.impactBg} ${weatherData.impactColor} ${weatherData.impactBorder} border text-xs font-semibold`}>
+            {weatherData.impact}
+          </Badge>
+        </div>
+        <CardDescription>Current conditions affecting routes</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex items-start gap-4">
+          {/* Weather icon + temperature */}
+          <div className="flex flex-col items-center shrink-0">
+            <div className={`flex h-14 w-14 items-center justify-center rounded-xl ${weatherData.impactBg}`}>
+              <WeatherIcon className={`h-7 w-7 ${
+                weatherData.type === 'Sunny' ? 'text-amber-500' :
+                weatherData.type === 'Cloudy' ? 'text-gray-400' :
+                weatherData.type === 'Rainy' ? 'text-sky-500' :
+                'text-violet-500'
+              }`} />
+            </div>
+            <p className="mt-1.5 text-xl font-bold text-foreground">{weatherData.temp}°C</p>
+            <p className="text-[10px] text-muted-foreground">{weatherData.type}</p>
+          </div>
+
+          {/* Details */}
+          <div className="flex-1 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Thermometer className="h-3.5 w-3.5" />
+                <span>Feels like {weatherData.temp + 2}°C</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Droplets className="h-3.5 w-3.5 text-sky-400" />
+                <span>{weatherData.humidity}% humidity</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Wind className="h-3.5 w-3.5" />
+                <span>{weatherData.windSpeed} km/h wind</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                <Navigation className="h-3.5 w-3.5" />
+                <span>Roads: {
+                  weatherData.impact === 'No Impact' ? 'Good' :
+                  weatherData.impact === 'Minor Delays' ? 'Fair' :
+                  weatherData.impact === 'Moderate Delays' ? 'Poor' : 'Hazardous'
+                }</span>
+              </div>
+            </div>
+
+            {/* Advisory */}
+            <div className={`rounded-lg px-3 py-2 text-xs ${weatherData.impactBg} ${weatherData.impactColor}`}>
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                <span className="font-medium">{weatherData.advisory}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

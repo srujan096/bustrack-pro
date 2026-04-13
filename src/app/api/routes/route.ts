@@ -1,6 +1,108 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+// ─── Connecting Routes Types ────────────────────────────────────────────────
+
+interface RouteLeg {
+  routeNumber: string;
+  from: string;
+  to: string;
+  durationMin: number;
+  fare: number;
+}
+
+interface ConnectingRoute {
+  leg1: RouteLeg;
+  leg2: RouteLeg;
+  transferPoint: string;
+  totalDurationMin: number;
+  totalFare: number;
+}
+
+// ─── Helper: parse stopsJson into an array of stop names ────────────────────
+
+function parseStopNames(stopsJson: string, startLocation: string, endLocation: string): string[] {
+  try {
+    const parsed = JSON.parse(stopsJson || '[]');
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      const names = parsed
+        .map((s: Record<string, unknown>) => (typeof s.name === 'string' ? s.name : String(s)))
+        .filter(Boolean);
+      // Deduplicate with start/end included
+      const all = [startLocation, ...names, endLocation];
+      return [...new Set(all)];
+    }
+  } catch {
+    // JSON parse failed, fall back to start/end only
+  }
+  return [startLocation, endLocation];
+}
+
+// ─── Connecting Routes Algorithm ────────────────────────────────────────────
+
+function findConnectingRoutes(
+  outgoingRoutes: { id: string; routeNumber: string; startLocation: string; endLocation: string; stopsJson: string; durationMin: number; fare: number }[],
+  incomingRoutes: { id: string; routeNumber: string; startLocation: string; endLocation: string; stopsJson: string; durationMin: number; fare: number }[],
+  from: string,
+  to: string,
+): ConnectingRoute[] {
+  const results = new Map<string, ConnectingRoute>(); // key: "leg1RouteId-leg2RouteId"
+
+  for (const outgoing of outgoingRoutes) {
+    const stopsO = parseStopNames(outgoing.stopsJson, outgoing.startLocation, outgoing.endLocation);
+
+    for (const incoming of incomingRoutes) {
+      // Skip the same route
+      if (outgoing.id === incoming.id) continue;
+
+      const stopsI = parseStopNames(incoming.stopsJson, incoming.startLocation, incoming.endLocation);
+      const fromLower = from.toLowerCase();
+      const toLower = to.toLowerCase();
+
+      // Check for common stops (excluding the original from/to to avoid trivial matches)
+      for (const stopO of stopsO) {
+        const stopOLower = stopO.toLowerCase();
+        if (stopOLower === fromLower || stopOLower === toLower) continue;
+
+        for (const stopI of stopsI) {
+          if (stopO.toLowerCase() === stopI.toLowerCase()) {
+            const key = `${outgoing.id}-${incoming.id}`;
+            if (!results.has(key)) {
+              results.set(key, {
+                leg1: {
+                  routeNumber: outgoing.routeNumber,
+                  from: outgoing.startLocation,
+                  to: outgoing.endLocation,
+                  durationMin: outgoing.durationMin,
+                  fare: outgoing.fare,
+                },
+                leg2: {
+                  routeNumber: incoming.routeNumber,
+                  from: incoming.startLocation,
+                  to: incoming.endLocation,
+                  durationMin: incoming.durationMin,
+                  fare: incoming.fare,
+                },
+                transferPoint: stopO,
+                totalDurationMin: outgoing.durationMin + incoming.durationMin + 10, // 10 min transfer time
+                totalFare: outgoing.fare + incoming.fare,
+              });
+            }
+            break; // Only need one transfer point per route pair
+          }
+        }
+      }
+    }
+  }
+
+  // Sort by total duration (shortest first) and limit to 5
+  return [...results.values()]
+    .sort((a, b) => a.totalDurationMin - b.totalDurationMin)
+    .slice(0, 5);
+}
+
+// ─── GET Handler ────────────────────────────────────────────────────────────
+
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
@@ -52,12 +154,42 @@ export async function GET(request: NextRequest) {
     allRoutes.forEach(r => { locations.add(r.startLocation); locations.add(r.endLocation); });
     const cities = [...new Set(allRoutes.map(r => r.city))];
 
+    // ── Connecting Routes (when startLocation and endLocation are both provided) ──
+    if (startLocation && endLocation) {
+      // Find connecting routes: routes starting at `from` and routes ending at `to`
+      const [outgoingRoutes, incomingRoutes] = await Promise.all([
+        db.route.findMany({
+          where: { startLocation: { contains: startLocation } },
+        }),
+        db.route.findMany({
+          where: { endLocation: { contains: endLocation } },
+        }),
+      ]);
+
+      const connecting = findConnectingRoutes(
+        outgoingRoutes,
+        incomingRoutes,
+        startLocation,
+        endLocation,
+      );
+
+      return NextResponse.json({
+        direct: routes,
+        connecting,
+        total,
+        locations: [...locations].sort(),
+        cities,
+      });
+    }
+
     return NextResponse.json({ routes, total, locations: [...locations].sort(), cities });
   } catch (error) {
     console.error('Routes GET error:', error);
     return NextResponse.json({ error: 'Failed to fetch routes' }, { status: 500 });
   }
 }
+
+// ─── POST Handler ───────────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
   try {

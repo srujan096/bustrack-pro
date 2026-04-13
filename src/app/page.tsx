@@ -5,6 +5,7 @@ import { UserProfile } from '@/types';
 import { Clock, Search, ArrowRight, CalendarDays, Route, Users, Sun, Moon, Info, AlertTriangle, CheckCircle2, XCircle, HelpCircle, ArrowUp, Navigation, Wifi, Shield, CreditCard, ChevronLeft, ChevronRight, History, Cloud, CloudRain, CloudSun, Download, MapPin, MessageSquare, LayoutDashboard, Settings2, BarChart3 } from 'lucide-react';
 import { useTheme } from 'next-themes';
 import { toast } from '@/hooks/use-toast';
+import AnnouncementBanner from '@/components/announcement-banner';
 
 // ============================================================
 // Helper: Relative time
@@ -2323,7 +2324,10 @@ function AppShell({
       )}
 
       {/* Main */}
-      <main className="flex-1 flex flex-col overflow-hidden">
+      <main className="flex-1 flex flex-col overflow-hidden relative z-0">
+        {/* Announcement Banner */}
+        <AnnouncementBanner userRole={user.role} />
+
         {/* Critical notification bar */}
         {showNotifBar && errorNotifs.length > 0 && (
           <div className="bg-gradient-to-r from-amber-500 to-orange-500 text-white px-4 py-1.5 flex items-center justify-between text-xs">
@@ -2338,7 +2342,7 @@ function AppShell({
         )}
 
         {/* Header */}
-        <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 flex-shrink-0">
+        <header className="h-14 bg-card/80 backdrop-blur-sm border-b border-border flex items-center justify-between px-4 flex-shrink-0 relative z-30">
           <div className="flex items-center gap-3">
             <HamburgerButton
               isOpen={isMobile ? sidebarOpen : false}

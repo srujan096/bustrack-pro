@@ -1021,6 +1021,107 @@ function FuelCostCalculator() {
 }
 
 /* ------------------------------------------------------------------ */
+/*  Today's Schedule Compact Table                                      */
+/* ------------------------------------------------------------------ */
+function TodayScheduleCompactTable() {
+  const [schedules, setSchedules] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    apiFetch('/api/schedules?date=' + todayStr()).then((d: any) => {
+      const list = Array.isArray(d) ? d : (d?.schedules ?? d?.data ?? []);
+      setSchedules(list.slice(0, 8));
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const toAMPM = (t: string) => {
+    if (!t) return '';
+    const [h, m] = t.split(':').map(Number);
+    const ampm = h >= 12 ? 'PM' : 'AM';
+    const h12 = h % 12 || 12;
+    return `${h12}:${String(m).padStart(2, '0')} ${ampm}`;
+  };
+
+  const statusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300';
+      case 'in_progress': return 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300';
+      case 'cancelled': return 'bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300';
+      default: return 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300';
+    }
+  };
+
+  const statusLabel = (s: string) => {
+    switch (s) {
+      case 'completed': return 'Done';
+      case 'in_progress': return 'Active';
+      case 'cancelled': return 'Cancelled';
+      default: return 'Scheduled';
+    }
+  };
+
+  return (
+    <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Calendar className="size-5" /> Today&apos;s Schedule
+            </CardTitle>
+            <CardDescription>Compact view of {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}</CardDescription>
+          </div>
+          <Badge variant="outline" className="text-xs">{schedules.length} trips</Badge>
+        </div>
+      </CardHeader>
+      <CardContent>
+        {loading ? (
+          <TableSkeleton rows={5} cols={5} />
+        ) : schedules.length === 0 ? (
+          <EmptyState icon={Calendar} title="No schedules today" description="Generate schedules to see today's trips here." />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border/50">
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground">Route</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground">Departure</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground hidden sm:table-cell">From → To</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground">Bus</th>
+                  <th className="text-left py-2 px-2 text-xs font-semibold text-muted-foreground">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {schedules.map((s: any, i: number) => (
+                  <tr key={s.id || i} className="border-b border-border/30 hover:bg-muted/30 transition-colors">
+                    <td className="py-2.5 px-2">
+                      <span className="font-semibold text-foreground">{s.route?.routeNumber || '—'}</span>
+                    </td>
+                    <td className="py-2.5 px-2 text-muted-foreground font-mono text-xs">
+                      {toAMPM(s.departureTime)}
+                    </td>
+                    <td className="py-2.5 px-2 text-muted-foreground hidden sm:table-cell">
+                      <span className="text-xs">{s.route?.startLocation || '—'} → {s.route?.endLocation || '—'}</span>
+                    </td>
+                    <td className="py-2.5 px-2 text-muted-foreground text-xs">
+                      {s.route?.busRegistration || '—'}
+                    </td>
+                    <td className="py-2.5 px-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${statusColor(s.status)}`}>
+                        {statusLabel(s.status)}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /*  Live Departure Board                                               */
 /* ------------------------------------------------------------------ */
 function DepartureBoard() {
@@ -1918,6 +2019,286 @@ function LiveActivityFeed() {
 }
 
 /* ================================================================== */
+/*  System Health Panel Component                                      */
+/* ================================================================== */
+function SystemHealthPanel({ lastSync }: { lastSync: string }) {
+  const healthItems = [
+    { icon: Wifi, label: 'API Status', value: 'Operational', status: 'healthy' },
+    { icon: Database, label: 'Database', value: 'Connected', status: 'healthy' },
+    { icon: Clock, label: 'Last Sync', value: lastSync || '—', status: 'neutral' },
+    { icon: Users, label: 'Active Users', value: '23', status: 'healthy' },
+    { icon: Server, label: 'Server Uptime', value: '99.7%', status: 'healthy' },
+  ];
+
+  return (
+    <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Activity className="size-5 text-emerald-500" /> System Health
+        </CardTitle>
+        <CardDescription>Real-time service status monitoring</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2.5">
+          {healthItems.map((item, i) => (
+            <div
+              key={item.label}
+              className="flex items-center justify-between rounded-full border bg-muted/30 dark:bg-gray-800/60 px-4 py-2.5 transition-colors hover:bg-muted/50 dark:hover:bg-gray-700/50 animate-fade-in-up"
+              style={{ animationDelay: `${i * 70}ms` }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="rounded-full bg-muted dark:bg-gray-700 p-2 text-muted-foreground">
+                  <item.icon className="size-4" />
+                </div>
+                <span className="text-sm font-medium">{item.label}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold tabular-nums">{item.value}</span>
+                {item.status === 'healthy' && (
+                  <span className="relative flex size-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+                  </span>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
+/*  IST Clock Widget                                                   */
+/* ================================================================== */
+function ISTClockWidget() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const istDateString = time.toLocaleDateString('en-US', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    timeZone: 'Asia/Kolkata',
+  });
+
+  const istTimeString = time.toLocaleTimeString('en-US', {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+    timeZone: 'Asia/Kolkata',
+  });
+
+  return (
+    <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '100ms' }}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Clock className="size-5 text-sky-500" /> IST Clock
+        </CardTitle>
+        <CardDescription>Indian Standard Time</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="text-center py-2">
+          <p className="text-sm text-muted-foreground font-medium">{istDateString}</p>
+          <p className="mt-3 text-5xl font-bold tracking-widest font-mono tabular-nums text-foreground dark:text-white">
+            {istTimeString}
+          </p>
+          <div className="mt-4 flex items-center justify-center gap-2">
+            <span className="relative flex size-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+              <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
+            </span>
+            <Badge variant="outline" className="bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-950/60 dark:text-sky-300 dark:border-sky-800 font-medium">
+              IST (UTC+5:30)
+            </Badge>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
+/*  Recent Activity Feed Widget                                        */
+/* ================================================================== */
+function RecentActivityFeedWidget() {
+  const now = new Date();
+  const daySeed = Math.floor(now.getTime() / (24 * 60 * 60 * 1000));
+  const seed = (daySeed * 17) % 100;
+
+  const activities = [
+    {
+      label: 'Login',
+      description: 'Admin session started from 192.168.1.100',
+      timeAgo: '2 min ago',
+      badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      dotColor: 'bg-emerald-500',
+      icon: UserCheck,
+    },
+    {
+      label: 'Schedule',
+      description: `New schedule created for Route BLR-${100 + (seed % 20)}`,
+      timeAgo: '15 min ago',
+      badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      dotColor: 'bg-blue-500',
+      icon: Calendar,
+    },
+    {
+      label: 'Alert',
+      description: `Traffic alert posted on Route MUM-${200 + ((seed + 3) % 30)}`,
+      timeAgo: '28 min ago',
+      badgeColor: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300',
+      dotColor: 'bg-amber-500',
+      icon: AlertTriangle,
+    },
+    {
+      label: 'Crew',
+      description: `Crew auto-assignment completed for ${10 + (seed % 8)} routes`,
+      timeAgo: '45 min ago',
+      badgeColor: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300',
+      dotColor: 'bg-emerald-500',
+      icon: Users,
+    },
+    {
+      label: 'Error',
+      description: `GPS sync failed for Bus KA-01-${5000 + (seed % 999)}`,
+      timeAgo: '1 hour ago',
+      badgeColor: 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300',
+      dotColor: 'bg-rose-500',
+      icon: XCircle,
+    },
+    {
+      label: 'System',
+      description: 'Daily analytics report generated successfully',
+      timeAgo: '2 hours ago',
+      badgeColor: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300',
+      dotColor: 'bg-blue-500',
+      icon: BarChart3,
+    },
+  ];
+
+  return (
+    <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '200ms' }}>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-lg">
+          <Activity className="size-5 text-violet-500" /> Recent Activity
+        </CardTitle>
+        <CardDescription>Latest system events and actions</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="max-h-96 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}>
+          {activities.map((item, i) => {
+            const IconComp = item.icon;
+            return (
+              <div
+                key={i}
+                className="flex items-center gap-3 rounded-xl border px-3 py-2.5 hover:bg-muted/40 transition-colors animate-fade-in-up"
+                style={{ animationDelay: `${250 + i * 60}ms` }}
+              >
+                <div className="shrink-0 rounded-lg bg-muted dark:bg-gray-800 p-2 text-muted-foreground">
+                  <IconComp className="size-3.5" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${item.badgeColor}`}>
+                      {item.label}
+                    </span>
+                    <span className="text-[11px] text-muted-foreground">{item.timeAgo}</span>
+                  </div>
+                  <p className="text-sm mt-0.5 truncate">{item.description}</p>
+                </div>
+                <div className={`size-2.5 rounded-full shrink-0 ${item.dotColor}`} />
+              </div>
+            );
+          })}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
+/*  Active Routes Preview                                              */
+/* ================================================================== */
+function ActiveRoutesPreview({ onNavigate }: { onNavigate?: () => void }) {
+  const now = new Date();
+  const daySeed = Math.floor(now.getTime() / (24 * 60 * 60 * 1000));
+  const seed = (daySeed * 13) % 100;
+
+  const routes = [
+    { number: `BLR-${101 + (seed % 10)}`, from: 'Majestic Bus Stand', to: 'Whitefield', status: 'On Time', dotColor: 'bg-emerald-500' },
+    { number: `MUM-${200 + ((seed + 5) % 15)}`, from: 'Bandra Terminus', to: 'Andheri East', status: 'Delayed', dotColor: 'bg-amber-500' },
+    { number: `DEL-${100 + ((seed + 2) % 20)}`, from: 'Kashmere Gate', to: 'Connaught Place', status: 'On Time', dotColor: 'bg-emerald-500' },
+    { number: `CHN-${300 + ((seed + 7) % 12)}`, from: 'Chennai Central', to: 'T. Nagar', status: 'Completed', dotColor: 'bg-sky-500' },
+    { number: `HYD-${400 + ((seed + 3) % 18)}`, from: 'Secunderabad', to: 'HITEC City', status: 'On Time', dotColor: 'bg-emerald-500' },
+    { number: `BLR-${500 + ((seed + 9) % 25)}`, from: 'Koramangala', to: 'Electronic City', status: 'Delayed', dotColor: 'bg-amber-500' },
+  ];
+
+  const statusBadge = (status: string) => {
+    if (status === 'On Time') return 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300';
+    if (status === 'Delayed') return 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300';
+    return 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-300';
+  };
+
+  return (
+    <Card className="animate-fade-in-up backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50" style={{ animationDelay: '300ms' }}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Route className="size-5 text-emerald-500" /> Active Routes
+            </CardTitle>
+            <CardDescription>Current route status overview</CardDescription>
+          </div>
+          <Button variant="ghost" size="sm" onClick={onNavigate}>
+            View All <ArrowUpRight className="size-3.5 ml-1" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="max-h-96 overflow-y-auto space-y-2" style={{ scrollbarWidth: 'thin', scrollbarColor: 'hsl(var(--muted-foreground) / 0.3) transparent' }}>
+          {routes.map((route, i) => (
+            <div
+              key={route.number}
+              className="flex items-center gap-3 rounded-xl border px-3 py-2.5 hover:bg-muted/40 transition-colors animate-fade-in-up"
+              style={{ animationDelay: `${350 + i * 60}ms` }}
+            >
+              <div className={`size-2.5 rounded-full shrink-0 ${route.dotColor}`}>
+                {route.status === 'On Time' && (
+                  <span className="absolute inline-flex size-2.5 animate-ping rounded-full opacity-50" style={{ backgroundColor: 'inherit' }} />
+                )}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold tabular-nums">{route.number}</span>
+                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold ${statusBadge(route.status)}`}>
+                    {route.status}
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate flex items-center gap-1">
+                  <MapPin className="size-3 shrink-0" />
+                  <span>{route.from}</span>
+                  <span className="text-muted-foreground/60">→</span>
+                  <span>{route.to}</span>
+                </p>
+              </div>
+              <Bus className="size-4 text-muted-foreground/60 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* ================================================================== */
 /*  Page: Dashboard                                                    */
 /* ================================================================== */
 function DashboardPage({
@@ -2053,14 +2434,6 @@ function DashboardPage({
     { icon: Wrench, text: 'Maintenance record updated for KA-01-1234', time: 'Yesterday, 11:00 AM', color: 'text-sky-500', dotColor: 'blue', timestamp: new Date(now.getTime() - 26 * 3600000) },
   ];
 
-  const healthItems = [
-    { icon: Wifi, label: 'API Status', value: 'Operational', status: 'healthy' },
-    { icon: Database, label: 'Database', value: 'Connected', status: 'healthy' },
-    { icon: Clock, label: 'Last Sync', value: lastSync || '—', status: 'neutral' },
-    { icon: Users, label: 'Active Users', value: '23', status: 'healthy' },
-    { icon: Server, label: 'Server Uptime', value: '99.7%', status: 'healthy' },
-  ];
-
   return (
     <div className="space-y-6">
       {/* STYLE: Welcome Banner */}
@@ -2118,10 +2491,30 @@ function DashboardPage({
       </div>
       </div>
 
-      {/* NEW: Operations Overview Bar Chart + System Health */}
+      {/* System Health + IST Clock */}
       <div className="page-section">
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card>
+        <SystemHealthPanel lastSync={lastSync} />
+        <ISTClockWidget />
+      </div>
+      </div>
+
+      {/* Recent Activity Feed + Active Routes */}
+      <div className="page-section">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <RecentActivityFeedWidget />
+        <ActiveRoutesPreview onNavigate={() => setPortal('routes')} />
+      </div>
+      </div>
+
+      {/* Today's Schedule Compact Table */}
+      <div className="page-section">
+      <TodayScheduleCompactTable />
+      </div>
+
+      {/* Weekly Schedule Completion Bar Chart */}
+      <div className="page-section">
+        <Card className="backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <BarChart3 className="size-5" /> Weekly Schedule Completion
@@ -2132,42 +2525,6 @@ function DashboardPage({
             <WeeklyBarChart />
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Activity className="size-5" /> System Health
-            </CardTitle>
-            <CardDescription>Real-time service status monitoring</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {healthItems.map((item) => (
-                <div
-                  key={item.label}
-                  className="flex items-center justify-between rounded-lg border px-4 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="rounded-lg bg-muted p-2 text-muted-foreground">
-                      <item.icon className="size-4" />
-                    </div>
-                    <span className="text-sm font-medium">{item.label}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm">{item.value}</span>
-                    {item.status === 'healthy' && (
-                      <span className="relative flex size-2">
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex size-2 rounded-full bg-emerald-500" />
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
       </div>
 
       {/* Live Fleet Tracker + Passenger Analytics */}

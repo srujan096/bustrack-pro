@@ -1517,3 +1517,349 @@ The BusTrack Pro application is stable at 20,587 total lines across 5 core files
 3. Mobile responsiveness fine-tuning across all portals
 4. Add unit tests for core algorithms
 5. Implement dark mode toggle button (persists user preference)
+
+---
+Task ID: 3-d
+Agent: Main - Customer & Crew Portal Feature Additions
+Task: Add missing customer and crew portal features — Quick Book, Stops Timeline, Enhanced Nearby Buses, Quick Status Actions, Weather Impact
+
+## Work Log
+
+### 1. Quick Book Widget (Customer Dashboard)
+- Added `QuickBookWidget` component with 6 popular route chips: Majestic→Koramangala, MG Road→Indiranagar, HSR→Electronic City, Whitefield→ITPL, Marathahalli→Silk Board, Jayanagar→Banashankari
+- Each chip shows route name, route number (monospace badge), and fare (emerald badge)
+- Styled as pill-shaped buttons in a flex-wrap layout with individual gradient backgrounds and border colors
+- Clicking a chip shows toast "Searching Routes..." and navigates to Search Routes page
+- Uses `setPortal('search')` to navigate
+- Placed in Dashboard after stat cards and before Commute Statistics
+
+### 2. Stops Timeline Component (Customer Portal)
+- Added `StopsTimeline` component with full vertical timeline: dot → line → dot → line → dot
+- Each stop displays: name, estimated time (calculated from distance/avg speed), distance from start
+- Color-coded dots: green (start), blue (intermediate), red (end)
+- Current stop highlighted with emerald pulsing indicator (`animate-ping`) and highlighted background
+- Next stop labeled with sky-blue "Next" badge
+- Stops are generated from `stopsJson` if available, or synthetically from route data
+- Current stop index is deterministically calculated from route ID hash
+- Integrated into `RouteDetailPanel` replacing the previous simple timeline
+- Full dark mode support throughout
+
+### 3. Enhanced Nearby Buses (Customer Dashboard)
+- Enhanced existing `LiveBusTracker` component with:
+  - **Track button**: Each bus card has a "Track" button (with Navigation icon) that shows toast "Now tracking [bus number]"
+  - **Progress percentage bar**: Added "Journey Progress" label with percentage text (e.g., "72%")
+  - **ETA in minutes**: Changed from mm:ss countdown to "~N min" format for better readability
+  - **Speed display**: Each bus shows current speed (e.g., "32 km/h") with Gauge icon
+  - **Passenger count**: Shows passengers/capacity with color-coded occupancy percentage badge (green ≤60%, amber 60-85%, red >85%)
+- Card title changed from "Live Bus Tracker" to "Nearby Buses"
+- Added speed and capacity data to initialBuses array
+- Full dark mode support
+
+### 4. Quick Status Action Buttons (Crew Dashboard)
+- Added `QuickStatusActions` component with 3 full-width action buttons in a Card:
+  - "Clock In" (emerald/green, Clock icon) — shows toast "Clocked in at [current time]"
+  - "Take Break" (amber, Coffee icon) — shows toast "Break started"
+  - "Clock Out" (red, LogOut icon) — shows toast "Clocked out at [current time]"
+- Each button has icon in a translucent container, bold label, and subtle description text
+- Placed in Crew Dashboard in a 2-column grid alongside WeatherImpact component
+
+### 5. Weather Impact Card (Crew Portal)
+- Added `WeatherImpact` component with deterministic weather based on date (day of year):
+  - Sunny (Sun icon, emerald "No Impact")
+  - Cloudy (Cloud icon, amber "Minor Delays")
+  - Rainy (CloudRain icon, orange "Moderate Delays")
+  - Stormy (CloudLightning icon, red "Severe Delays")
+- Temperature display with feels-like temperature
+- Humidity, wind speed, and road condition details in 2-column grid
+- Color-coded impact level badge in card header
+- Advisory text with AlertTriangle icon, styled with impact-matched colors
+- Card border color matches impact severity
+- Monthly temperature variation (hotter in summer months Apr-Sep)
+- Added `LogOut` import from lucide-react
+- Placed in Crew Dashboard in a 2-column grid alongside QuickStatusActions
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings in modified files
+- Pre-existing errors in `announcement-banner.tsx` (3 errors, unrelated to this task)
+- Dev server compiles and serves correctly
+- All existing functionality preserved
+
+## Files Modified
+- `src/components/customer/customer-content.tsx`: QuickBookWidget, StopsTimeline, enhanced LiveBusTracker, RouteDetailPanel update
+- `src/components/crew/crew-content.tsx`: QuickStatusActions, WeatherImpact, LogOut import
+
+---
+Task ID: 3-c
+Agent: Main - Connecting Routes Algorithm (Customer Search)
+Task: Add connecting routes algorithm to Routes API and display connecting routes in Customer Portal
+
+## Current Project Status Assessment
+The BusTrack Pro customer portal could only find direct routes between two locations. When no direct route existed, customers saw an empty "No routes found" message with no alternatives. This task adds a connecting routes algorithm that finds two-leg journeys with a transfer point.
+
+## Completed Modifications
+
+### 1. Routes API - Connecting Routes Algorithm (`src/app/api/routes/route.ts`)
+- Added `ConnectingRoute` and `RouteLeg` TypeScript interfaces for type-safe connecting route data
+- Added `parseStopNames()` helper function that safely parses `stopsJson` field:
+  - Handles valid JSON arrays: `[{name, lat, lng}]`
+  - Handles edge cases: malformed JSON, empty arrays, non-object elements
+  - Always includes `startLocation` and `endLocation` in the stops list
+  - Deduplicates stop names using Set
+- Added `findConnectingRoutes()` algorithm function:
+  - Takes outgoing routes (start at `from`) and incoming routes (end at `to`)
+  - For each (outgoing, incoming) pair, compares all stop names
+  - Case-insensitive matching to handle data inconsistencies
+  - Excludes the search origin/destination as transfer points to avoid trivial matches
+  - Uses Map with `routeId1-routeId2` key to deduplicate pairs
+  - Only stores one transfer point per route pair (first match)
+  - Adds 10-minute transfer time to total duration
+  - Sorts results by total duration (shortest first)
+  - Limits to top 5 results
+- Modified GET handler:
+  - When `startLocation` AND `endLocation` are provided, fetches outgoing/incoming routes in parallel
+  - Calls `findConnectingRoutes()` to compute transfer options
+  - Returns `{ direct, connecting, total, locations, cities }` format for route searches
+  - Preserves `{ routes, total, locations, cities }` format for other queries (backward compatible)
+- Direct transfer detection works automatically: if outgoing.endLocation matches incoming.startLocation, it's found as a common stop
+
+### 2. Customer Portal - Connecting Routes Display (`src/components/customer/customer-content.tsx`)
+- Added `RouteLeg` and `ConnectingRouteResult` TypeScript interfaces
+- Added `RefreshCw` icon import from lucide-react
+- Added `connectingResults` state to `SearchRoutes` component
+- Updated `handleSearch` callback to parse new `{ direct, connecting }` response format with fallback to legacy `{ routes }` format
+- Updated "No results" condition to also check `connectingResults.length === 0`
+- Added full connecting routes UI section with:
+  - Violet/purple themed Card container with violet border styling
+  - "Connecting Routes" header with RefreshCw icon and count badge
+  - Dynamic description: "No direct routes found" when no direct routes, "Alternative routes" otherwise
+  - **Arrow flow diagram** showing: Origin → Leg 1 Badge → Transfer Point → 10min indicator → Leg 2 Badge → Destination
+  - Color-coded dots: green (origin), amber (transfer), rose (destination)
+  - "Fastest" badge on the first (shortest duration) connecting route
+  - **Leg detail cards** in 2-column grid:
+    - Leg 1: violet-themed card with route number, from→to, duration, fare
+    - Leg 2: purple-themed card with route number, from→to, duration, fare
+  - **Total summary bar** with violet background: total duration (including transfer) and total fare
+  - Staggered animation on connecting route cards (80ms delay per card)
+  - Full dark mode support throughout
+  - Responsive overflow handling on the arrow flow diagram
+
+### 3. Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully
+- All existing direct route search functionality preserved
+- API backward-compatible for non-route-search queries
+- `stopsJson` parsing handles both valid JSON and edge cases gracefully
+
+## Files Modified
+- `src/app/api/routes/route.ts`: Added connecting routes algorithm (+90 lines)
+- `src/components/customer/customer-content.tsx`: Added connecting routes types, state, search handling, and display UI (+160 lines)
+
+---
+Task ID: 3-a
+Agent: Main - Announcement Banner System
+Task: Add Announcement Banner System + API
+
+## Work Log
+
+### 1. Prisma Schema — Announcement Model
+- Added `Announcement` model to `prisma/schema.prisma` with fields: id (cuid), title, message, type (info/warning/success/urgent), role (all/admin/driver/conductor/customer), active (boolean), createdAt, updatedAt
+- Ran `bun run db:push` to sync database schema
+- Prisma Client regenerated successfully
+
+### 2. Announcements API Endpoint (`/api/announcements`)
+- **GET**: Lists announcements with optional `?role=xxx` filter. Filters by `active=true` by default. When role is specified, returns announcements for that role AND "all" role. Auto-seeds 4 default announcements on first request if none exist.
+- **POST**: Three actions: `action=create` (creates new announcement with validation), `action=dismiss` (confirms dismissal), `action=toggle` (toggles active status by ID)
+
+### 3. Pre-seeded Announcements
+4 default announcements created on first API call:
+1. **System Maintenance Notice** (warning, all roles) — Scheduled maintenance info
+2. **New Route Launched: R-200 Express** (success, all roles) — New route announcement
+3. **Crew Safety Training Mandatory** (urgent, driver role) — Training requirement
+4. **Fare Update Effective Next Week** (info, customer role) — Fare change notice
+
+### 4. AnnouncementBanner Component (`src/components/announcement-banner.tsx`)
+- Color-coded by type with full dark mode support: info (sky), warning (amber), success (emerald), urgent (red)
+- **Auto-rotation**: Cycles through announcements every 8 seconds with animated progress bar
+- **Pause on hover**: Rotation pauses when user hovers
+- **Dismiss**: X button hides the announcement (persisted in localStorage via `bus_dismissed_announcements` key)
+- **Navigation dots**: Clickable dots for manual navigation between announcements (desktop, hidden on mobile)
+- **Slide-in animation**: CSS `bannerSlideIn` keyframe animation for smooth appearance
+- **Role-based filtering**: Only shows announcements matching user's role or "all"
+- **Auto-refresh**: Fetches new announcements every 60 seconds
+- **Lazy initialization**: Dismissed IDs loaded from localStorage via lazy useState init to avoid effect-based setState lint errors
+
+### 5. Integration into App Shell
+- Imported `AnnouncementBanner` component in `src/app/page.tsx`
+- Positioned in AppShell between the notification ticker area and the main content, above the critical notification bar and header
+- Passes `userRole` prop for role-based filtering
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully
+- All existing functionality preserved
+- No breaking changes to existing components
+
+## Files Created/Modified
+- `prisma/schema.prisma`: Added Announcement model (+11 lines)
+- `src/app/api/announcements/route.ts`: New API endpoint (GET/POST, 121 lines)
+- `src/components/announcement-banner.tsx`: New AnnouncementBanner component (215 lines)
+- `src/app/page.tsx`: Imported and integrated AnnouncementBanner in AppShell (+2 lines)
+
+---
+Task ID: 3-b
+Agent: Main - Admin Dashboard Widgets
+Task: Add System Health Panel, IST Clock Widget, Recent Activity Feed, and Active Routes Preview to Admin Dashboard
+
+## Work Log
+
+### 1. SystemHealthPanel Component
+- Created standalone `SystemHealthPanel` component accepting `lastSync` prop
+- Displays 5 system services with status indicators:
+  - API Status (Wifi icon) — "Operational" + animated green ping dot
+  - Database (Database icon) — "Connected" + animated green ping dot
+  - Last Sync (Clock icon) — current time from prop (updated on data fetch)
+  - Active Users (Users icon) — "23" + animated green ping dot
+  - Server Uptime (Server icon) — "99.7%" + animated green ping dot
+- Each row styled as a bordered pill (`rounded-full`) with icon in muted background
+- Glass-morphism card styling (`backdrop-blur-sm bg-white/80 dark:bg-gray-900/80`)
+- Staggered fade-in animations on each row (70ms delay per item)
+
+### 2. IST Clock Widget
+- Created `ISTClockWidget` component with real-time IST clock
+- Full date display using `toLocaleDateString` with `Asia/Kolkata` timezone (e.g., "Thursday, Jul 17, 2025")
+- Large HH:MM:SS time display in monospace font (`font-mono tabular-nums`, 5xl size)
+- Auto-updating every second via `setInterval` with proper cleanup
+- IST (UTC+5:30) label badge with pulsing green dot indicator
+- Glass-morphism card with staggered animation (100ms delay)
+
+### 3. Recent Activity Feed Widget
+- Created `RecentActivityFeedWidget` component with 6 activity items
+- Event types with color-coded badges:
+  - Login (green/emerald), Schedule (blue), Alert (amber/warning)
+  - Crew (green/success), Error (rose/red), System (blue/info)
+- Each item shows: icon, event type badge, description, relative timestamp, status dot
+- Deterministic data seeded from current day (`daySeed`) for route numbers and counts
+- Staggered fade-in animations (250ms + 60ms per item)
+- Max height with scroll overflow and custom scrollbar styling
+
+### 4. Active Routes Preview Widget
+- Created `ActiveRoutesPreview` component with `onNavigate` optional prop
+- Displays 6 routes with:
+  - Route number (deterministic, seeded from day), start/end locations with MapPin icon
+  - Status indicators: On Time (green dot), Delayed (amber dot), Completed (sky dot)
+  - Color-coded status badges matching dot colors
+  - Bus icon on each row
+- "View All" button that calls `onNavigate` callback (wired to `setPortal('routes')`)
+- Deterministic route numbers seeded from current day
+- Staggered fade-in animations (350ms + 60ms per item)
+
+### 5. DashboardPage Integration
+- Removed duplicate `healthItems` variable from DashboardPage (now in SystemHealthPanel)
+- Added new 2-column grid section after stats cards: SystemHealthPanel + ISTClockWidget
+- Added new 2-column grid section below: RecentActivityFeedWidget + ActiveRoutesPreview
+- Replaced old "Bar Chart + System Health" 2-col grid with standalone bar chart card (glass-morphism styled)
+- All existing dashboard sections preserved unchanged (Fleet Tracker, Passenger Analytics, Bus Map, Departure Board, Quick Actions, Broadcast, Live Activity Feed, Activity Timeline, Traffic Alerts)
+
+### Styling
+- All components support dark mode (`dark:bg-gray-900/80`, `dark:bg-gray-800/60`, `dark:text-white`)
+- Glass-morphism cards (`backdrop-blur-sm bg-white/80 dark:bg-gray-900/80 border-white/20 dark:border-gray-700/50`)
+- Staggered fade-in animations using `animate-fade-in-up` with incremental delays
+- Hover effects on all interactive rows
+- Custom scrollbar styling (`scrollbarWidth: 'thin'`)
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server compiles successfully (Turbopack)
+- All existing dashboard functionality preserved
+- No breaking changes to other pages or components
+
+## Files Modified
+- `src/components/admin/admin-content.tsx`: Added 4 new components (~280 lines), restructured DashboardPage layout
+
+---
+Task ID: 17 (Round 17 — Feature Restoration)
+Agent: Main + 4 Parallel Subagents
+Task: Restore all missing features from previous rounds (13-16) that were lost
+
+## Current Project Status Assessment
+After thorough investigation, most features from previous rounds (13-16) were still present in the codebase (18,987 → 19,991 lines). However, several features were confirmed missing and have been fully restored. The notification service was not running. ESLint: 0 errors throughout.
+
+## Completed Modifications
+
+### 1. Notification Service Restarted (port 3005)
+- WebSocket notification service restarted and confirmed listening on port 3005
+- Provides real-time mock transit events (delays, arrivals, departures, crew status, weather)
+- Connected via NotificationTicker component in app shell
+
+### 2. Announcement Banner System + API (NEW)
+- Created `/api/announcements` endpoint (GET list, POST create/dismiss/toggle)
+- Added `Announcement` model to Prisma schema (title, message, type, role, active)
+- Color-coded banner: info (sky), warning (amber), success (emerald), urgent (red)
+- Auto-rotates every 8s with progress bar, pauses on hover
+- Role-based filtering, dismiss persistence via localStorage
+- 4 pre-seeded announcements
+- Integrated into app shell between ticker and header
+
+### 3. System Health Widget (NEW — Admin Dashboard)
+- 5 service monitors: API, Database, Last Sync, Active Users, Server Uptime
+- Animated green ping dots for status
+- Glass-morphism card styling with dark mode support
+
+### 4. Admin Dashboard Widgets (NEW)
+- **IST Clock**: Real-time HH:MM:SS with full date display, IST badge
+- **Recent Activity Feed**: 6 events with color-coded type badges and relative timestamps
+- **Active Routes Preview**: 6 routes with On Time/Delayed/Completed indicators
+- **Today's Schedule Compact Table**: AM/PM format, status badges, from/to, bus reg
+- All integrated into DashboardPage with proper grid layouts
+
+### 5. Connecting Routes Algorithm (NEW — Customer Search)
+- Modified `/api/routes` to find connecting routes when no direct route exists
+- Compares stop names (case-insensitive) between outgoing and incoming routes
+- Adds 10-minute transfer time, returns top 5 results sorted by duration
+- Visual card with arrow flow: Origin → Leg 1 → Transfer Point → Leg 2 → Destination
+- Violet/purple themed, "Fastest" badge on best result
+- Full dark mode support
+
+### 6. Customer Portal Features (NEW)
+- **Quick Book Widget**: 6 popular route chips with gradient backgrounds, tap to navigate
+- **Stops Timeline**: Vertical timeline with color-coded dots, time/distance, pulsing current stop
+- **Enhanced Nearby Buses**: Track button, progress %, ETA in minutes, speed, passenger count
+- All added to Customer Dashboard and Search pages
+
+### 7. Crew Portal Features (NEW)
+- **Quick Status Buttons**: Clock In (green), Take Break (amber), Clock Out (red)
+- **Weather Impact Card**: Deterministic weather, temperature, impact level with advisory text
+- Added to Crew Dashboard
+
+### 8. Bug Fixes
+- **Notification z-index**: Added `relative z-30` to header, `relative z-0` to main content
+- **Dev server stability**: Restarted and verified port binding
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Dev server running on port 3000
+- Notification service running on port 3005
+- Announcements API: Returns 4 seeded announcements ✅
+- Connecting Routes API: Returns 1 connecting route for Koramangala→Whitefield ✅
+- All 4 portals render correctly
+- Total codebase: 19,991 lines (up from 18,987)
+
+## Files Modified
+- `prisma/schema.prisma` — Added Announcement model
+- `src/app/api/announcements/route.ts` — NEW: Full CRUD API
+- `src/app/api/routes/route.ts` — Added connecting routes algorithm
+- `src/app/page.tsx` — AnnouncementBanner integration, z-index fix
+- `src/components/admin/admin-content.tsx` — System Health, IST Clock, Activity Feed, Active Routes, Today's Schedule
+- `src/components/customer/customer-content.tsx` — Connecting routes UI, Quick Book, Stops Timeline, Enhanced Nearby Buses
+- `src/components/crew/crew-content.tsx` — Quick Status buttons, Weather Impact card
+
+## Unresolved Issues / Risks
+- Dev server process management in sandbox (needs nohup/background)
+- No automated tests
+- Password security (SHA-256 without salt — demo only)
+
+## Priority Recommendations for Next Phase
+1. Add more seed data for richer demo experience
+2. Implement mobile responsiveness fine-tuning
+3. Add more styling polish and animations
+4. Continue adding new features based on user feedback

@@ -115,6 +115,7 @@ import {
   ThumbsUp,
   Copy,
   Bell,
+  RefreshCw,
 } from 'lucide-react';
 
 // Dynamic leaflet imports to avoid SSR
@@ -185,6 +186,23 @@ interface Schedule {
   id: string;
   routeId: string;
   departureTime: string;
+}
+
+// Connecting route: { leg1, leg2, transferPoint, totalDurationMin, totalFare }
+interface RouteLeg {
+  routeNumber: string;
+  from: string;
+  to: string;
+  durationMin: number;
+  fare: number;
+}
+
+interface ConnectingRouteResult {
+  leg1: RouteLeg;
+  leg2: RouteLeg;
+  transferPoint: string;
+  totalDurationMin: number;
+  totalFare: number;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -634,29 +652,10 @@ function RouteDetailPanel({
     <div className="rounded-xl border bg-muted/20 p-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
       {/* Route timeline */}
       <div>
-        <p className="text-sm font-medium text-muted-foreground mb-3">Route Timeline</p>
-        <div className="relative">
-          <div className="absolute left-[11px] top-2 bottom-2 w-0.5 bg-gradient-to-b from-emerald-400 via-amber-400 to-red-400" />
-          <div className="space-y-3">
-            {displayStops.map((stop, idx) => {
-              const isFirst = idx === 0;
-              const isLast = idx === displayStops.length - 1;
-              const dotColor = isFirst
-                ? 'bg-emerald-500 ring-emerald-200 dark:ring-emerald-800'
-                : isLast
-                  ? 'bg-red-500 ring-red-200 dark:ring-red-800'
-                  : 'bg-amber-400 ring-amber-200 dark:ring-amber-800';
-              return (
-                <div key={idx} className="flex items-center gap-3 pl-1">
-                  <div className={`relative z-10 h-[10px] w-[10px] rounded-full shrink-0 ring-2 ${dotColor}`} />
-                  <span className={`text-sm ${isFirst || isLast ? 'font-medium' : 'text-muted-foreground'}`}>
-                    {stop.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
+        <p className="text-sm font-medium text-muted-foreground mb-3 flex items-center gap-1.5">
+          <Waypoints className="size-4" /> Route Stops
+        </p>
+        <StopsTimeline route={route} />
       </div>
 
       {/* Amenities */}
@@ -695,6 +694,196 @@ function RouteDetailPanel({
         )}
         Book Now — {formatCurrency(route.fare)}
       </Button>
+    </div>
+  );
+}
+
+// ─── Quick Book Widget ───────────────────────────────────────────────────────
+
+function QuickBookWidget({ onBook }: { onBook: (from: string, to: string) => void }) {
+  const quickRoutes = [
+    { routeNumber: 'BLR-101', from: 'Majestic', to: 'Koramangala', fare: 25 },
+    { routeNumber: 'BLR-215', from: 'MG Road', to: 'Indiranagar', fare: 20 },
+    { routeNumber: 'BLR-335', from: 'HSR', to: 'Electronic City', fare: 40 },
+    { routeNumber: 'BLR-501', from: 'Whitefield', to: 'ITPL', fare: 15 },
+    { routeNumber: 'BLR-402', from: 'Marathahalli', to: 'Silk Board', fare: 35 },
+    { routeNumber: 'BLR-128', from: 'Jayanagar', to: 'Banashankari', fare: 15 },
+  ];
+
+  const gradients = [
+    'from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40',
+    'from-sky-50 to-cyan-50 dark:from-sky-950/40 dark:to-cyan-950/40',
+    'from-amber-50 to-orange-50 dark:from-amber-950/40 dark:to-orange-950/40',
+    'from-violet-50 to-purple-50 dark:from-violet-950/40 dark:to-purple-950/40',
+    'from-rose-50 to-pink-50 dark:from-rose-950/40 dark:to-pink-950/40',
+    'from-teal-50 to-emerald-50 dark:from-teal-950/40 dark:to-emerald-950/40',
+  ];
+
+  const borderColors = [
+    'border-emerald-200 dark:border-emerald-800',
+    'border-sky-200 dark:border-sky-800',
+    'border-amber-200 dark:border-amber-800',
+    'border-violet-200 dark:border-violet-800',
+    'border-rose-200 dark:border-rose-800',
+    'border-teal-200 dark:border-teal-800',
+  ];
+
+  const dotColors = [
+    'bg-emerald-500 dark:bg-emerald-400',
+    'bg-sky-500 dark:bg-sky-400',
+    'bg-amber-500 dark:bg-amber-400',
+    'bg-violet-500 dark:bg-violet-400',
+    'bg-rose-500 dark:bg-rose-400',
+    'bg-teal-500 dark:bg-teal-400',
+  ];
+
+  return (
+    <Card className="card-lift">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2 text-base">
+          <Zap className="size-5 text-amber-500" />
+          Quick Book
+        </CardTitle>
+        <CardDescription>Tap a popular route to instantly search and book</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="flex flex-wrap gap-2">
+          {quickRoutes.map((r, i) => (
+            <button
+              key={r.routeNumber}
+              onClick={() => onBook(r.from, r.to)}
+              className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium transition-all hover:scale-105 hover:shadow-md active:scale-95 bg-gradient-to-r ${gradients[i]} ${borderColors[i]}`}
+            >
+              <div className={`h-2 w-2 rounded-full ${dotColors[i]}`} />
+              <span className="text-foreground">{r.from} → {r.to}</span>
+              <span className="ml-1 rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-mono text-primary">{r.routeNumber}</span>
+              <span className="ml-1 rounded-full bg-emerald-100 dark:bg-emerald-900/50 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">{formatCurrency(r.fare)}</span>
+            </button>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Stops Timeline ──────────────────────────────────────────────────────────
+
+function StopsTimeline({ route }: { route: RouteResult }) {
+  const stops = useMemo(() => {
+    if (!route.stopsJson) return [];
+    try {
+      return JSON.parse(route.stopsJson) as { name: string; lat?: number; lng?: number }[];
+    } catch {
+      return [];
+    }
+  }, [route.stopsJson]);
+
+  const displayStops = useMemo(() => {
+    if (stops.length > 0) return stops.slice(0, 10);
+    const fake = [{ name: route.startLocation, distance: 0 }];
+    const midCount = Math.min(8, Math.max(3, Math.floor((route.distanceKm ?? 10) / 4)));
+    for (let i = 1; i <= midCount; i++) {
+      const dist = Math.round(((route.distanceKm ?? 10) / (midCount + 1)) * i * 10) / 10;
+      fake.push({ name: `Stop ${i}`, distance: dist });
+    }
+    fake.push({ name: route.endLocation, distance: route.distanceKm ?? 10 });
+    return fake;
+  }, [stops, route]);
+
+  // Determine current stop index deterministically from route ID
+  const currentStopIdx = useMemo(() => {
+    let hash = 0;
+    for (let i = 0; i < route.id.length; i++) {
+      hash = ((hash << 5) - hash + route.id.charCodeAt(i)) | 0;
+    }
+    return Math.abs(hash) % Math.max(1, displayStops.length - 2) + 1;
+  }, [route.id, displayStops.length]);
+
+  const totalDist = route.distanceKm ?? 10;
+
+  return (
+    <div className="space-y-0">
+      <div className="relative">
+        {/* Vertical connecting line */}
+        <div className="absolute left-[9px] top-3 bottom-3 w-0.5 bg-gradient-to-b from-emerald-400 via-blue-400 to-red-400 dark:from-emerald-500 dark:via-blue-500 dark:to-red-500" />
+
+        <div className="space-y-4">
+          {displayStops.map((stop, idx) => {
+            const isFirst = idx === 0;
+            const isLast = idx === displayStops.length - 1;
+            const isCurrent = idx === currentStopIdx;
+            const isNext = idx === currentStopIdx + 1;
+
+            // Calculate estimated time (cumulative based on distance)
+            const dist = stop.distance ?? (isFirst ? 0 : isLast ? totalDist : Math.round((totalDist / (displayStops.length - 1)) * idx * 10) / 10);
+            const avgSpeed = 30; // km/h
+            const timeMinutes = isFirst ? 0 : Math.round((dist / avgSpeed) * 60);
+            const baseHour = 8;
+            const baseMin = 30;
+            const totalMin = baseHour * 60 + baseMin + timeMinutes;
+            const hour = Math.floor(totalMin / 60) % 24;
+            const min = totalMin % 60;
+            const timeStr = `${String(hour).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+
+            let dotColor = 'bg-blue-500 dark:bg-blue-400 ring-blue-200 dark:ring-blue-800';
+            let textColor = 'text-muted-foreground';
+            if (isFirst) {
+              dotColor = 'bg-emerald-500 dark:bg-emerald-400 ring-emerald-200 dark:ring-emerald-800';
+              textColor = 'text-emerald-700 dark:text-emerald-300 font-medium';
+            } else if (isLast) {
+              dotColor = 'bg-red-500 dark:bg-red-400 ring-red-200 dark:ring-red-800';
+              textColor = 'text-red-700 dark:text-red-300 font-medium';
+            }
+
+            return (
+              <div key={idx} className="relative flex items-start gap-3 pl-0.5">
+                {/* Dot */}
+                <div className="relative z-10 mt-1.5 shrink-0">
+                  {isCurrent ? (
+                    <div className="relative">
+                      <span className="absolute -top-1 -left-1 flex h-6 w-6 animate-ping rounded-full bg-emerald-400/40" />
+                      <div className="relative h-4 w-4 rounded-full bg-emerald-500 dark:bg-emerald-400 ring-[3px] ring-emerald-200 dark:ring-emerald-800 shadow-md shadow-emerald-200 dark:shadow-emerald-900" />
+                    </div>
+                  ) : (
+                    <div className={`h-4 w-4 rounded-full ring-2 ${dotColor} ${isFirst || isLast ? 'shadow-sm' : ''}`} />
+                  )}
+                </div>
+
+                {/* Stop details */}
+                <div className={`flex-1 min-w-0 pb-1 ${isCurrent ? 'bg-emerald-50 dark:bg-emerald-950/30 rounded-lg px-3 py-2 -ml-1' : ''}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className={`text-sm truncate ${textColor}`}>
+                        {typeof stop === 'string' ? stop : stop.name}
+                      </span>
+                      {isCurrent && (
+                        <Badge className="shrink-0 text-[9px] bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300 dark:border-emerald-800">
+                          Current
+                        </Badge>
+                      )}
+                      {isNext && (
+                        <Badge className="shrink-0 text-[9px] bg-sky-100 text-sky-700 border-sky-200 dark:bg-sky-900/50 dark:text-sky-300 dark:border-sky-800">
+                          Next
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-0.5 text-[11px] text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <Clock className="size-3" />
+                      {isFirst ? 'Depart' : timeStr}
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Navigation className="size-3" />
+                      {isFirst ? '0 km' : isLast ? `${totalDist} km` : `${dist} km`}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1065,9 +1254,9 @@ function QuickTripPlanner({ onFindRoutes }: { onFindRoutes: (from: string, to: s
 
 function LiveBusTracker() {
   const initialBuses = useMemo(() => [
-    { number: 'KA-01-4521', route: 'Route 500', etaStart: 300, status: 'on-time' as const, progress: 72, color: 'bg-emerald-500' },
-    { number: 'KA-01-7832', route: 'Route 215', etaStart: 480, status: 'delayed' as const, progress: 45, color: 'bg-amber-500' },
-    { number: 'KA-03-1190', route: 'Route 335', etaStart: 120, status: 'boarding' as const, progress: 90, color: 'bg-sky-500' },
+    { number: 'KA-01-4521', route: 'Route 500', etaStart: 300, status: 'on-time' as const, progress: 72, color: 'bg-emerald-500', speed: 32, passengers: 38, capacity: 55 },
+    { number: 'KA-01-7832', route: 'Route 215', etaStart: 480, status: 'delayed' as const, progress: 45, color: 'bg-amber-500', speed: 18, passengers: 51, capacity: 55 },
+    { number: 'KA-03-1190', route: 'Route 335', etaStart: 120, status: 'boarding' as const, progress: 90, color: 'bg-sky-500', speed: 5, passengers: 22, capacity: 40 },
   ], []);
 
   const [etas, setEtas] = useState<Record<number, number>>(() => {
@@ -1107,12 +1296,19 @@ function LiveBusTracker() {
 
   const isPulsing = (status: string) => status === 'on-time' || status === 'boarding';
 
+  const handleTrack = (busNumber: string) => {
+    toast({
+      title: 'Tracking Bus',
+      description: `Now tracking ${busNumber} in real-time`,
+    });
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <BusFront className="size-5 text-primary" />
-          Live Bus Tracker
+          Nearby Buses
           <span className="ml-auto flex items-center gap-1 text-xs font-normal text-muted-foreground">
             <span className="relative flex h-2 w-2">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
@@ -1127,45 +1323,86 @@ function LiveBusTracker() {
         {initialBuses.map((bus, i) => {
           const s = statusLabel[bus.status] ?? statusLabel['on-time'];
           const etaSec = etas[bus.etaStart] ?? bus.etaStart;
+          const etaMin = Math.ceil(etaSec / 60);
+          const occupancyPct = Math.round((bus.passengers / bus.capacity) * 100);
           return (
             <div key={i} className="rounded-lg border p-3 transition-colors hover:bg-muted/30 dark:hover:bg-muted/10">
+              {/* Top row: bus number, status, track button */}
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <div className="relative">
                     <Bus className="size-4 text-muted-foreground" />
                     {isPulsing(bus.status) && (
-                      <span className={`absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5`}
-                        >
+                      <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
                         <span className={`absolute inline-flex h-full w-full animate-ping rounded-full ${s.dotCls} opacity-75`} />
                         <span className={`relative inline-flex h-2 w-2 rounded-full ${s.dotCls}`} />
                       </span>
                     )}
                   </div>
                   <span className="text-sm font-mono font-semibold">{bus.number}</span>
+                  <Badge variant="outline" className={`text-[10px] font-semibold ${s.cls}`}>{s.text}</Badge>
                 </div>
-                <Badge variant="outline" className={`text-[10px] font-semibold ${s.cls}`}>{s.text}</Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 gap-1 text-[10px] border-primary/30 text-primary hover:bg-primary hover:text-primary-foreground"
+                  onClick={() => handleTrack(bus.number)}
+                >
+                  <Navigation className="size-3" /> Track
+                </Button>
               </div>
+
+              {/* Route and ETA */}
               <div className="flex items-center justify-between text-xs text-muted-foreground mb-2">
                 <span>{bus.route}</span>
-                <span className={`flex items-center gap-1 font-mono tabular-nums ${etaSec < 60 ? 'text-rose-600 dark:text-rose-400 font-semibold' : ''}`}>
-                  <Hourglass className="size-3" /> ETA {etaSec > 0 ? formatEta(etaSec) : 'Arriving!'}
+                <span className={`flex items-center gap-1 font-mono tabular-nums ${etaMin <= 2 ? 'text-rose-600 dark:text-rose-400 font-semibold' : ''}`}>
+                  <Hourglass className="size-3" /> {etaSec > 0 ? `~${etaMin} min` : 'Arriving!'}
                 </span>
               </div>
-              <div className="relative h-2 w-full rounded-full bg-muted dark:bg-muted/50">
-                <div
-                  className={`absolute left-0 top-0 h-2 rounded-full transition-all duration-1000 ${bus.color}`}
-                  style={{ width: `${bus.progress}%` }}
-                />
-                <div
-                  className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-all duration-1000 ${bus.color}`}
-                  style={{ left: `calc(${bus.progress}% - 6px)` }}
-                />
-                {isPulsing(bus.status) && (
+
+              {/* Progress bar with percentage */}
+              <div className="mb-2">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[10px] text-muted-foreground">Journey Progress</span>
+                  <span className="text-[10px] font-mono font-semibold text-muted-foreground">{bus.progress}%</span>
+                </div>
+                <div className="relative h-2 w-full rounded-full bg-muted dark:bg-muted/50">
                   <div
-                    className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full ${s.dotCls} opacity-20 animate-ping`}
-                    style={{ left: `calc(${bus.progress}% - 10px)` }}
+                    className={`absolute left-0 top-0 h-2 rounded-full transition-all duration-1000 ${bus.color}`}
+                    style={{ width: `${bus.progress}%` }}
                   />
-                )}
+                  <div
+                    className={`absolute top-1/2 -translate-y-1/2 h-3 w-3 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-all duration-1000 ${bus.color}`}
+                    style={{ left: `calc(${bus.progress}% - 6px)` }}
+                  />
+                  {isPulsing(bus.status) && (
+                    <div
+                      className={`absolute top-1/2 -translate-y-1/2 h-5 w-5 rounded-full ${s.dotCls} opacity-20 animate-ping`}
+                      style={{ left: `calc(${bus.progress}% - 10px)` }}
+                    />
+                  )}
+                </div>
+              </div>
+
+              {/* Speed, Passengers info row */}
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <Gauge className="size-3" />
+                  {bus.speed} km/h
+                </span>
+                <span className="flex items-center gap-1">
+                  <Users className="size-3" />
+                  {bus.passengers}/{bus.capacity}
+                  <span className={`ml-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-semibold ${
+                    occupancyPct > 85
+                      ? 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300'
+                      : occupancyPct > 60
+                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-300'
+                        : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/50 dark:text-emerald-300'
+                  }`}>
+                    {occupancyPct}%
+                  </span>
+                </span>
               </div>
             </div>
           );
@@ -2096,6 +2333,15 @@ function Dashboard({
         ))}
       </div>
 
+      {/* Quick Book Widget */}
+      <QuickBookWidget onBook={(from, to) => {
+        toast({
+          title: 'Searching Routes...',
+          description: `Finding routes from ${from} to ${to}`,
+        });
+        setPortal('search');
+      }} />
+
       {/* Commute Statistics */}
       <CommuteStatistics userId={userId} />
 
@@ -2466,6 +2712,7 @@ function SearchRoutes({
   const [seatSelectionRoute, setSeatSelectionRoute] = useState<RouteResult | null>(null);
   const [sortBy, setSortBy] = useState('price-asc');
   const [activeFilters, setActiveFilters] = useState<Set<string>>(new Set());
+  const [connectingResults, setConnectingResults] = useState<ConnectingRouteResult[]>([]);
 
   const toggleFilter = useCallback((filter: string) => {
     setActiveFilters(prev => {
@@ -2544,7 +2791,14 @@ function SearchRoutes({
       const res = await fetch(`/api/routes?${params.toString()}`);
       if (!res.ok) throw new Error('Failed to search routes');
       const data = await res.json();
-      setResults(data.routes ?? []);
+      // Handle new response format: { direct, connecting } or legacy { routes }
+      if (data.direct !== undefined) {
+        setResults(data.direct ?? []);
+        setConnectingResults(data.connecting ?? []);
+      } else {
+        setResults(data.routes ?? []);
+        setConnectingResults([]);
+      }
       setSelectedForCompare(new Set());
       setShowComparison(false);
       setExpandedRouteId(null);
@@ -3049,8 +3303,160 @@ function SearchRoutes({
         </Card>
       )}
 
+      {/* Connecting Routes */}
+      {connectingResults.length > 0 && (
+        <Card className="border-violet-200 dark:border-violet-800">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <RefreshCw className="size-5 text-violet-500" />
+              Connecting Routes
+              <Badge className="ml-2 bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/50 dark:border-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/50">
+                {connectingResults.length} option{connectingResults.length > 1 ? 's' : ''}
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              {results.length > 0
+                ? 'Alternative routes with one transfer'
+                : 'No direct routes found. Here are routes with one transfer'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="max-h-[500px] overflow-y-auto space-y-3">
+              {connectingResults.map((cr, idx) => (
+                <div
+                  key={`conn-${cr.leg1.routeNumber}-${cr.leg2.routeNumber}-${idx}`}
+                  className="rounded-xl border border-violet-200 bg-gradient-to-br from-violet-50/50 to-purple-50/50 p-4 dark:border-violet-800/60 dark:from-violet-950/20 dark:to-purple-950/20 animate-in fade-in slide-in-from-top-2 duration-300"
+                  style={{ animationDelay: `${idx * 80}ms` }}
+                >
+                  {/* Header badge */}
+                  <div className="flex items-center justify-between mb-3">
+                    <Badge className="bg-violet-500 text-white border-0 gap-1">
+                      <RefreshCw className="size-3" />
+                      Connecting Route (1 Transfer)
+                    </Badge>
+                    {idx === 0 && (
+                      <Badge className="bg-gradient-to-r from-violet-500 to-purple-500 text-white border-0 text-[10px]">
+                        <Sparkles className="size-3 mr-1" /> Fastest
+                      </Badge>
+                    )}
+                  </div>
+
+                  {/* Arrow flow diagram */}
+                  <div className="flex items-center gap-1 overflow-x-auto pb-2 text-sm">
+                    {/* Origin */}
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      <div className="h-3 w-3 rounded-full bg-emerald-500 ring-2 ring-emerald-200 dark:ring-emerald-800" />
+                      <span className="text-xs font-medium max-w-[80px] text-center truncate">{cr.leg1.from}</span>
+                    </div>
+
+                    {/* Leg 1 arrow */}
+                    <div className="flex items-center shrink-0">
+                      <div className="h-0.5 w-4 bg-violet-300 dark:bg-violet-700" />
+                      <Badge variant="outline" className="mx-1 text-[10px] font-mono border-violet-300 text-violet-700 dark:border-violet-600 dark:text-violet-300 shrink-0">
+                        {cr.leg1.routeNumber}
+                      </Badge>
+                      <div className="h-0.5 w-4 bg-violet-300 dark:bg-violet-700" />
+                    </div>
+
+                    {/* Transfer Point */}
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      <div className="h-3 w-3 rounded-full bg-amber-400 ring-2 ring-amber-200 dark:ring-amber-800" />
+                      <span className="text-xs font-medium max-w-[90px] text-center text-amber-700 dark:text-amber-300 truncate">{cr.transferPoint}</span>
+                    </div>
+
+                    {/* Transfer time indicator */}
+                    <div className="flex flex-col items-center gap-0 shrink-0 mx-0.5">
+                      <ArrowRight className="size-3 text-muted-foreground rotate-90" />
+                      <span className="text-[10px] text-muted-foreground whitespace-nowrap">10 min</span>
+                    </div>
+
+                    {/* Leg 2 arrow */}
+                    <div className="flex items-center shrink-0">
+                      <div className="h-0.5 w-4 bg-violet-300 dark:bg-violet-700" />
+                      <Badge variant="outline" className="mx-1 text-[10px] font-mono border-violet-300 text-violet-700 dark:border-violet-600 dark:text-violet-300 shrink-0">
+                        {cr.leg2.routeNumber}
+                      </Badge>
+                      <div className="h-0.5 w-4 bg-violet-300 dark:bg-violet-700" />
+                    </div>
+
+                    {/* Destination */}
+                    <div className="flex flex-col items-center gap-1 shrink-0">
+                      <div className="h-3 w-3 rounded-full bg-rose-500 ring-2 ring-rose-200 dark:ring-rose-800" />
+                      <span className="text-xs font-medium max-w-[80px] text-center truncate">{cr.leg2.to}</span>
+                    </div>
+                  </div>
+
+                  {/* Leg details */}
+                  <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {/* Leg 1 details */}
+                    <div className="rounded-lg border border-violet-200/60 bg-white/50 p-3 dark:border-violet-700/40 dark:bg-black/20">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Bus className="size-4 text-violet-500" />
+                        <span className="text-xs font-semibold text-violet-700 dark:text-violet-300">Leg 1</span>
+                        <Badge variant="outline" className="text-[10px] font-mono border-violet-200 dark:border-violet-700">{cr.leg1.routeNumber}</Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{cr.leg1.from}</span>
+                        <ArrowRight className="size-3" />
+                        <span>{cr.leg1.to}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="size-3" />{formatDuration(cr.leg1.durationMin)}
+                        </span>
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                          <IndianRupee className="size-3" />{cr.leg1.fare}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Leg 2 details */}
+                    <div className="rounded-lg border border-purple-200/60 bg-white/50 p-3 dark:border-purple-700/40 dark:bg-black/20">
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <Bus className="size-4 text-purple-500" />
+                        <span className="text-xs font-semibold text-purple-700 dark:text-purple-300">Leg 2</span>
+                        <Badge variant="outline" className="text-[10px] font-mono border-purple-200 dark:border-purple-700">{cr.leg2.routeNumber}</Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span>{cr.leg2.from}</span>
+                        <ArrowRight className="size-3" />
+                        <span>{cr.leg2.to}</span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1.5 text-xs">
+                        <span className="flex items-center gap-1 text-muted-foreground">
+                          <Clock className="size-3" />{formatDuration(cr.leg2.durationMin)}
+                        </span>
+                        <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-medium">
+                          <IndianRupee className="size-3" />{cr.leg2.fare}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Total summary bar */}
+                  <div className="mt-3 flex items-center justify-between rounded-lg bg-violet-100/70 px-4 py-2.5 dark:bg-violet-900/30">
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <Clock className="size-4" />
+                        <span className="font-semibold text-foreground">{formatDuration(cr.totalDurationMin)}</span>
+                        <span className="text-xs">total (incl. transfer)</span>
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <IndianRupee className="size-4 text-violet-600 dark:text-violet-400" />
+                      <span className="text-lg font-bold text-violet-700 dark:text-violet-300">{formatCurrency(cr.totalFare)}</span>
+                      <span className="text-xs text-muted-foreground ml-1">total fare</span>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* No results */}
-      {!searching && !loading && results.length === 0 && startLocation && endLocation && !error && (
+      {!searching && !loading && results.length === 0 && connectingResults.length === 0 && startLocation && endLocation && !error && (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <Search className="mb-3 size-12 text-muted-foreground/30" />
