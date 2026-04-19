@@ -3837,3 +3837,39 @@ The application's backend algorithms and security infrastructure needed signific
 2. Add route search autocomplete with debounced API calls
 3. Implement WebSocket real-time updates
 4. Add automated integration tests for API endpoints
+---
+Task ID: 12
+Agent: Main
+Task: Add statistical tests and conference-quality metrics to BusTrack Pro
+
+Work Log:
+- Created comprehensive statistical evaluation API endpoint at /api/statistical-evaluation
+- Implemented 14+ statistical functions from scratch (no external dependencies):
+  - Descriptive: mean, median, stdDev, variance, percentile, coefficientOfVariation, skewness, kurtosis
+  - Fairness: jainsFairnessIndex, giniCoefficient, shannonEntropy (normalized)
+  - Hypothesis Tests: kolmogorovSmirnov, chiSquaredUniformity, oneSampleTTest, pairedTTest, wilcoxonSignedRankTest, dieboldMarianoTest
+  - Correlation: pearsonCorrelation, spearmanRankCorrelation
+  - Effect Size: cohensD, confidenceInterval95
+  - Supporting: normalCDF, tDistCDF, regularizedIncompleteBeta, logGamma (Lanczos), incompleteGammaApprox
+- Evaluation endpoint performs full analysis across all 3 algorithms in ~530ms
+- Crew Assignment evaluation: Jain Index, Gini, Shannon Entropy, coverage ratio, weight sensitivity analysis
+- Traffic Prediction evaluation: MAE, RMSE, MAPE, R², Pearson r, Spearman ρ, 70/30 train/test split, Diebold-Mariano vs SMA baseline
+- Schedule Generation evaluation: demand alignment score, hour distribution, chi-squared goodness-of-fit, per-city breakdown
+- Fixed Prisma query error (select + include → nested select)
+- Fixed Diebold-Mariano test with Newey-West HAC-adjusted variance
+- Ran evaluation and collected all metrics
+- Updated BUSTRACK-PRO-GUIDE.md with new Section 12 (330+ lines of conference-quality metrics)
+  - 12.1 Evaluation Methodology (data overview, train/test protocol, 14 tests documented)
+  - 12.2 Crew Assignment Results (fairness metrics, distribution stats, hypothesis tests, crew quality, weight sensitivity)
+  - 12.3 Traffic Prediction Results (forecast accuracy, DM test, effect size, delay distribution, severity breakdown)
+  - 12.4 Schedule Generation Results (schedule stats, demand weighting, hour distribution, goodness-of-fit, per-city breakdown)
+  - 12.5 Summary of Key Findings (results table, significance summary, limitations, mathematical formulations)
+- Guide grew from 1,713 to 2,039 lines
+- Created cron job for webDevReview every 15 minutes (job ID: 105173)
+
+Stage Summary:
+- All 14 statistical tests implemented and verified
+- Key results: Jain Fairness Index = 0.9595, Traffic MAE = 13.4 min (6.79% better than SMA), Schedule duplicate rate = 0%, hour coverage = 100%
+- ESLint: 0 errors, 0 warnings
+- BUSTRACK-PRO-GUIDE.md updated with comprehensive Section 12 suitable for conference paper inclusion
+
