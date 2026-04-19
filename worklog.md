@@ -3724,3 +3724,116 @@ BusTrack Pro is stable and fully functional. ESLint: 0 errors. Turbopack compile
 3. Add automated tests for core algorithms
 4. Add mobile responsiveness fine-tuning
 5. Implement notification preferences per user
+
+---
+Task ID: 9
+Agent: Main - Algorithm & Infrastructure Upgrade
+Task: 6 major backend changes — new scoring formula, Holt's DES, demand-weighted schedules, bcrypt auth, rate limiting, validation seed
+
+## Current Project Status Assessment
+The application's backend algorithms and security infrastructure needed significant upgrades. The crew assignment used a simple 2-factor scoring, traffic prediction used basic SES without trend detection, schedule generation used fixed frequency regardless of demand, password hashing was insecure (SHA-256 without salt), and there was no rate limiting on expensive operations.
+
+## Completed Modifications
+
+### 1. Crew Auto-Assign: 3-Factor Scoring with Experience (`/api/crew/route.ts`)
+- **Old formula**: Score = 0.6 × Fairness + 0.4 × Performance
+- **New formula**: Score(c) = 0.5 × Fairness(c) + 0.3 × Performance(c) + 0.2 × Experience(c)
+- Experience(c) = Math.min(experienceYears / 10, 1.0) — caps at 1.0 for 10+ years
+- Added `experienceYears` to Prisma select query (removed conflicting `include`)
+- Returns new metric: `avgExperienceScore` alongside `jainsIndex`
+- **Test result**: jainsIndex=0.936, avgExperienceScore=0.729, 590 maxHoursViolations
+
+### 2. Traffic Prediction: Holt's Double Exponential Smoothing (`/api/traffic-predict/route.ts`)
+- **Replaced**: Simple Exponential Smoothing (SES) with α=0.3
+- **New algorithm**: Holt's DES with α=0.3 (level), β=0.1 (trend)
+  - Lₜ = α × d[t] + (1-α) × (Lₜ₋₁ + Tₜ₋₁)
+  - Tₜ = β × (Lₜ - Lₜ₋₁) + (1-β) × Tₜ₋₁
+  - Forecast: F = L + T
+- Kept same time-of-day multiplier table (peak=1.4, off-peak=0.8)
+- Kept same fallback logic (<3 data points → route traffic level)
+- Changed `method` field to `"holt_des"`
+- Returns new fields: `trendComponent: T`, `smoothedBase: L`
+- **Test result**: method="holt_des", smoothedBase=22.2, trendComponent=1.2
+
+### 3. Demand-Weighted Schedule Generation (`/api/schedules/route.ts`)
+- **Old behavior**: Fixed `frequencyMinutes` step for all hours
+- **New behavior**: Hour-dependent effective frequency:
+  - δ=1.5 for peak hours (7-9, 17-19) → more frequent service
+  - δ=0.8 for midday (10-16) → less frequent service
+  - δ=1.0 for all other hours → standard frequency
+  - effectiveFrequency = Math.max(1, Math.round(baseFrequency / delta))
+- Returns `demandWeighted: true` in response stats
+- **Test result**: 1,899 schedules created, 995 duplicates skipped
+
+### 4. bcrypt Password Hashing (`/api/auth/route.ts` + `prisma/seed.ts`)
+- **Replaced**: SHA-256 (crypto.createHash) for all password operations
+- **New**: bcrypt with saltRounds=10
+  - `hashPassword()` now async: `bcrypt.hash(password, SALT_ROUNDS)`
+  - New `comparePassword()`: `bcrypt.compare(password, hash)`
+- Updated both auth route (login/register) and seed script
+- Installed packages: `bcrypt@6.0.0` + `@types/bcrypt@6.0.0`
+- **Test result**: Login with bcrypt: ✅, Wrong password: ✅ (properly rejected)
+
+### 5. Rate Limiter Utility (`src/lib/rate-limit.ts`)
+- In-memory sliding window rate limiter
+- Tracks `{ identifier:action → { count, windowStart } }`
+- Max 5 calls per 10 seconds per token+action
+- Auto-cleanup of stale entries every 60 seconds
+- Applied to 3 endpoints: autoAssign, generate (schedules), traffic-predict
+- Returns HTTP 429 with `{ error: "Too many requests, please wait." }`
+- Falls back to `anon` identifier for unauthenticated requests
+- **Test result**: Calls 1-5 succeed, call 6 returns 429 ✅
+
+### 6. Validation Seed Dataset (`prisma/seed-validation.ts`)
+- Lehmer/Park-Miller PRNG with seed=99 (separate from main seed's 42)
+- Reads existing routes from DB (does not create new routes/users)
+- Generates ~6 TrafficAlert records per route (115 routes × 6 = 690 alerts)
+- Types: congestion, accident, road_closure, weather (with severity-based delays)
+- Spread across last 30 days, ~60% resolved, ~40% open
+- Script: `bun run db:seed-validation`
+- Added to package.json: `"db:seed-validation": "bun prisma/seed-validation.ts"`
+
+### 7. Documentation Updates (`BUSTRACK-PRO-GUIDE.md`)
+- Updated Section 5.1: Demand-weighted frequency with algorithm description and delta table
+- Updated Section 5.2: Three-factor scoring formula with response metrics table
+- Updated Section 5.3: Holt's DES formulas with response metrics table
+- Updated Section 8.1: bcrypt code sample and security explanation
+- Added new Section 9: Security & Infrastructure (rate limiting + validation dataset)
+- Renumbered Sections 10 (Seed Data) and 11 (File Structure)
+- Updated Table of Contents
+- Updated Profile schema docs (password field → bcrypt description)
+- Updated auth API docs (login → bcrypt comparison)
+
+## Verification Results
+- ESLint: 0 errors, 0 warnings
+- Database reseeded with bcrypt passwords (205 accounts)
+- Validation seed run: 690 TrafficAlert records created
+- All 6 API endpoints tested via curl:
+  1. Login (bcrypt): ✅ returns user + token
+  2. Wrong password: ✅ returns "Invalid email or password"
+  3. Auto-Assign: ✅ returns jainsIndex=0.936, avgExperienceScore=0.729
+  4. Schedule Generate: ✅ returns demandWeighted=true, 1899 created
+  5. Traffic Predict: ✅ returns method="holt_des", trendComponent=1.2
+  6. Rate Limiting: ✅ calls 1-5 succeed, call 6 returns 429
+
+## Files Modified
+- `src/app/api/crew/route.ts`: New 3-factor scoring, rate limiting
+- `src/app/api/traffic-predict/route.ts`: Holt's DES, rate limiting
+- `src/app/api/schedules/route.ts`: Demand-weighted frequency, rate limiting
+- `src/app/api/auth/route.ts`: bcrypt hashing + comparison
+- `src/lib/rate-limit.ts`: New rate limiter utility
+- `prisma/seed.ts`: bcrypt password hashing, supportTicket cleanup
+- `prisma/seed-validation.ts`: New validation seed script
+- `package.json`: bcrypt deps + db:seed-validation script
+- `BUSTRACK-PRO-GUIDE.md`: Algorithm docs, auth docs, new sections
+
+## Unresolved Issues / Risks
+1. Dev server stability: Process dies intermittently (sandbox limitation)
+2. No automated tests for new algorithms
+3. Rate limiter is in-memory only (resets on server restart)
+
+## Priority Recommendations for Next Phase
+1. Add unit tests for Holt's DES, 3-factor scoring, demand-weighted frequency
+2. Add route search autocomplete with debounced API calls
+3. Implement WebSocket real-time updates
+4. Add automated integration tests for API endpoints

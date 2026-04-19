@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { rateLimit } from '@/lib/rate-limit';
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
@@ -30,6 +31,15 @@ export async function POST(request: NextRequest) {
 
     // AUTO-ASSIGN CREW - Greedy Multi-Criteria Scoring with Jain's Fairness Index
     if (body.action === 'autoAssign') {
+      // Rate limit: max 5 calls per 10 seconds per token
+      const rateLimitResult = rateLimit(body.token, 'autoAssign', 5, 10000);
+      if (!rateLimitResult.allowed) {
+        return NextResponse.json(
+          { error: 'Too many requests, please wait.' },
+          { status: 429 }
+        );
+      }
+
       const startTime = Date.now();
       const targetDate = body.date || new Date().toISOString().split('T')[0];
 
@@ -45,21 +55,44 @@ export async function POST(request: NextRequest) {
           success: true,
           assignmentsCreated: 0,
           jainsIndex: 1.0,
+          avgExperienceScore: 0,
           maxHoursViolations: 0,
           executionTimeMs: Date.now() - startTime,
           message: 'No unassigned schedules found',
         });
       }
 
-      // Get available crew
+      // Get available crew (include experienceYears in query)
       const drivers = await db.crewProfile.findMany({
         where: { specialization: 'driver', availability: 'available' },
-        include: { profile: true },
+        select: {
+          id: true,
+          profileId: true,
+          specialization: true,
+          licenseNo: true,
+          experienceYears: true,
+          performanceRating: true,
+          availability: true,
+          maxDailyHours: true,
+          busNumber: true,
+          profile: { select: { id: true, name: true, email: true, role: true } },
+        },
       });
 
       const conductors = await db.crewProfile.findMany({
         where: { specialization: 'conductor', availability: 'available' },
-        include: { profile: true },
+        select: {
+          id: true,
+          profileId: true,
+          specialization: true,
+          licenseNo: true,
+          experienceYears: true,
+          performanceRating: true,
+          availability: true,
+          maxDailyHours: true,
+          busNumber: true,
+          profile: { select: { id: true, name: true, email: true, role: true } },
+        },
       });
 
       // Get existing assignments for the date to track hours
@@ -75,6 +108,9 @@ export async function POST(request: NextRequest) {
       existingAssignments.forEach(a => {
         assignmentCounts.set(a.crewId, (assignmentCounts.get(a.crewId) || 0) + 1);
       });
+
+      // Track experience scores for averaging
+      const allExperienceScores: number[] = [];
 
       // Calculate Jain's Fairness Index
       function calculateJainsIndex(counts: number[]): number {
@@ -93,13 +129,16 @@ export async function POST(request: NextRequest) {
         const routeDurationH = (schedule.route?.durationMin || 60) / 60;
 
         // Assign driver
+        // Score(c) = 0.5 × Fairness(c) + 0.3 × Performance(c) + 0.2 × Experience(c)
+        // where Experience(c) = Math.min(experienceYears / 10, 1.0)
         const driverCounts = drivers.map(d => assignmentCounts.get(d.profileId) || 0);
-        const driverJainsComponent = 1 - calculateJainsIndex(driverCounts.map(c => c + 1));
         const driverScores = drivers.map(d => {
           const count = assignmentCounts.get(d.profileId) || 0;
           const fairnessScore = count === Math.min(...driverCounts) ? 1.0 : 0.3;
           const perfScore = d.performanceRating / 5.0;
-          return 0.6 * fairnessScore + 0.4 * perfScore;
+          const expScore = Math.min(d.experienceYears / 10, 1.0);
+          allExperienceScores.push(expScore);
+          return 0.5 * fairnessScore + 0.3 * perfScore + 0.2 * expScore;
         });
 
         const bestDriverIdx = driverScores.indexOf(Math.max(...driverScores));
@@ -122,12 +161,15 @@ export async function POST(request: NextRequest) {
         }
 
         // Assign conductor
+        // Score(c) = 0.5 × Fairness(c) + 0.3 × Performance(c) + 0.2 × Experience(c)
         const conductorCounts = conductors.map(c => assignmentCounts.get(c.profileId) || 0);
         const conductorScores = conductors.map(c => {
           const count = assignmentCounts.get(c.profileId) || 0;
           const fairnessScore = count === Math.min(...conductorCounts) ? 1.0 : 0.3;
           const perfScore = c.performanceRating / 5.0;
-          return 0.6 * fairnessScore + 0.4 * perfScore;
+          const expScore = Math.min(c.experienceYears / 10, 1.0);
+          allExperienceScores.push(expScore);
+          return 0.5 * fairnessScore + 0.3 * perfScore + 0.2 * expScore;
         });
 
         const bestConductorIdx = conductorScores.indexOf(Math.max(...conductorScores));
@@ -152,15 +194,19 @@ export async function POST(request: NextRequest) {
 
       const finalCounts = [...assignmentCounts.values()].filter(c => c > 0);
       const jainsIndex = calculateJainsIndex(finalCounts);
+      const avgExperienceScore = allExperienceScores.length > 0
+        ? allExperienceScores.reduce((a, b) => a + b, 0) / allExperienceScores.length
+        : 0;
       const executionTimeMs = Date.now() - startTime;
 
       return NextResponse.json({
         success: true,
         assignmentsCreated,
         jainsIndex: Math.round(jainsIndex * 1000) / 1000,
+        avgExperienceScore: Math.round(avgExperienceScore * 1000) / 1000,
         maxHoursViolations,
         executionTimeMs,
-        message: `Assigned crew for ${unassignedSchedules.length} schedules. Jain's Index: ${jainsIndex.toFixed(3)}`,
+        message: `Assigned crew for ${unassignedSchedules.length} schedules. Jain's Index: ${jainsIndex.toFixed(3)}, Avg Exp Score: ${avgExperienceScore.toFixed(3)}`,
       });
     }
 

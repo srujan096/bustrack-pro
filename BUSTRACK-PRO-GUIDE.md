@@ -15,8 +15,9 @@
 6. [Portal Pages and Features](#6-portal-pages-and-features)
 7. [Key Components and UI Features](#7-key-components-and-ui-features)
 8. [Authentication System](#8-authentication-system)
-9. [Seed Data](#9-seed-data)
-10. [File Structure](#10-file-structure)
+9. [Security & Infrastructure](#9-security--infrastructure)
+10. [Seed Data](#10-seed-data)
+11. [File Structure](#11-file-structure)
 
 ---
 
@@ -164,7 +165,7 @@ The central user table. Stores authentication credentials, basic profile informa
 |---|---|---|---|
 | `id` | `String` | `@id @default(cuid())` | Primary key (CUID string) |
 | `email` | `String` | `@unique` | Login email address |
-| `password` | `String` | — | SHA-256 hashed password |
+| `password` | `String` | — | bcrypt hashed password (saltRounds=10) |
 | `role` | `String` | `@default("customer")` | User role: `admin`, `driver`, `conductor`, `customer` |
 | `name` | `String` | — | Display name |
 | `approvalStatus` | `String` | `@default("approved")` | Account approval status: `pending`, `approved`, `rejected` |
@@ -456,7 +457,7 @@ Authentication and user management including the account approval workflow.
 
 | Action | Method | Parameters | Response | Description |
 |---|---|---|---|---|
-| `login` | POST | `{ action: "login", email, password }` | `{ user, token }` | Validates email/password with SHA-256 hash comparison. Checks `approvalStatus` — blocks `pending` and `rejected` accounts with descriptive error messages. Returns user object and 64-byte hex session token. |
+| `login` | POST | `{ action: "login", email, password }` | `{ user, token }` | Validates email/password with bcrypt comparison (saltRounds=10). Checks `approvalStatus` — blocks `pending` and `rejected` accounts with descriptive error messages. Returns user object and 64-byte hex session token. |
 | `register` | POST | `{ action: "register", email, password, name, role, phone? }` | `{ user, message }` | Creates new account. Sets `approvalStatus: "pending"` for `admin`, `driver`, `conductor` roles. Customer accounts are auto-approved. Auto-creates CrewProfile for driver/conductor. |
 | `verify` | POST | `{ action: "verify", token }` | `{ user }` | Validates session token against in-memory token store. Checks 24-hour expiration. Returns user if valid. |
 | `logout` | POST | `{ action: "logout", token }` | `{ success }` | Removes token from in-memory store, invalidating session immediately. |
@@ -630,67 +631,83 @@ A standalone WebSocket server (`mini-services/notification-service/index.ts`) pr
 
 ## 5. Algorithms
 
-### 5.1 Schedule Generation — Greedy Time-Slot Assignment with Constraint Propagation
+### 5.1 Schedule Generation — Demand-Weighted Time-Slot Assignment with Constraint Propagation
 
-This algorithm generates daily bus schedules from route configurations.
+This algorithm generates daily bus schedules from route configurations with **demand-weighted frequency** that varies by time of day to match real-world commuter patterns.
 
 #### Algorithm Description
 
 ```
-FUNCTION generateSchedules(date, globalStartTime?, globalEndTime?, globalFrequency?):
+FUNCTION generateSchedules(date):
     startTime = performance.now()
     createdCount = 0
     skippedCount = 0
 
     FOR EACH route WHERE autoScheduleEnabled = true:
-        routeStart = globalStartTime ?? route.startTime
-        routeEnd   = globalEndTime   ?? route.endTime
-        frequency  = globalFrequency ?? route.frequencyMinutes
+        baseFrequency = route.frequencyMinutes
 
-        // Generate time slots from start to end at configured frequency
-        currentSlot = parseTime(routeStart)
-        endSlot     = parseTime(routeEnd)
-
-        WHILE currentSlot <= endSlot:
-            timeStr = formatTime(currentSlot)
-
-            // CONSTRAINT PROPAGATION: Check for duplicate schedules
-            existing = await prisma.schedule.findFirst({
-                WHERE: { routeId: route.id, date, departureTime: timeStr }
-            })
-
-            IF existing NOT found:
-                CREATE Schedule {
-                    routeId: route.id,
-                    date: date,
-                    departureTime: timeStr,
-                    status: "scheduled"
-                }
-                createdCount++
+        FOR hour = route.startTime.hour TO route.endTime.hour:
+            // DEMAND-WEIGHTED FREQUENCY
+            // Peak hours (7-9, 17-19): delta=1.5 → more frequent service
+            // Midday (10-16):           delta=0.8 → less frequent service
+            // All other hours:         delta=1.0 → standard frequency
+            IF hour >= 7 AND hour <= 9:
+                delta = 1.5       // Morning peak
+            ELSE IF hour >= 17 AND hour <= 19:
+                delta = 1.5       // Evening peak
+            ELSE IF hour >= 10 AND hour <= 16:
+                delta = 0.8       // Midday off-peak
             ELSE:
-                skippedCount++   // Skip duplicate to avoid conflicts
+                delta = 1.0       // Early morning / late evening
 
-            currentSlot = addMinutes(currentSlot, frequency)
+            effectiveFrequency = MAX(1, ROUND(baseFrequency / delta))
+
+            FOR min = 0 TO 60 STEP effectiveFrequency:
+                timeStr = format(hour, min)
+
+                // CONSTRAINT PROPAGATION: Check for duplicate schedules
+                existing = await prisma.schedule.findFirst({
+                    WHERE: { routeId: route.id, date, departureTime: timeStr }
+                })
+
+                IF existing NOT found:
+                    CREATE Schedule {
+                        routeId: route.id, date, departureTime: timeStr,
+                        status: "scheduled"
+                    }
+                    createdCount++
+                ELSE:
+                    skippedCount++
 
     endTime = performance.now()
-    RETURN { created: createdCount, skipped: skippedCount, time: endTime - startTime }
+    RETURN { created: createdCount, skipped: skippedCount,
+             demandWeighted: true, time: endTime - startTime }
 ```
 
+#### Demand-Weighted Frequency Table
+
+| Time Period | Hours | Delta (δ) | Effect | Rationale |
+|---|---|---|---|---|
+| **Morning Peak** | 7:00 – 9:00 | **1.5** | Frequency ÷ 1.5 (more buses) | School/office rush hour |
+| **Evening Peak** | 17:00 – 19:00 | **1.5** | Frequency ÷ 1.5 (more buses) | Return commute rush |
+| **Midday Off-Peak** | 10:00 – 16:00 | **0.8** | Frequency ÷ 0.8 (fewer buses) | Lower demand midday |
+| **Normal** | All other hours | **1.0** | Unchanged | Early morning / late evening |
+
 #### Key Features
+- **Demand Weighting**: Automatically adjusts service frequency based on time-of-day demand patterns
 - **Constraint Propagation**: Before creating each schedule slot, checks for existing entries to prevent duplicates
-- **Global Overrides**: Admin can override start time, end time, and frequency for bulk generation
 - **Route Filtering**: Only processes routes with `autoScheduleEnabled = true`
-- **Performance Tracking**: Returns creation count, skip count, and execution time in milliseconds
+- **Performance Tracking**: Returns creation count, skip count, `demandWeighted: true` flag, and execution time
 
 #### Complexity
-- **Time**: O(R × S) where R = number of auto-schedule-enabled routes, S = average slots per route
+- **Time**: O(R × H × (60/F)) where R = routes, H = operating hours, F = effective frequency
 - **Space**: O(N) where N = number of new schedules created
 
 ---
 
-### 5.2 Crew Assignment — Multi-Criteria Scoring with Jain's Fairness Index
+### 5.2 Crew Assignment — Three-Factor Multi-Criteria Scoring with Jain's Fairness Index
 
-This algorithm automatically assigns the best driver and conductor to each unassigned schedule.
+This algorithm automatically assigns the best driver and conductor to each unassigned schedule using a **three-factor weighted scoring formula** that balances fairness, performance, and experience.
 
 #### Algorithm Description
 
@@ -703,92 +720,97 @@ FUNCTION autoAssignCrew(date):
 
     // Track assignment counts for fairness calculation
     assignmentCounts = MAP<crewId, count>
-    hoursWorked      = MAP<crewId, totalHours>
-
-    assignments = []
+    allExperienceScores = []
 
     FOR EACH schedule IN unassignedSchedules:
         route = schedule.route
 
-        // Find best DRIVER
+        // Find best DRIVER using 3-factor scoring
         bestDriver = findBestCrew(
             specialization: "driver",
             schedule: schedule,
-            assignmentCounts: assignmentCounts,
-            hoursWorked: hoursWorked
+            assignmentCounts: assignmentCounts
         )
 
-        // Find best CONDUCTOR
+        // Find best CONDUCTOR using 3-factor scoring
         bestConductor = findBestCrew(
             specialization: "conductor",
             schedule: schedule,
-            assignmentCounts: assignmentCounts,
-            hoursWorked: hoursWorked
+            assignmentCounts: assignmentCounts
         )
 
         IF bestDriver AND bestConductor:
-            CREATE CrewAssignment { schedule, crew: bestDriver, status: "assigned" }
-            CREATE CrewAssignment { schedule, crew: bestConductor, status: "assigned" }
+            CREATE CrewAssignment { schedule, crew: bestDriver, status: "accepted" }
+            CREATE CrewAssignment { schedule, crew: bestConductor, status: "accepted" }
             UPDATE assignmentCounts[bestDriver.id]++
             UPDATE assignmentCounts[bestConductor.id]++
-            UPDATE hoursWorked[bestDriver.id] += route.durationMin
-            UPDATE hoursWorked[bestConductor.id] += route.durationMin
-            assignments.push({ schedule, driver: bestDriver, conductor: bestConductor })
 
     // Calculate Jain's Fairness Index
     counts = VALUES(assignmentCounts)
     fairnessIndex = jainsFairnessIndex(counts)
 
-    RETURN { assignments, fairnessIndex }
+    // Calculate average experience score
+    avgExpScore = AVG(allExperienceScores)
+
+    RETURN { assignments, fairnessIndex, avgExperienceScore }
 
 
-FUNCTION findBestCrew(specialization, schedule, assignmentCounts, hoursWorked):
+FUNCTION findBestCrew(specialization, schedule, assignmentCounts):
     candidates = SELECT crewProfiles
                  WHERE specialization = specialization
                  AND availability = "available"
-                 AND hoursWorked[crewId] + schedule.route.durationMin <= crew.maxDailyHours
+                 SELECT: { experienceYears, performanceRating, maxDailyHours }
 
     IF candidates IS empty: RETURN null
 
     minAssignments = MIN(assignmentCounts[c.id] FOR c IN candidates)
 
     scoredCandidates = candidates MAP c => {
-        // Fairness component (weight: 0.6)
+        // Fairness component (weight: 0.5)
         fairness = (assignmentCounts[c.id] == minAssignments) ? 1.0 : 0.3
 
-        // Performance component (weight: 0.4)
+        // Performance component (weight: 0.3)
         performance = c.performanceRating / 5.0    // Normalize to 0-1
 
-        // Combined score
-        score = 0.6 × fairness + 0.4 × performance
+        // Experience component (weight: 0.2)
+        experience = MIN(c.experienceYears / 10, 1.0)  // Cap at 1.0
+
+        allExperienceScores.push(experience)
+
+        // Three-factor combined score
+        score = 0.5 × fairness + 0.3 × performance + 0.2 × experience
 
         RETURN { crew: c, score }
     }
 
     RETURN scoredCandidates.SORT BY score DESC[0].crew
-
-
-FUNCTION jainsFairnessIndex(values):
-    n   = LENGTH(values)
-    sum = SUM(values)
-    sumSq = SUM(v² FOR v IN values)
-    J = (sum)² / (n × sumSq)
-    RETURN J
 ```
 
 #### Scoring Formula
 
 ```
-┌─────────────────────────────────────────────────┐
-│          Score = 0.6 × Fairness + 0.4 × Perf    │
-│                                                   │
-│  Fairness = 1.0  if crew has MINIMUM assignments  │
-│           = 0.3  otherwise                        │
-│                                                   │
-│  Performance = crew.performanceRating / 5.0       │
-│              (normalized to 0–1 scale)             │
-└─────────────────────────────────────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│  Score(c) = 0.5 × Fairness(c) + 0.3 × Performance(c) + 0.2 × Exp(c) │
+│                                                                     │
+│  Fairness(c)    = 1.0  if crew has MINIMUM assignments            │
+│                 = 0.3  otherwise                                   │
+│                                                                     │
+│  Performance(c) = crew.performanceRating / 5.0                     │
+│                 (normalized to 0–1 scale)                           │
+│                                                                     │
+│  Experience(c)  = MIN(crew.experienceYears / 10, 1.0)              │
+│                 (capped at 1.0; 10+ years = max score)             │
+└───────────────────────────────────────────────────────────────────┘
 ```
+
+#### Response Metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `jainsIndex` | `Float` | Jain's Fairness Index of final assignment distribution (0–1, higher = fairer) |
+| `avgExperienceScore` | `Float` | Average experience score across all crew members considered (0–1) |
+| `assignmentsCreated` | `Int` | Number of crew assignments created |
+| `maxHoursViolations` | `Int` | Count of assignments skipped due to max daily hours constraint |
 
 #### Jain's Fairness Index
 
@@ -813,20 +835,19 @@ FUNCTION jainsFairnessIndex(values):
 
 ---
 
-### 5.3 Traffic Delay Prediction — Simple Exponential Smoothing
+### 5.3 Traffic Delay Prediction — Holt's Double Exponential Smoothing
 
-This algorithm predicts traffic delays based on historical alert data.
+This algorithm predicts traffic delays based on historical alert data using **Holt's Double Exponential Smoothing (DES)**, which captures both level and trend components for more accurate forecasting than simple exponential smoothing.
 
 #### Algorithm Description
 
 ```
-FUNCTION predictDelay(routeId, hour):
-    // Fetch historical traffic alerts for this route
+FUNCTION predictDelay(routeId):
+    // Fetch historical traffic alerts for this route (last 30 days)
     alerts = SELECT trafficAlerts
              WHERE routeId = routeId
-             AND resolvedAt IS NOT NULL
-             ORDER BY createdAt DESC
-             LIMIT 30
+             AND createdAt >= 30 days ago
+             ORDER BY createdAt ASC
 
     // Group by date and compute daily average delays
     dailyDelays = MAP<date, avgDelay>
@@ -838,27 +859,39 @@ FUNCTION predictDelay(routeId, hour):
         // Insufficient data — fall back to route's traffic level
         RETURN {
             predictedDelay: routeBasedEstimate(route.trafficLevel),
-            confidence: 0.5,
-            method: "fallback_traffic_level"
+            confidence: 0.3,
+            method: "fallback_traffic_level",
+            trendComponent: 0
         }
 
-    // Simple Exponential Smoothing (α = 0.3)
-    α = 0.3
-    sortedDates = SORT(dailyDelays.keys)
-    S = dailyDelays[sortedDates[0]]   // Initialize with first value
+    // Holt's Double Exponential Smoothing (α=0.3, β=0.1)
+    L = dailyDelays[0]    // Level initialization
+    T = 0                  // Trend initialization
+    α = 0.3               // Level smoothing factor
+    β = 0.1               // Trend smoothing factor
 
-    FOR i = 1 TO sortedDates.length - 1:
-        actual = dailyDelays[sortedDates[i]]
-        S = α × actual + (1 - α) × S
+    FOR i = 1 TO dailyDelays.length - 1:
+        L_new = α × dailyDelays[i] + (1 - α) × (L + T)
+        T_new = β × (L_new - L) + (1 - β) × T
+        L = L_new
+        T = T_new
+
+    smoothed = L + T       // Final forecast = Level + Trend
 
     // Apply time-of-day heuristic multiplier
-    timeMultiplier = getTimeMultiplier(hour)
-    predictedDelay = S × timeMultiplier
+    timeMultiplier = getTimeMultiplier(currentHour)
+    predictedDelay = ROUND(smoothed × timeMultiplier)
 
     // Confidence score based on data point count
-    confidence = MIN(0.95, MAX(0.5, dailyDelays.size / 20))
+    confidence = MIN(0.95, 0.5 + (dailyDelays.size / 30) × 0.45)
 
-    RETURN { predictedDelay, confidence, method: "exponential_smoothing" }
+    RETURN {
+        predictedDelay, confidence,
+        method: "holt_des",
+        smoothedBase: ROUND(L, 1),
+        trendComponent: ROUND(T, 1),
+        timeOfDayFactor: timeMultiplier
+    }
 
 
 FUNCTION getTimeMultiplier(hour):
@@ -866,31 +899,43 @@ FUNCTION getTimeMultiplier(hour):
     IF hour >= 17 AND hour <= 19:  RETURN 1.4   // Evening peak
     IF hour >= 10 AND hour <= 16:  RETURN 0.8   // Off-peak
     RETURN 1.0                               // Normal hours
-
-
-FUNCTION routeBasedEstimate(trafficLevel):
-    SWITCH trafficLevel:
-        CASE "low":    RETURN 5   minutes
-        CASE "medium": RETURN 12  minutes
-        CASE "high":   RETURN 25  minutes
 ```
 
-#### Exponential Smoothing Formula
+#### Holt's Double Exponential Smoothing Formulas
 
 ```
-┌─────────────────────────────────────────────────┐
-│                                                   │
-│    Sₜ = α × Actualₜ₋₁ + (1 - α) × Sₜ₋₁       │
-│                                                   │
-│    where α = 0.3 (smoothing factor)              │
-│    Sₜ = smoothed value at time t                 │
-│    Actualₜ₋₁ = observed value at time t-1        │
-│                                                   │
-│    Higher α → more responsive to recent changes   │
-│    Lower α  → smoother, less volatile            │
-│                                                   │
-└─────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│  Level Equation:                                             │
+│    Lₜ = α × d[t] + (1 - α) × (Lₜ₋₁ + Tₜ₋₁)              │
+│                                                              │
+│  Trend Equation:                                             │
+│    Tₜ = β × (Lₜ - Lₜ₋₁) + (1 - β) × Tₜ₋₁                │
+│                                                              │
+│  Forecast:                                                   │
+│    F = L + T  (one-step-ahead prediction)                    │
+│                                                              │
+│  where α = 0.3 (level smoothing, responsive to level shifts)│
+│        β = 0.1 (trend smoothing, conservative trend update) │
+│        d[t] = observed daily average delay at time t        │
+│        Lₜ = estimated level at time t                       │
+│        Tₜ = estimated trend at time t                       │
+│                                                              │
+│  Advantage over SES: Captures upward/downward trend in      │
+│  delay patterns, enabling directional forecasts             │
+└─────────────────────────────────────────────────────────────┘
 ```
+
+#### Response Metrics
+
+| Metric | Type | Description |
+|---|---|---|
+| `method` | `String` | Always `"holt_des"` for Holt's Double Exponential Smoothing |
+| `predictedDelayMin` | `Int` | Predicted delay in minutes (after time-of-day adjustment) |
+| `smoothedBase` | `Float` | Final level component L (base delay estimate) |
+| `trendComponent` | `Float` | Final trend component T (positive = increasing delays, negative = decreasing) |
+| `confidence` | `Float` | Confidence score 0–1 based on data point count |
+| `timeOfDayFactor` | `Float` | Applied multiplier (1.4 peak, 0.8 off-peak, 1.0 normal) |
+| `historicalDataPoints` | `Int` | Number of raw traffic alerts used |
 
 #### Time-of-Day Multipliers
 
@@ -1311,13 +1356,20 @@ Key responsive adaptations:
 ### 8.1 Password Hashing
 
 ```typescript
-// SHA-256 hashing (demo purposes) using Node.js crypto module
-function hashPassword(password: string): string {
-    return crypto.createHash('sha256').update(password).digest('hex');
+// bcrypt hashing with automatic salting
+import * as bcrypt from 'bcrypt';
+const SALT_ROUNDS = 10;
+
+async function hashPassword(password: string): Promise<string> {
+    return bcrypt.hash(password, SALT_ROUNDS);
+}
+
+async function comparePassword(password: string, hash: string): Promise<boolean> {
+    return bcrypt.compare(password, hash);
 }
 ```
 
-> **Note**: SHA-256 is used for demo purposes. In production, bcrypt with salt rounds would be used for proper password security, as SHA-256 alone is vulnerable to rainbow table attacks without salting.
+> **Security**: bcrypt is used for password hashing with 10 salt rounds. Unlike SHA-256, bcrypt is specifically designed for password storage — it incorporates a built-in salt, is computationally expensive (configurable via salt rounds) to resist brute-force attacks, and produces unique hashes even for identical passwords. The `bcrypt.compare()` function safely compares passwords without exposing timing attacks.
 
 ### 8.2 Session Management
 
@@ -1343,11 +1395,40 @@ function hashPassword(password: string): string {
 
 ---
 
-## 9. Seed Data
+## 9. Security & Infrastructure
+
+### 9.1 Rate Limiting
+
+Heavy API actions are protected by an in-memory rate limiter (`src/lib/rate-limit.ts`) to prevent abuse:
+
+| Action | Endpoint | Limit | Window | Identifier |
+|---|---|---|---|---|
+| `autoAssign` | POST `/api/crew` | 5 calls | 10 seconds | Session token (or `anon`) |
+| `generate` | POST `/api/schedules` | 5 calls | 10 seconds | Session token (or `anon`) |
+| `traffic-predict` | GET `/api/traffic-predict` | 5 calls | 10 seconds | Session token (or `anon`) |
+
+**Behavior**: When the limit is exceeded, the endpoint returns HTTP **429 Too Many Requests** with `{ error: "Too many requests, please wait." }`. Expired entries are automatically cleaned up every 60 seconds.
+
+### 9.2 Validation Dataset
+
+A held-out validation dataset is available for algorithm evaluation (`prisma/seed-validation.ts`):
+
+- **Script**: `bun run db:seed-validation`
+- **PRNG Seed**: 99 (separate from main seed's 42)
+- **Content**: ~6 TrafficAlert records per route (115 routes × 6 = 690 alerts)
+- **Spread**: Last 30 days, ~60% resolved, ~40% open
+- **Alert types**: congestion, accident, road_closure, weather
+- **Purpose**: Held-out dataset for evaluating traffic prediction and scheduling algorithms without contaminating training data
+
+> ⚠️ Do not use validation data for algorithm training or parameter tuning.
+
+---
+
+## 10. Seed Data
 
 The database is pre-populated with realistic data for demonstration purposes using a deterministic pseudo-random number generator.
 
-### 9.1 User Accounts (205 total)
+### 10.1 User Accounts (205 total)
 
 | Role | Count | Email Pattern | Password |
 |---|---|---|---|
@@ -1358,7 +1439,7 @@ The database is pre-populated with realistic data for demonstration purposes usi
 
 All seed accounts have `approvalStatus: "approved"` for immediate access.
 
-### 9.2 Bus Routes (115 total)
+### 10.2 Bus Routes (115 total)
 
 | City | Routes | Route Number Pattern |
 |---|---|---|
@@ -1368,7 +1449,7 @@ All seed accounts have `approvalStatus: "approved"` for immediate access.
 | Chennai (CHN) | 15 | `CHN-001` – `CHN-015` |
 | Inter-city (IC) | 15 | `IC-001` – `IC-015` |
 
-### 9.3 Deterministic PRNG
+### 10.3 Deterministic PRNG
 
 All seed data uses a **seeded pseudo-random number generator** with seed value `42` for reproducibility:
 
@@ -1388,14 +1469,14 @@ const random = seededRandom(42);
 
 This ensures the same data is generated every time `bun run db:push` and seeding is run.
 
-### 9.4 Realistic Data Generation
+### 10.4 Realistic Data Generation
 
 - **Indian Names** — Generated from curated lists of Indian first and last names (e.g., Arjun Sharma, Priya Patel, Vikram Reddy, Ananya Iyer)
 - **Real Locations** — Actual Bangalore, Mumbai, Delhi, and Chennai locations used as bus stops (e.g., Majestic Bus Stand, Shivaji Nagar, MG Road, Koramangala)
 - **Accurate Coordinates** — Real latitude/longitude values for OSRM map rendering
 - **Varied Route Properties** — Distances (5–85 km), durations (15–180 min), fares (₹10–₹350), and traffic levels randomized within realistic ranges
 
-### 9.5 Additional Seed Data
+### 10.5 Additional Seed Data
 
 | Data Type | Count | Description |
 |---|---|---|
@@ -1410,11 +1491,11 @@ This ensures the same data is generated every time `bun run db:push` and seeding
 
 ---
 
-## 10. File Structure
+## 11. File Structure
 
 The project follows a standard Next.js App Router structure with clear separation between API routes, components, and configuration.
 
-### 10.1 Root Configuration Files
+### 11.1 Root Configuration Files
 
 ```
 my-project/

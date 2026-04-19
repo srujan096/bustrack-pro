@@ -6,13 +6,14 @@ function seededRandom(): number {
 }
 
 import { PrismaClient } from '@prisma/client';
-import * as crypto from 'crypto';
 import * as fs from 'fs';
+import * as bcrypt from 'bcrypt';
 
 const db = new PrismaClient();
+const SALT_ROUNDS = 10;
 
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS);
 }
 
 // Indian cities with coordinates
@@ -216,6 +217,7 @@ async function main() {
   await db.busMaintenance.deleteMany();
   await db.holidayRequest.deleteMany();
   await db.crewProfile.deleteMany();
+  await db.supportTicket.deleteMany();
   await db.route.deleteMany();
   await db.profile.deleteMany();
 
@@ -223,7 +225,7 @@ async function main() {
   const adminProfile = await db.profile.create({
     data: {
       email: "admin@bus.com",
-      password: hashPassword("password123"),
+      password: await hashPassword("password123"),
       role: "admin",
       name: "System Administrator",
     },
@@ -243,7 +245,7 @@ async function main() {
     const profile = await db.profile.create({
       data: {
         email,
-        password: hashPassword("password123"),
+        password: await hashPassword("password123"),
         role: "driver",
         name,
       },
@@ -279,7 +281,7 @@ async function main() {
     const profile = await db.profile.create({
       data: {
         email,
-        password: hashPassword("password123"),
+        password: await hashPassword("password123"),
         role: "conductor",
         name,
       },
@@ -314,7 +316,7 @@ async function main() {
     const profile = await db.profile.create({
       data: {
         email,
-        password: hashPassword("password123"),
+        password: await hashPassword("password123"),
         role: "customer",
         name,
       },

@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import * as crypto from 'crypto';
+import * as bcrypt from 'bcrypt';
 
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password).digest('hex');
+const SALT_ROUNDS = 10;
+
+async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hash(password, SALT_ROUNDS);
+}
+
+async function comparePassword(password: string, hash: string): Promise<boolean> {
+  return bcrypt.compare(password, hash);
 }
 
 function generateToken(userId: string): string {
@@ -33,12 +40,17 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Email and password required' }, { status: 400 });
       }
 
-      const hashedPassword = hashPassword(password);
       const user = await db.profile.findUnique({
         where: { email },
       });
 
-      if (!user || user.password !== hashedPassword) {
+      if (!user) {
+        return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
+      }
+
+      // Compare password using bcrypt
+      const isValid = await comparePassword(password, user.password);
+      if (!isValid) {
         return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
       }
 
@@ -156,7 +168,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'An account with this email already exists' }, { status: 409 });
       }
 
-      const hashedPassword = hashPassword(password);
+      // Hash password using bcrypt
+      const hashedPassword = await hashPassword(password);
       const user = await db.profile.create({
         data: {
           email,
