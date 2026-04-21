@@ -26,6 +26,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -3918,7 +3919,7 @@ function SearchRoutes({
       setHasSearched(true);
       const params = new URLSearchParams({ startLocation, endLocation, city });
       const res = await fetch(`/api/routes?${params.toString()}`);
-      if (!res.ok) throw new Error('Failed to search routes');
+      if (!res.ok) throw new Error(`Search failed (HTTP ${res.status})`);
       const data = await res.json();
       // Handle new response format: { direct, connecting } or legacy { routes }
       if (data.direct !== undefined) {
@@ -5423,6 +5424,283 @@ function BookingStatusTimeline({ status }: { status: string | undefined }) {
   );
 }
 
+// ─── Quick Book Dialog ──────────────────────────────────────────────────────
+
+function QuickBookDialog({
+  open,
+  onOpenChange,
+  userId,
+  token,
+  onBooked,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userId: string;
+  token: string;
+  onBooked: () => void;
+}) {
+  const [locations, setLocations] = useState<string[]>([]);
+  const [fromLoc, setFromLoc] = useState('');
+  const [toLoc, setToLoc] = useState('');
+  const [bookDate, setBookDate] = useState(getTodayString());
+  const [searching, setSearching] = useState(false);
+  const [booking, setBooking] = useState<string | null>(null);
+  const [results, setResults] = useState<RouteResult[]>([]);
+  const [hasSearched, setHasSearched] = useState(false);
+  const [error, setError] = useState('');
+
+  // Fetch locations on mount
+  useEffect(() => {
+    if (!open) return;
+    async function loadLocations() {
+      try {
+        const res = await fetch('/api/routes?limit=0');
+        if (!res.ok) return;
+        const data = await res.json();
+        setLocations(data.locations ?? []);
+      } catch {
+        // Silent fail for location loading
+      }
+    }
+    loadLocations();
+  }, [open]);
+
+  // Reset state when dialog closes
+  useEffect(() => {
+    if (!open) {
+      setFromLoc('');
+      setToLoc('');
+      setResults([]);
+      setHasSearched(false);
+      setError('');
+      setBookDate(getTodayString());
+    }
+  }, [open]);
+
+  const handleSearch = useCallback(async () => {
+    if (!fromLoc || !toLoc) {
+      setError('Please select both From and To locations');
+      return;
+    }
+    try {
+      setSearching(true);
+      setError('');
+      setHasSearched(true);
+      const params = new URLSearchParams({ startLocation: fromLoc, endLocation: toLoc });
+      const res = await fetch(`/api/routes?${params.toString()}`);
+      if (!res.ok) throw new Error(`Search failed (HTTP ${res.status})`);
+      const data = await res.json();
+      if (data.direct !== undefined) {
+        setResults(data.direct ?? []);
+      } else {
+        setResults(data.routes ?? []);
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Search failed');
+    } finally {
+      setSearching(false);
+    }
+  }, [fromLoc, toLoc]);
+
+  const handleBook = useCallback(async (route: RouteResult) => {
+    try {
+      setBooking(route.id);
+      const scheduleRes = await fetch(`/api/schedules?routeId=${route.id}&date=${bookDate}`);
+      if (!scheduleRes.ok) throw new Error('Failed to find schedule');
+      const scheduleData = await scheduleRes.json();
+      const schedules: Schedule[] = scheduleData.schedules ?? [];
+      if (schedules.length === 0) {
+        setError(`No schedule available for route ${route.routeNumber} on ${bookDate}`);
+        setBooking(null);
+        return;
+      }
+      const schedule = schedules[0];
+
+      const bookRes = await fetch('/api/journeys', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'book',
+          token,
+          customerId: userId,
+          routeId: route.id,
+          scheduleId: schedule.id,
+        }),
+      });
+      if (!bookRes.ok) throw new Error('Booking failed');
+      toast({
+        title: 'Booking Confirmed!',
+        description: `Successfully booked route ${route.routeNumber}. Happy journey!`,
+      });
+      onBooked();
+      onOpenChange(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Booking failed');
+    } finally {
+      setBooking(null);
+    }
+  }, [userId, token, bookDate, onBooked, onOpenChange]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[525px] max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Plus className="size-5 text-primary" />
+            Quick Book a Trip
+          </DialogTitle>
+          <DialogDescription>
+            Select your origin, destination and date to find available routes and book instantly.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          {/* From / To selectors */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">From</Label>
+              <Select value={fromLoc} onValueChange={setFromLoc}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select origin..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(loc => (
+                    <SelectItem key={loc} value={loc} disabled={loc === toLoc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">To</Label>
+              <Select value={toLoc} onValueChange={setToLoc}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select destination..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {locations.map(loc => (
+                    <SelectItem key={loc} value={loc} disabled={loc === fromLoc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          {/* Date picker */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground">Travel Date</Label>
+            <Input
+              type="date"
+              value={bookDate}
+              min={getTodayString()}
+              onChange={e => setBookDate(e.target.value)}
+              className="w-full"
+            />
+          </div>
+
+          {/* Search button */}
+          <Button
+            className="w-full"
+            onClick={handleSearch}
+            disabled={searching || !fromLoc || !toLoc}
+          >
+            {searching ? (
+              <>
+                <Loader2 className="size-4 mr-2 animate-spin" />
+                Searching...
+              </>
+            ) : (
+              <>
+                <Search className="size-4 mr-2" />
+                Search &amp; Book
+              </>
+            )}
+          </Button>
+
+          {/* Error */}
+          {error && (
+            <div className="flex items-center gap-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600 dark:border-red-800 dark:bg-red-950/50 dark:text-red-400">
+              <XCircle className="size-4 shrink-0" />
+              {error}
+              <button onClick={() => setError('')} className="ml-auto text-red-400 hover:text-red-600">
+                &times;
+              </button>
+            </div>
+          )}
+
+          {/* Results */}
+          {hasSearched && !searching && results.length === 0 && (
+            <div className="flex flex-col items-center py-8 text-center">
+              <Bus className="size-10 text-muted-foreground/30 mb-3" />
+              <p className="text-sm text-muted-foreground">No direct routes found for this route.</p>
+              <p className="text-xs text-muted-foreground/70 mt-1">
+                Try different locations or use the full Search Routes page.
+              </p>
+            </div>
+          )}
+
+          {results.length > 0 && (
+            <div className="space-y-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                {results.length} route{results.length > 1 ? 's' : ''} found
+              </p>
+              <div className="max-h-[300px] space-y-2 overflow-y-auto pr-1">
+                {results.map(route => (
+                  <div
+                    key={route.id}
+                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Badge variant="outline" className="font-mono text-xs shrink-0">
+                          {route.routeNumber}
+                        </Badge>
+                        <span className="text-xs text-muted-foreground truncate">
+                          {route.startLocation} → {route.endLocation}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                        {route.durationMin != null && (
+                          <span className="flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {route.durationMin} min
+                          </span>
+                        )}
+                        {route.fare != null && (
+                          <span className="font-semibold text-emerald-700 dark:text-emerald-400">
+                            {formatCurrency(route.fare)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      disabled={booking === route.id}
+                      onClick={() => handleBook(route)}
+                    >
+                      {booking === route.id ? (
+                        <Loader2 className="size-3 animate-spin" />
+                      ) : (
+                        <>
+                          <Ticket className="size-3 mr-1" />
+                          Book
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── My Bookings ─────────────────────────────────────────────────────────────
 
 function MyBookings({ userId, token, setPortal }: { userId: string; token: string; setPortal?: (p: string) => void }) {
@@ -5430,23 +5708,25 @@ function MyBookings({ userId, token, setPortal }: { userId: string; token: strin
   const [loading, setLoading] = useState(true);
   const [cancelling, setCancelling] = useState<string | null>(null);
   const [error, setError] = useState('');
+  const [showQuickBook, setShowQuickBook] = useState(false);
+
+  const fetchBookings = useCallback(async () => {
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/journeys?customerId=${userId}&status=planned`);
+      if (!res.ok) throw new Error('Failed to fetch bookings');
+      const data = await res.json();
+      setBookings(data.journeys ?? []);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to load bookings');
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
 
   useEffect(() => {
-    async function fetchBookings() {
-      try {
-        setLoading(true);
-        const res = await fetch(`/api/journeys?customerId=${userId}&status=planned`);
-        if (!res.ok) throw new Error('Failed to fetch bookings');
-        const data = await res.json();
-        setBookings(data.journeys ?? []);
-      } catch (e: unknown) {
-        setError(e instanceof Error ? e.message : 'Failed to load bookings');
-      } finally {
-        setLoading(false);
-      }
-    }
     fetchBookings();
-  }, [userId]);
+  }, [fetchBookings]);
 
   const handleCancel = useCallback(async (journey: Journey) => {
     try {
@@ -5507,12 +5787,10 @@ function MyBookings({ userId, token, setPortal }: { userId: string; token: strin
               </CardTitle>
               <CardDescription>Manage your planned journeys</CardDescription>
             </div>
-            {setPortal && (
-              <Button size="sm" onClick={() => setPortal('search')}>
-                <Plus className="size-4 mr-1" />
-                Book New Trip
-              </Button>
-            )}
+            <Button size="sm" onClick={() => setShowQuickBook(true)}>
+              <Plus className="size-4 mr-1" />
+              Book New Trip
+            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -5675,6 +5953,14 @@ function MyBookings({ userId, token, setPortal }: { userId: string; token: strin
           )}
         </CardContent>
       </Card>
+      {/* Quick Book Dialog */}
+      <QuickBookDialog
+        open={showQuickBook}
+        onOpenChange={setShowQuickBook}
+        userId={userId}
+        token={token}
+        onBooked={fetchBookings}
+      />
     </div>
   );
 }

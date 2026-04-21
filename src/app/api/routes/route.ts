@@ -127,14 +127,14 @@ export async function GET(request: NextRequest) {
     if (autoSchedule === 'true') where.autoScheduleEnabled = true;
     if (startLocation && endLocation) {
       where.OR = [
-        { startLocation: { contains: startLocation, mode: 'insensitive' }, endLocation: { contains: endLocation, mode: 'insensitive' } },
-        { startLocation: { contains: endLocation, mode: 'insensitive' }, endLocation: { contains: startLocation, mode: 'insensitive' } },
+        { startLocation: { contains: startLocation }, endLocation: { contains: endLocation } },
+        { startLocation: { contains: endLocation }, endLocation: { contains: startLocation } },
       ];
     } else if (search) {
       where.OR = [
-        { routeNumber: { contains: search, mode: 'insensitive' } },
-        { startLocation: { contains: search, mode: 'insensitive' } },
-        { endLocation: { contains: search, mode: 'insensitive' } },
+        { routeNumber: { contains: search } },
+        { startLocation: { contains: search } },
+        { endLocation: { contains: search } },
       ];
     }
 
@@ -159,10 +159,10 @@ export async function GET(request: NextRequest) {
       // Find connecting routes: routes starting at `from` and routes ending at `to`
       const [outgoingRoutes, incomingRoutes] = await Promise.all([
         db.route.findMany({
-          where: { startLocation: { contains: startLocation, mode: 'insensitive' } },
+          where: { startLocation: { contains: startLocation } },
         }),
         db.route.findMany({
-          where: { endLocation: { contains: endLocation, mode: 'insensitive' } },
+          where: { endLocation: { contains: endLocation } },
         }),
       ]);
 
@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ routes, total, locations: [...locations].sort(), cities });
   } catch (error) {
     console.error('Routes GET error:', error);
-    return NextResponse.json({ error: 'Failed to fetch routes' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch routes', details: error instanceof Error ? error.message : 'Unknown' }, { status: 500 });
   }
 }
 

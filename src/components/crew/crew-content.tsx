@@ -597,12 +597,37 @@ function getSeededValue(seed: string, min: number, max: number): number {
   return min + (h % (max - min + 1));
 }
 
-function getMonthlyEarnings(name: string): { month: string; amount: number }[] {
-  const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
-  return months.map((m, i) => ({
-    month: m,
-    amount: 18000 + getSeededValue(name + m, 2000, 12000),
-  }));
+function getMonthlyEarnings(name: string, period: '7d' | '1m' | '6m' | '1y' = '6m'): { month: string; amount: number }[] {
+  switch (period) {
+    case '7d': {
+      const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+      return days.map((d) => ({
+        month: d,
+        amount: 500 + getSeededValue(name + d + '7d', 0, 1500),
+      }));
+    }
+    case '1m': {
+      const weeks = ['Week 1', 'Week 2', 'Week 3', 'Week 4'];
+      return weeks.map((w) => ({
+        month: w,
+        amount: 3000 + getSeededValue(name + w + '1m', 0, 5000),
+      }));
+    }
+    case '6m': {
+      const months = ['Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'];
+      return months.map((m) => ({
+        month: m,
+        amount: 18000 + getSeededValue(name + m, 2000, 12000),
+      }));
+    }
+    case '1y': {
+      const allMonths = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return allMonths.map((m) => ({
+        month: m,
+        amount: 15000 + getSeededValue(name + m + '1y', 0, 17000),
+      }));
+    }
+  }
 }
 
 function getStopsForRoute(seed: string): { name: string; isCurrent: boolean; passed: boolean }[] {
@@ -1644,13 +1669,78 @@ function QuickCommunication() {
 
 // ──────────────────────────── New Feature: Earnings Tracker ────────────────────────────
 
+type EarningsPeriod = '7d' | '1m' | '6m' | '1y';
+
 function EarningsTracker({ crewName }: { crewName: string }) {
-  const earnings = useMemo(() => getMonthlyEarnings(crewName), [crewName]);
-  const thisMonth = earnings[earnings.length - 1];
-  const lastMonth = earnings[earnings.length - 2];
-  const ytdTotal = earnings.reduce((s, e) => s + e.amount, 0);
-  const avgMonthly = Math.round(ytdTotal / earnings.length);
-  const comparisonPct = lastMonth.amount > 0 ? Math.round(((thisMonth.amount - lastMonth.amount) / lastMonth.amount) * 100) : 0;
+  const [period, setPeriod] = useState<EarningsPeriod>('6m');
+  const earnings = useMemo(() => getMonthlyEarnings(crewName, period), [crewName, period]);
+
+  const total = earnings.reduce((s, e) => s + e.amount, 0);
+  const best = earnings.reduce((a, b) => a.amount > b.amount ? a : b);
+  const latest = earnings[earnings.length - 1];
+  const prev = earnings[earnings.length - 2];
+
+  const comparisonPct = prev?.amount > 0 ? Math.round(((latest.amount - prev.amount) / prev.amount) * 100) : 0;
+
+  const periodConfig = useMemo(() => {
+    switch (period) {
+      case '7d': {
+        const lastWeekTotal = Math.round(total * (0.85 + getSeededValue(crewName + 'lw7d', 0, 20) / 100));
+        const dailyAvg = Math.round(total / 7);
+        return {
+          chartTitle: 'Earnings (Last 7 Days)',
+          comparisonLabel: 'vs last week',
+          cards: [
+            { label: 'This Week', value: `₹${total.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
+            { label: 'Last Week', value: `₹${lastWeekTotal.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
+            { label: 'Daily Avg', value: `₹${dailyAvg.toLocaleString('en-IN')}`, icon: Briefcase, color: 'amber' },
+            { label: 'Best Day', value: `₹${best.amount.toLocaleString('en-IN')}`, icon: DollarSign, color: 'rose' },
+          ],
+        };
+      }
+      case '1m': {
+        const lastMonthTotal = Math.round(total * (0.8 + getSeededValue(crewName + 'lm1m', 0, 25) / 100));
+        const dailyAvg = Math.round(total / 30);
+        return {
+          chartTitle: 'Earnings (Last Month)',
+          comparisonLabel: 'vs last month',
+          cards: [
+            { label: 'This Month', value: `₹${total.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
+            { label: 'Last Month', value: `₹${lastMonthTotal.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
+            { label: 'Daily Avg', value: `₹${dailyAvg.toLocaleString('en-IN')}`, icon: Briefcase, color: 'amber' },
+            { label: 'Best Week', value: `₹${best.amount.toLocaleString('en-IN')}`, icon: DollarSign, color: 'rose' },
+          ],
+        };
+      }
+      case '6m': {
+        const avgMonthly = Math.round(total / earnings.length);
+        return {
+          chartTitle: 'Monthly Earnings (Last 6 Months)',
+          comparisonLabel: 'vs last month',
+          cards: [
+            { label: 'This Month', value: `₹${latest.amount.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
+            { label: 'Last Month', value: `₹${prev.amount.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
+            { label: '6m Total', value: `₹${total.toLocaleString('en-IN')}`, icon: DollarSign, color: 'amber' },
+            { label: 'Avg Monthly', value: `₹${avgMonthly.toLocaleString('en-IN')}`, icon: Briefcase, color: 'rose' },
+          ],
+        };
+      }
+      case '1y': {
+        const lastYearTotal = Math.round(total * (0.88 + getSeededValue(crewName + 'ly1y', 0, 18) / 100));
+        const monthlyAvg = Math.round(total / 12);
+        return {
+          chartTitle: 'Yearly Earnings',
+          comparisonLabel: 'vs last year',
+          cards: [
+            { label: 'This Year', value: `₹${total.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
+            { label: 'Last Year', value: `₹${lastYearTotal.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
+            { label: 'Monthly Avg', value: `₹${monthlyAvg.toLocaleString('en-IN')}`, icon: Briefcase, color: 'amber' },
+            { label: 'Best Month', value: `₹${best.amount.toLocaleString('en-IN')}`, icon: DollarSign, color: 'rose' },
+          ],
+        };
+      }
+    }
+  }, [period, earnings, crewName, total, latest.amount, prev.amount, best.amount]);
 
   // SVG Line Chart
   const chartW = 500;
@@ -1664,7 +1754,7 @@ function EarningsTracker({ crewName }: { crewName: string }) {
   const minVal = Math.min(...earnings.map((e) => e.amount)) * 0.85;
   const maxVal = Math.max(...earnings.map((e) => e.amount)) * 1.05;
 
-  const getX = (i: number) => padL + (i / (earnings.length - 1)) * plotW;
+  const getX = (i: number) => padL + (i / Math.max(earnings.length - 1, 1)) * plotW;
   const getY = (v: number) => padT + plotH - ((v - minVal) / (maxVal - minVal)) * plotH;
 
   const linePath = earnings.map((e, i) => `${i === 0 ? 'M' : 'L'} ${getX(i)} ${getY(e.amount)}`).join(' ');
@@ -1674,21 +1764,32 @@ function EarningsTracker({ crewName }: { crewName: string }) {
 
   const fmt = (n: number) => `₹${(n / 1000).toFixed(1)}k`;
 
+  const periodButtons: { label: string; value: EarningsPeriod }[] = [
+    { label: '7 Days', value: '7d' },
+    { label: '1 Month', value: '1m' },
+    { label: '6 Months', value: '6m' },
+    { label: '1 Year', value: '1y' },
+  ];
+
+  const colorStyles: Record<string, { card: string; icon: string }> = {
+    emerald: { card: 'rounded-xl border p-3 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/30 dark:to-gray-800 border-emerald-100 dark:border-emerald-800', icon: 'h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400' },
+    violet: { card: 'rounded-xl border p-3 bg-gradient-to-br from-violet-50 to-white dark:from-violet-900/30 dark:to-gray-800 border-violet-100 dark:border-violet-800', icon: 'h-3.5 w-3.5 text-violet-500 dark:text-violet-400' },
+    amber: { card: 'rounded-xl border p-3 bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/30 dark:to-gray-800 border-amber-100 dark:border-amber-800', icon: 'h-3.5 w-3.5 text-amber-500 dark:text-amber-400' },
+    rose: { card: 'rounded-xl border p-3 bg-gradient-to-br from-rose-50 to-white dark:from-rose-900/30 dark:to-gray-800 border-rose-100 dark:border-rose-800', icon: 'h-3.5 w-3.5 text-rose-500 dark:text-rose-400' },
+    sky: { card: 'rounded-xl border p-3 bg-gradient-to-br from-sky-50 to-white dark:from-sky-900/30 dark:to-gray-800 border-sky-100 dark:border-sky-800', icon: 'h-3.5 w-3.5 text-sky-500 dark:text-sky-400' },
+    red: { card: 'rounded-xl border p-3 bg-gradient-to-br from-red-50 to-white dark:from-red-900/30 dark:to-gray-800 border-red-100 dark:border-red-800', icon: 'h-3.5 w-3.5 text-red-500 dark:text-red-400' },
+  };
+
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {[
-          { label: 'This Month', value: `₹${thisMonth.amount.toLocaleString('en-IN')}`, icon: TrendingUp, color: 'emerald' },
-          { label: 'Last Month', value: `₹${lastMonth.amount.toLocaleString('en-IN')}`, icon: CalendarIcon, color: 'violet' },
-          { label: 'YTD Total', value: `₹${ytdTotal.toLocaleString('en-IN')}`, icon: DollarSign, color: 'amber' },
-          { label: 'Avg Monthly', value: `₹${avgMonthly.toLocaleString('en-IN')}`, icon: Briefcase, color: 'rose' },
-        ].map((c) => {
+        {periodConfig.cards.map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.label} className={`rounded-xl border p-3 bg-gradient-to-br from-${c.color}-50 to-white border-${c.color}-100`}>
+            <div key={c.label} className={colorStyles[c.color]?.card ?? colorStyles.emerald.card}>
               <div className="flex items-center gap-1.5 mb-1">
-                <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
+                <Icon className={colorStyles[c.color]?.icon ?? colorStyles.emerald.icon} />
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
               </div>
               <p className="text-lg font-bold text-gray-900 dark:text-gray-100">{c.value}</p>
@@ -1703,20 +1804,35 @@ function EarningsTracker({ crewName }: { crewName: string }) {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-lg flex items-center gap-2">
               <DollarSign className="h-5 w-5 text-emerald-600" />
-              Monthly Earnings (Last 6 Months)
+              {periodConfig.chartTitle}
             </CardTitle>
-            <Button variant="outline" className="gap-1.5 text-xs border-gray-200 dark:border-gray-700 dark:text-gray-300" onClick={() => toast({ title: 'Coming Soon', description: 'Detailed earnings report coming soon!' })}>
-              <Download className="h-3.5 w-3.5" />
-              View Detailed Report
-            </Button>
+            <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
+                {periodButtons.map((btn) => (
+                  <Button
+                    key={btn.value}
+                    variant={period === btn.value ? 'default' : 'outline'}
+                    size="sm"
+                    className={`text-xs h-7 px-2.5 ${period === btn.value ? '' : 'border-gray-200 dark:border-gray-700 dark:text-gray-300'}`}
+                    onClick={() => setPeriod(btn.value)}
+                  >
+                    {btn.label}
+                  </Button>
+                ))}
+              </div>
+              <Button variant="outline" className="gap-1.5 text-xs border-gray-200 dark:border-gray-700 dark:text-gray-300" onClick={() => toast({ title: 'Coming Soon', description: 'Detailed earnings report coming soon!' })}>
+                <Download className="h-3.5 w-3.5" />
+                View Detailed Report
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent>
-          {/* Monthly comparison badge */}
+          {/* Comparison badge */}
           <div className="mb-3 flex items-center gap-2">
             <Badge className={`${comparisonPct >= 0 ? 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-900/50 dark:text-emerald-300' : 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/50 dark:text-red-300'} text-xs`}>
               {comparisonPct >= 0 ? <ArrowUp className="mr-0.5 h-3 w-3" /> : <ArrowDown className="mr-0.5 h-3 w-3" />}
-              {comparisonPct >= 0 ? '+' : ''}{comparisonPct}% vs last month
+              {comparisonPct >= 0 ? '+' : ''}{comparisonPct}% {periodConfig.comparisonLabel}
             </Badge>
           </div>
           <svg viewBox={`0 0 ${chartW} ${chartH}`} className="w-full">
@@ -1726,12 +1842,7 @@ function EarningsTracker({ crewName }: { crewName: string }) {
                 <stop offset="100%" stopColor="#10b981" stopOpacity="0.02" />
               </linearGradient>
             </defs>
-            {/* Y-axis labels */}
-            <text x={padL - 5} y={padT + 8} textAnchor="end" className="fill-gray-400 text-[9px]">₹30k</text>
-            <text x={padL - 5} y={padT + plotH / 3 + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹20k</text>
-            <text x={padL - 5} y={padT + 2 * plotH / 3 + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹10k</text>
-            <text x={padL - 5} y={padT + plotH + 4} textAnchor="end" className="fill-gray-400 text-[9px]">₹0k</text>
-            {/* Grid lines */}
+            {/* Grid lines with dynamic labels */}
             {gridValues.map((v) => (
               <g key={v}>
                 <line x1={padL} y1={getY(v)} x2={chartW - padR} y2={getY(v)} stroke="#e5e7eb" strokeWidth="0.5" strokeDasharray="4 4" className="dark:stroke-gray-700" />
@@ -5609,6 +5720,15 @@ function FuelLogPage({ crewName }: { crewName: string }) {
     <ArrowUpDown className={`h-3 w-3 inline ml-0.5 ${sortField === field ? 'text-emerald-600' : 'text-gray-300'}`} />
   );
 
+  const fuelColorStyles: Record<string, { card: string; icon: string }> = {
+    emerald: { card: 'rounded-xl border p-3 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-900/30 dark:to-gray-800 border-emerald-100 dark:border-emerald-800', icon: 'h-3.5 w-3.5 text-emerald-500 dark:text-emerald-400' },
+    violet: { card: 'rounded-xl border p-3 bg-gradient-to-br from-violet-50 to-white dark:from-violet-900/30 dark:to-gray-800 border-violet-100 dark:border-violet-800', icon: 'h-3.5 w-3.5 text-violet-500 dark:text-violet-400' },
+    amber: { card: 'rounded-xl border p-3 bg-gradient-to-br from-amber-50 to-white dark:from-amber-900/30 dark:to-gray-800 border-amber-100 dark:border-amber-800', icon: 'h-3.5 w-3.5 text-amber-500 dark:text-amber-400' },
+    rose: { card: 'rounded-xl border p-3 bg-gradient-to-br from-rose-50 to-white dark:from-rose-900/30 dark:to-gray-800 border-rose-100 dark:border-rose-800', icon: 'h-3.5 w-3.5 text-rose-500 dark:text-rose-400' },
+    sky: { card: 'rounded-xl border p-3 bg-gradient-to-br from-sky-50 to-white dark:from-sky-900/30 dark:to-gray-800 border-sky-100 dark:border-sky-800', icon: 'h-3.5 w-3.5 text-sky-500 dark:text-sky-400' },
+    red: { card: 'rounded-xl border p-3 bg-gradient-to-br from-red-50 to-white dark:from-red-900/30 dark:to-gray-800 border-red-100 dark:border-red-800', icon: 'h-3.5 w-3.5 text-red-500 dark:text-red-400' },
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -5751,9 +5871,9 @@ function FuelLogPage({ crewName }: { crewName: string }) {
         ].map((c) => {
           const Icon = c.icon;
           return (
-            <div key={c.label} className={`rounded-xl border p-3 bg-gradient-to-br from-${c.color}-50 to-white border-${c.color}-100`}>
+            <div key={c.label} className={fuelColorStyles[c.color]?.card ?? fuelColorStyles.emerald.card}>
               <div className="flex items-center gap-1.5 mb-1">
-                <Icon className={`h-3.5 w-3.5 text-${c.color}-500`} />
+                <Icon className={fuelColorStyles[c.color]?.icon ?? fuelColorStyles.emerald.icon} />
                 <span className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold">{c.label}</span>
               </div>
               <p className={`text-lg font-bold ${c.color === 'red' ? 'text-red-600' : 'text-gray-900 dark:text-gray-100'}`}>{c.value}</p>

@@ -3873,3 +3873,30 @@ Stage Summary:
 - ESLint: 0 errors, 0 warnings
 - BUSTRACK-PRO-GUIDE.md updated with comprehensive Section 12 suitable for conference paper inclusion
 
+
+---
+Task ID: 11
+Agent: Main - Customer Portal Fixes, Driver Portal Fixes, Documentation
+
+Work Log:
+- Fixed Customer Portal Search Routes: Removed `mode: 'insensitive'` from all Prisma `contains` filters in `/api/routes` (7 instances) — SQLite doesn't support this mode and it was silently breaking queries
+- Enhanced API error responses to include error details for debugging
+- Improved search error messages to show HTTP status codes
+- Fixed "Book New Trip" button: Added QuickBookDialog component (~275 lines) with From/To Select dropdowns, date picker, route search results, and direct booking from dialog — no longer just navigates to search page
+- Fixed Driver Portal Monthly Earnings Y-axis overlap: Removed 4 hardcoded Y-axis labels (₹30k, ₹20k, ₹10k, ₹0k) that overlapped with dynamic grid labels
+- Added time period filters to Earnings Tracker: 7 Days, 1 Month, 6 Months, 1 Year — each with different data granularity and summary card labels
+- Fixed QuickBookDialog booking state type mismatch: Changed from `boolean` to `string | null` to properly track which route is being booked
+- Fixed dynamic Tailwind classes in Crew portal (EarningsTracker + FuelTracker): Replaced `from-${c.color}-50` patterns with static colorStyles map for proper CSS generation and dark mode support
+- Fixed potential division by zero in earnings chart: Added `Math.max(earnings.length - 1, 1)` guard
+- Created SEED-DATA-SUMMARY.md: Comprehensive documentation of all 205 accounts, 115 routes, schedules, journeys, and per-account data
+- Created BUS-COMPANY-INTEGRATION-GUIDE.md: Full guide for bus companies to customize and deploy BusTrack Pro
+- Created SEED-FILE-LOCATION.md: Quick reference for seed file location and reseed commands
+- Verified CREDENTIALS.txt exists with all 205 account credentials
+
+Stage Summary:
+- Search Routes now works properly with SQLite (removed unsupported `mode: 'insensitive'`)
+- Customer "Book New Trip" now opens a Quick Booking Dialog instead of navigating away
+- Driver Earnings chart has clean Y-axis labels and 4 time period filters
+- All Tailwind dynamic class issues in Crew portal fixed with static color maps
+- 3 documentation files created for data reference, integration, and seed management
+- Lint: 0 errors in project code (9 pre-existing in qa test files)
