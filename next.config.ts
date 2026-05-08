@@ -7,6 +7,7 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
   allowedDevOrigins: ["*"],
+  experimental: {
+    workerThreads: false,
+  },
 };
-
-export default nextConfig;
